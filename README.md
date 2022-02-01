@@ -59,7 +59,7 @@ On release, automated continuous integration tests run the pipeline on a full-si
         input_vcf ='/path/to/genotype/vcf/file.vcf'
         genotype_phenotype_mapping_file = '' //if bulk RNA seq data is fed in then need a tsv file with 3 columns - [Genotype	RNA	Sample_Category]
         annotation_file = './assets/annotation_file.txt'
-        phenotype_file = '/lustre/scratch123/hgi/projects/ukbb_scrna/pipelines/Pilot_UKB/qc/Franke_with_genotypes_nfCore/results/celltype/adata.h5ad' //this should point to h5ad file in a single cell experiments or a star counts matrices for the bulk rna seq data
+        phenotype_file = 'path/to/adata.h5ad' //this should point to h5ad file in a single cell experiments or a star counts matrices for the bulk rna seq data
         aggregation_collumn='Azimuth:predicted.celltype.l2' // for scRNA seq data since we feed in the h5ad file we specify here which obs entry to account for for aggregating data.
     }
     ```
