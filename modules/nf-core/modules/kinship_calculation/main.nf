@@ -23,7 +23,7 @@ process KINSHIP_CALCULATION {
     script:
         """
             plink2 --freq counts --bfile ${plink_path}/plink_genotypes --out tmp_gt_plink_freq
-            plink2 --make-rel square --read-freq tmp_gt_plink_freq.acount --maf 0.05 --bfile ${plink_path}/plink_genotypes
+            plink2 --make-rel square --read-freq tmp_gt_plink_freq.acount --bfile ${plink_path}/plink_genotypes
             generate_kinship.py
         """
 }

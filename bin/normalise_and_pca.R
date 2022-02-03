@@ -18,6 +18,10 @@ if (length(args)==0) {
 
 Star_path = args[1]
 Mapping_Path = args[2]
+filter_type = args[3]
+
+# Star_path = 'CD8_TEM-dMean_phenotype.tsv'
+# Mapping_Path = 'genotype_phenotype_mapping.tsv'
 
 Star_counts_pre = t(read.table(file = Star_path, sep = '\t',check.names=FALSE, row.names = 1,header = TRUE))
 Experimental_grops = read.table(Mapping_Path, fill = TRUE,row.names = 2,check.names=FALSE,header = TRUE,sep = '\t')
@@ -25,9 +29,16 @@ Experimental_grops = read.table(Mapping_Path, fill = TRUE,row.names = 2,check.na
 nonzero_genes = colSums(Star_counts_pre) != 0
 Star_counts_pre <- Star_counts_pre[,nonzero_genes]
 
+
+
+
+
+
+
 # We merge the Expreimental groups and the counts to make sure that they are in the same order, which is cruical for analysis.
 Star_counts_pre <- transform(merge(Star_counts_pre, Experimental_grops, by=0,all.x = TRUE,), row.names=Row.names, Row.names=NULL)
 Star_counts_pre = Star_counts_pre[complete.cases(Star_counts_pre$Sample_Category),]
+
 
 
 n=ncol(Experimental_grops)
@@ -40,17 +51,51 @@ all(rownames(Experimental_grops) == colnames(Star_counts))
 y <- DGEList(counts=Star_counts, group=Star_counts_pre$Sample_Category,samples=Experimental_grops)
 # design <- model.matrix(~ Experimental_grops$oxLDL.set + Experimental_grops$Donor.line + Experimental_grops$Sample.type..Ctrl.or.oxLDL.)
 
+if (filter_type=='filterByExpr'){
+  # this approach is not very suitable for some scRNA datasets since they are quite sarse
+  keep <- filterByExpr(y,group=Star_counts_pre$Sample_Category)
+  y <- y[keep, keep.lib.sizes=FALSE]
+  y <- calcNormFactors(y)
 
-keep <- filterByExpr(y,group=Star_counts_pre$Sample_Category)
-y <- y[keep, keep.lib.sizes=FALSE]
-y <- calcNormFactors(y)
+  if (lengths(unique(Experimental_grops$Sample_Category)) ==1){
+    y <- estimateDisp(y)
+  }else{
+    design <- model.matrix(~ Experimental_grops$Sample_Category)
+    y <- estimateDisp(y,design)
+  }
+}else if(filter_type=='HVG'){
+  # Highly variable genes (HVGs) were defined as the genes in the top two quartiles based on their squared coefficient of variation (CV^2 = variance / mean^2) calculated across all cells of each different cell-type. In this manner, we identified 21,592 HVGs for the iPSC Smart-Seq2 dataset, and 16,369 for the FPP 10X dataset.
+  # https://genomebiology.biomedcentral.com/articles/10.1186/s13059-021-02407-x#Sec12
+  rows=c()
+  cvs=c()
+  transposed_rows=y$counts
+  row_names = row.names(transposed_rows)
+  for (row in 1:nrow(transposed_rows)) {
+    r1 = transposed_rows[row,]
+    cv2 <- sd(r1)^2 / mean(r1) ^2
+    rn1 = row_names[row]
+    rows = append (rows, c(rn1))
+    cvs = append (cvs, c(cv2))
+  }
+  df <- data.frame(rows, cvs)
+  row.names(df)=df$rows
+  cvs= df[c('cvs')]
+  median_of_hvgs = median(cvs$cvs)
+  keep = cvs > median_of_hvgs
+  y <- y[keep, keep.lib.sizes=FALSE]
+}else if(filter_type=='None'){
+  y=y
+  y <- calcNormFactors(y)
 
-if (lengths(unique(Experimental_grops$Sample_Category)) ==1){
-  y <- estimateDisp(y)
-}else{
-  design <- model.matrix(~ Experimental_grops$Sample_Category)
-  y <- estimateDisp(y,design)
+  if (lengths(unique(Experimental_grops$Sample_Category)) ==1){
+    y <- estimateDisp(y)
+  }else{
+    design <- model.matrix(~ Experimental_grops$Sample_Category)
+    y <- estimateDisp(y,design)
+  }
 }
+
+
 
 # dge <- edgeR::DGEList(counts=dm)
 # dge <- edgeR::calcNormFactors(dge)

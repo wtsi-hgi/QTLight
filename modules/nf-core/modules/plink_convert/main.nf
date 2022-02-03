@@ -23,7 +23,7 @@ process PLINK_CONVERT{
     script:
         """
             mkdir plink_genotypes
-            plink2 --make-bed --allow-extra-chr 0 --chr 1-22 XY --output-chr chrM --hwe 1e-6 --indep-pairwise 250 50 0.2 --vcf ${file__vcf} --snps-only --rm-dup exclude-all --out plink_genotypes/plink_genotypes
+            plink2 --make-bed ${params.plink2_filters} --hwe ${params.hwe} --vcf ${file__vcf} --out plink_genotypes/plink_genotypes
         """
     
 }

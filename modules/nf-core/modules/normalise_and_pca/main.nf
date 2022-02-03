@@ -29,7 +29,7 @@ process NORMALISE_and_PCA_PHENOTYPE{
         path("*.pdf")
     script:
         """
-            normalise_and_pca.R ${phenotype_file} ${grouping_file}
+            normalise_and_pca.R ${phenotype_file} ${grouping_file} ${params.filter_method}
         """
     
 }

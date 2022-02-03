@@ -79,10 +79,13 @@ def main():
     #2 Combine the Expression data and ID mapper to get a bed format.
     mergedDf = BED_Formated_Data.merge(Expression_Data, left_index=True, right_index=True)
 
+
+
     chrs = ['chr1','chr2','chr3','chr4','chr5','chr6','chr7','chr8','chr9','chr10'
             ,'chr11','chr12','chr13','chr14','chr15','chr16','chr17','chr18','chr19','chr20','chr21','chr22']
-
+    
     mergedDf2 = mergedDf.set_index('#chr')
+    chrs = list(set(mergedDf2.index).intersection(set(chrs)))
     mergedDf = mergedDf2.loc[chrs]
     mergedDf = mergedDf.reset_index()
     mergedDf.dropna(axis=0,inplace=True)

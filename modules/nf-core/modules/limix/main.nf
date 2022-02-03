@@ -121,12 +121,13 @@ process LIMIX{
     output:
         tuple(path("${condition}_snp_metadata*"),path("${condition}_qtl_results_*"),path("${condition}_feature_metadata_*") , emit: qtl_data)
     script:
-        numberOfPermutations = 1000
-        minorAlleleFrequency = 0.05
-        hwe = 0.0000001
+        numberOfPermutations = params.numberOfPermutations
+        minorAlleleFrequency = params.maf
+        hwe = params.hwe
         callRate = 0.95
-        windowSize = 100000
+        windowSize = params.windowSize 
         blockSize = 1500
+
         outputFolder='./'
         chunking_range="${chunking_range}"
         chunking_range=chunking_range.replaceAll('\\[', "")
