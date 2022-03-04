@@ -118,9 +118,9 @@ def main():
 
     cis_df = cis.map_cis(genotype_df, variant_df, 
                         phenotype_df.loc[phenotype_pos_df['chr']!='chrY'],
-                        phenotype_pos_df.loc[phenotype_pos_df['chr']!='chrY'],nperm=options.nperm,
-                        window=options.window,
-                        covariates_df=covariates_df, warn_monomorphic=False, seed=123456)
+                        phenotype_pos_df.loc[phenotype_pos_df['chr']!='chrY'],nperm=int(options.nperm),
+                        window=int(options.window),
+                        covariates_df=covariates_df, seed=123456)
     print('----cis eQTLs processed ------')
     cis_df.head()
     cis_df.to_csv("Cis_eqtls.tsv",sep="\t")

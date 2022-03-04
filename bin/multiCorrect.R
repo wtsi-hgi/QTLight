@@ -1,4 +1,4 @@
-.libPaths('/lustre/scratch118/humgen/hgi/users/mercury/scratch_mo11/r_server/r_libs_mo11')
+# .libPaths('/lustre/scratch123/hgi/teams/hgi/mo11/eQTL_mapping/marias_work/results/Limix_eQTLS/M0_oxLDL_qtls')
 rm()
 library("qvalue")
 library("multtest")
@@ -14,7 +14,7 @@ if (length(args)==0) {
 # }
 
 ##Parameters
-# folder = '/lustre/scratch123/hgi/teams/hgi/mo11/eQTL_mapping/Optimiese_the_LIMIX/results/Limix_eQTLS/NK_qtls'
+# folder = '/lustre/scratch123/hgi/teams/hgi/mo11/eQTL_mapping/marias_work/results/Limix_eQTLS/M2_oxLDL_qtls'
 folder = args[1] 
 folderOut = folder
 fdrLevel = 0.05
