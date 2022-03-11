@@ -24,7 +24,7 @@ process NORMALISE_and_PCA_PHENOTYPE{
         
     output:
         tuple(val(condition),path("normalised_phenotype.tsv"), path("pcs.tsv") , emit: filtered_phenotype)
-        tuple(val(condition),path(grouping_file),path("normalised_phenotype.tsv"), emit: for_bed)
+        tuple(val(condition),path(grouping_file),path("normalised_phenotype.tsv"),path("pcs.tsv"), emit: for_bed)
         val(condition), emit: cond1
         path("*.pdf")
     script:

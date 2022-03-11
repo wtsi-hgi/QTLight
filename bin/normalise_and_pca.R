@@ -1,8 +1,7 @@
 #!/usr/bin/env Rscript
 # .libPaths('/lustre/scratch118/humgen/hgi/users/mercury/scratch_mo11/r_server/r_libs_mo11')
-
-library('edgeR')
-library('DESeq2')
+library(edgeR)
+library(DESeq2)
 library(ggplot2)
 # library(dplyr)
 library(ggfortify)
@@ -20,8 +19,8 @@ Star_path = args[1]
 Mapping_Path = args[2]
 filter_type = args[3]
 
-# Star_path = 'CD8_TEM-dMean_phenotype.tsv'
-# Mapping_Path = 'genotype_phenotype_mapping.tsv'
+# Star_path = '/Users/mo11/Downloads/bin/M1_Ctrl_phenotype.tsv'
+# Mapping_Path = '/Users/mo11/Downloads/bin/sample_mapping2.tsv'
 
 Star_counts_pre = t(read.table(file = Star_path, sep = '\t',check.names=FALSE, row.names = 1,header = TRUE))
 Experimental_grops = read.table(Mapping_Path, fill = TRUE,row.names = 2,check.names=FALSE,header = TRUE,sep = '\t')
@@ -38,7 +37,8 @@ Star_counts_pre <- Star_counts_pre[,nonzero_genes]
 # We merge the Expreimental groups and the counts to make sure that they are in the same order, which is cruical for analysis.
 Star_counts_pre <- transform(merge(Star_counts_pre, Experimental_grops, by=0,all.x = TRUE,), row.names=Row.names, Row.names=NULL)
 Star_counts_pre = Star_counts_pre[complete.cases(Star_counts_pre$Sample_Category),]
-
+#Remove the counts where there is no genotype
+Star_counts_pre = Star_counts_pre[!(is.na(Star_counts_pre$Genotype) | Star_counts_pre$Genotype==""), ]
 
 
 n=ncol(Experimental_grops)
@@ -54,9 +54,9 @@ y <- DGEList(counts=Star_counts, group=Star_counts_pre$Sample_Category,samples=E
 if (filter_type=='filterByExpr'){
   # this approach is not very suitable for some scRNA datasets since they are quite sarse
   keep <- filterByExpr(y,group=Star_counts_pre$Sample_Category)
-  y <- y[keep, keep.lib.sizes=FALSE]
+  y <- y[keep, keep.lib.sizes=TRUE]
   y <- calcNormFactors(y)
-
+  
   if (lengths(unique(Experimental_grops$Sample_Category)) ==1){
     y <- estimateDisp(y)
   }else{
@@ -80,13 +80,13 @@ if (filter_type=='filterByExpr'){
   df <- data.frame(rows, cvs)
   row.names(df)=df$rows
   cvs= df[c('cvs')]
-  median_of_hvgs = median(cvs$cvs)
-  keep = cvs > median_of_hvgs
-  y <- y[keep, keep.lib.sizes=FALSE]
+  median_of_hvgs = median(cvs$cvs, na.rm = TRUE)
+  keep = cvs < median_of_hvgs
+  y <- y[keep, keep.lib.sizes=TRUE]
 }else if(filter_type=='None'){
   y=y
   y <- calcNormFactors(y)
-
+  
   if (lengths(unique(Experimental_grops$Sample_Category)) ==1){
     y <- estimateDisp(y)
   }else{
@@ -109,8 +109,8 @@ if (filter_type=='filterByExpr'){
 #  )
 
 # log2(CPM) as output
-TMM_normalised_counts_log <- cpm(y, log=TRUE)
-
+TMM_normalised_counts_log <- cpm(y, log=TRUE) #https://www.rdocumentation.org/packages/edgeR/versions/3.14.0/topics/cpm 
+TMM_normalised_counts_log = TMM_normalised_counts_log[complete.cases(TMM_normalised_counts_log), ]
 # TMM_normalised_counts = t(t(y$counts)*y$samples$norm.factors)
 # norms = y$samples$norm.factors
 # TMM_normalised_counts_log = log(TMM_normalised_counts+1, 2) # Apply log2 transform on the TMM normalised counts.
@@ -153,17 +153,17 @@ plotloadings(p,
 dev.off()
 
 # eigencorplot(p,
-            #  components = getComponents(p, 1:27),
-            #  metavars = c('Donor.line','Age','Sex','Ethnicity','Pool.name','oxLDL.set','Sample.type..Ctrl.or.oxLDL.'),
-            #  col = c('darkblue', 'blue2', 'black', 'red2', 'darkred'),
-            #  cexCorval = 0.7,
-            #  colCorval = 'white',
-            #  fontCorval = 2,
-            #  posLab = 'bottomleft',
-            #  rotLabX = 45,
-            #  posColKey = 'top',
-            #  cexLabColKey = 1.5,
-            #  scale = TRUE,
-            #  main = 'PC1-27 clinical correlations',
-            #  colFrame = 'white',
-            #  plotRsquared = FALSE)
+#  components = getComponents(p, 1:27),
+#  metavars = c('Donor.line','Age','Sex','Ethnicity','Pool.name','oxLDL.set','Sample.type..Ctrl.or.oxLDL.'),
+#  col = c('darkblue', 'blue2', 'black', 'red2', 'darkred'),
+#  cexCorval = 0.7,
+#  colCorval = 'white',
+#  fontCorval = 2,
+#  posLab = 'bottomleft',
+#  rotLabX = 45,
+#  posColKey = 'top',
+#  cexLabColKey = 1.5,
+#  scale = TRUE,
+#  main = 'PC1-27 clinical correlations',
+#  colFrame = 'white',
+#  plotRsquared = FALSE)

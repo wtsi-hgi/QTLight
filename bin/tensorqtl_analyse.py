@@ -98,12 +98,12 @@ def main():
 
     phenotype_df, phenotype_pos_df = read_phenotype_bed(expression_bed)
     covariates_df = pd.read_csv(covariates_file, sep='\t', index_col=0)
-    covariates_df=covariates_df.set_index('IID')
-    to_keep = list(set(covariates_df.index).intersection(set(phenotype_df.columns)))
-    covariates_df=covariates_df.loc[to_keep]
-    covariates_df= covariates_df
+    # covariates_df=covariates_df.set_index('IID')
+    # to_keep = list(set(covariates_df.index).intersection(set(phenotype_df.columns)))
+    # covariates_df=covariates_df.loc[to_keep]
+    # covariates_df= covariates_df
 
-    phenotype_df = phenotype_df[to_keep]
+    # phenotype_df = phenotype_df[to_keep]
 
     print('----Fine read ------')
     pr = genotypeio.PlinkReader(plink_prefix_path)

@@ -18,8 +18,8 @@ process TENSORQTL {
 
 
   input:
-    tuple(val(condition),path(aggrnorm_counts_bed))
-    each path(genotype_pcs_tsv)
+    tuple(val(condition),path(aggrnorm_counts_bed),path(genotype_pcs_tsv))
+    // each path(genotype_pcs_tsv)
     each path(plink_files_prefix)
 
   output:
@@ -42,12 +42,11 @@ workflow TENSORQTL_eqtls{
     take:
         condition_bed
         plink_genotype
-        genotype_pcs_tsv
+        
     main:
   
       TENSORQTL(
           condition_bed,
-          genotype_pcs_tsv,
           plink_genotype
       )
 }

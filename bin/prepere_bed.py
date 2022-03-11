@@ -5,6 +5,7 @@ __version__ = '0.0.1'
 
 import pandas as pd
 import argparse
+import math
 
 def main():
     """Run CLI."""
@@ -56,8 +57,9 @@ def main():
     BED_Formated_Data=pd.DataFrame()
     Gene_Chr_Start_End_Data = pd.read_csv(annotation_file,sep="\t", )
     BED_Formated_Data["#chr"]=Gene_Chr_Start_End_Data.chromosome
-    BED_Formated_Data["start"]=Gene_Chr_Start_End_Data.end-1
-    BED_Formated_Data["end"]=Gene_Chr_Start_End_Data.end
+    # print(Gene_Chr_Start_End_Data.start)
+    BED_Formated_Data["start"]=Gene_Chr_Start_End_Data.start+((Gene_Chr_Start_End_Data.end-Gene_Chr_Start_End_Data.start)/2).apply(math.ceil)
+    BED_Formated_Data["end"]=BED_Formated_Data["start"]+1
     BED_Formated_Data["gene_id"]=Gene_Chr_Start_End_Data.feature_id
     BED_Formated_Data["idx"]=Gene_Chr_Start_End_Data.feature_id
     BED_Formated_Data=BED_Formated_Data.set_index("idx")

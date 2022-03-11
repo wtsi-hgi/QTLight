@@ -133,21 +133,28 @@ workflow EQTL {
     
     PREPROCESS_SAMPLE_MAPPING(genotype_phenotype_mapping_file)
     
-    PREPERE_EXP_BED(NORMALISE_and_PCA_PHENOTYPE.out.for_bed,params.annotation_file)
+    PREPERE_EXP_BED(NORMALISE_and_PCA_PHENOTYPE.out.for_bed,params.annotation_file,GENOTYPE_PC_CALCULATION.out.gtpca_plink)
 
-    LIMIX_eqtls(
+    // PREPERE_COVARIATES_FILE(GENOTYPE_PC_CALCULATION.out.gtpca_plink,)
+
+    if (params.LIMIX.run){
+        LIMIX_eqtls(
         CHUNK_GENOME.out.limix_condition_chunking,
         PLINK_CONVERT.out.plink_path,
         KINSHIP_CALCULATION.out.kinship_matrix,
         PREPROCESS_SAMPLE_MAPPING.out.genotype_phenotype,
         CHUNK_GENOME.out.filtered_chunking_file
-    )
+        )
+    }
 
-    TENSORQTL_eqtls(
-        PREPERE_EXP_BED.out.exp_bed,
-        PLINK_CONVERT.out.plink_path,
-        GENOTYPE_PC_CALCULATION.out.gtpca_plink,
-    )
+    if (params.TensorQTL.run){
+        TENSORQTL_eqtls(
+            PREPERE_EXP_BED.out.exp_bed,
+            PLINK_CONVERT.out.plink_path,
+            
+        )
+    }
+
 
     // Then run a LIMIX and/or TensorQTL - here have to combine the inputs.
     
