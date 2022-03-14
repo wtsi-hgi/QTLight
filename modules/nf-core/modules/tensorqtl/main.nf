@@ -32,6 +32,7 @@ process TENSORQTL {
   script:
 
     
+    
     """
       tensorqtl_analyse.py --plink_prefix_path ${plink_files_prefix}/plink_genotypes --expression_bed ${aggrnorm_counts_bed} --covariates_file ${genotype_pcs_tsv} -window ${params.windowSize} -nperm ${params.numberOfPermutations}
     """

@@ -77,10 +77,17 @@ def main():
     phenotype_pcs = phenotype_pcs.loc[list(idx)]
 
     all = {}
+    count=0
     for index, row in phenotype_pcs.iterrows():
         d = dict(covariates_df.loc[index])|dict(row)
-        all[index]=d
+        d = d|{'id':index}
+        all[count]=d
+        count+=1
+        # print()
     data = pd.DataFrame(all)
+    data =data.T
+    data=data.set_index('id')
+    data =data.T
     data.to_csv('Covariates.tsv',sep='\t')
 
 if __name__ == '__main__':

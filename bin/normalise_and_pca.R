@@ -55,7 +55,7 @@ if (filter_type=='filterByExpr'){
   # this approach is not very suitable for some scRNA datasets since they are quite sarse
   keep <- filterByExpr(y,group=Star_counts_pre$Sample_Category)
   y <- y[keep, keep.lib.sizes=TRUE]
-  y <- calcNormFactors(y)
+  y <- calcNormFactors(y, method = "TMM")
   
   if (lengths(unique(Experimental_grops$Sample_Category)) ==1){
     y <- estimateDisp(y)
@@ -83,9 +83,12 @@ if (filter_type=='filterByExpr'){
   median_of_hvgs = median(cvs$cvs, na.rm = TRUE)
   keep = cvs < median_of_hvgs
   y <- y[keep, keep.lib.sizes=TRUE]
+  y <- calcNormFactors(y, method = "TMM")
+
 }else if(filter_type=='None'){
   y=y
-  y <- calcNormFactors(y)
+  y <- calcNormFactors(y, method = "TMM")
+
   
   if (lengths(unique(Experimental_grops$Sample_Category)) ==1){
     y <- estimateDisp(y)

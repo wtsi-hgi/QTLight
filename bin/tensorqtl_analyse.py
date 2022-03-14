@@ -97,7 +97,25 @@ def main():
 
 
     phenotype_df, phenotype_pos_df = read_phenotype_bed(expression_bed)
+    
+    
+    # phenotype_df =  pd.read_csv(expression_bed, sep='\t', index_col=0,header=None)
+    # phenotype_df.columns = phenotype_df.iloc[0]
+    # phenotype_df = phenotype_df.iloc[1: , :]
+    # phenotype_df = phenotype_df.reindex(phenotype_df.index.drop(0)).reset_index(drop=True)
     covariates_df = pd.read_csv(covariates_file, sep='\t', index_col=0)
+    phenotype_df = phenotype_df[covariates_df.columns]
+    # have to drop dublicate rownames. and average the repeated measures.
+    phenotype_df.columns = phenotype_df.columns.str.split('.').str[0]
+    covariates_df.columns = covariates_df.columns.str.split('.').str[0]
+
+    covariates_df=covariates_df.loc[:,~covariates_df.columns.duplicated()]
+    # this can be adjusted to take an average. TQTL can not account for repeated measures.
+    phenotype_df=phenotype_df.loc[:,~phenotype_df.columns.duplicated()]
+
+    covariates_df=covariates_df.T
+    # not a good solution but atm
+
     # covariates_df=covariates_df.set_index('IID')
     # to_keep = list(set(covariates_df.index).intersection(set(phenotype_df.columns)))
     # covariates_df=covariates_df.loc[to_keep]

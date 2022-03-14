@@ -1,5 +1,5 @@
 process NORMALISE_and_PCA_PHENOTYPE{
-    
+     
     // Calulates bbknn neighbors and saves UMAPS of these
     // ------------------------------------------------------------------------
     //tag { output_dir }
