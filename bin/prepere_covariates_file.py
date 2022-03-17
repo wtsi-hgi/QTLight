@@ -66,7 +66,8 @@ def main():
     phenotype_pcs=options.phenotype_pcs
     phenotype_pcs= pd.read_csv(phenotype_pcs, sep='\t', index_col=0)
 
-    sample_mapping = pd.read_csv('sample_mapping2.tsv',sep='\t')
+    sample_map_file=options.sample_mapping
+    sample_mapping = pd.read_csv(sample_map_file,sep='\t')
     sample_mapping= sample_mapping.set_index('RNA')
     phenotype_pcs.index = sample_mapping.loc[phenotype_pcs.index]['Genotype']
     covariates_df = covariates_df.add_prefix('Genotype ')
