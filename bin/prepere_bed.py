@@ -6,6 +6,7 @@ __version__ = '0.0.1'
 import pandas as pd
 import argparse
 import math
+from gtfparse import read_gtf
 
 def main():
     """Run CLI."""
@@ -55,19 +56,54 @@ def main():
     mapping_file = options.mapping_file
     
     BED_Formated_Data=pd.DataFrame()
-    Gene_Chr_Start_End_Data = pd.read_csv(annotation_file,sep="\t", )
-    BED_Formated_Data["#chr"]=Gene_Chr_Start_End_Data.chromosome
-    # print(Gene_Chr_Start_End_Data.start)
-    BED_Formated_Data["start"]=Gene_Chr_Start_End_Data.start+((Gene_Chr_Start_End_Data.end-Gene_Chr_Start_End_Data.start)/2).apply(math.ceil)
-    BED_Formated_Data["end"]=BED_Formated_Data["start"]+1
-    BED_Formated_Data["gene_id"]=Gene_Chr_Start_End_Data.feature_id
-    BED_Formated_Data["idx"]=Gene_Chr_Start_End_Data.feature_id
-    BED_Formated_Data=BED_Formated_Data.set_index("idx")
-    BED_Formated_Data['#chr']='chr'+BED_Formated_Data['#chr'].astype(str)
+    df = read_gtf(annotation_file)
+    df2 = df[df.feature == 'gene']
+    # d1 = df2[df2['gene_id']=='ENSG00000237491']
+    # df3 = d1[d1.feature == 'gene']
+    # df2[df2.end == 778769]
 
-
+    Gene_Chr_Start_End_Data =df2[['gene_id','start','end','strand','seqname']]
+    # d1 = Gene_Chr_Start_End_Data[Gene_Chr_Start_End_Data['gene_id']=='ENSG00000237491']
+    # 
+    Gene_Chr_Start_End_Data.rename(columns={'gene_id':'feature_id','seqname':'chromosome'},inplace=True)
+    Gene_Chr_Start_End_Data.drop_duplicates(inplace=True)
+    Gene_Chr_Start_End_Data=Gene_Chr_Start_End_Data.set_index('feature_id')
     #Load the expression data and the mapping file
     Expression_Data = pd.read_csv(expression_file,sep="\t")
+    f = list(Expression_Data.index)
+    # f.append('ENSG00000177757')
+    Gene_Chr_Start_End_Data = Gene_Chr_Start_End_Data.loc[f]
+   
+    BED_Formated_Data["#chr"]=Gene_Chr_Start_End_Data.chromosome
+    
+    BED_Formated_Data["start"]=0
+    BED_Formated_Data["end"]=0
+    
+    # + strand
+    idx1 = Gene_Chr_Start_End_Data[Gene_Chr_Start_End_Data.strand =='+'].index
+    BED_Formated_Data.loc[idx1,"start"]=Gene_Chr_Start_End_Data.loc[idx1,"start"]-1
+    BED_Formated_Data.loc[idx1,"end"]=Gene_Chr_Start_End_Data.loc[idx1,"start"]
+
+    # - strand
+    idx1 = Gene_Chr_Start_End_Data[Gene_Chr_Start_End_Data.strand =='-'].index
+    BED_Formated_Data.loc[idx1,"start"]=Gene_Chr_Start_End_Data.loc[idx1,"end"]-1
+    BED_Formated_Data.loc[idx1,"end"]=Gene_Chr_Start_End_Data.loc[idx1,"end"]
+
+    # Gene_Chr_Start_End_Data = pd.read_csv(annotation_file,sep="\t",skiprows=6 )
+
+    # print(Gene_Chr_Start_End_Data.start)
+
+
+    BED_Formated_Data["start"]=Gene_Chr_Start_End_Data.start+((Gene_Chr_Start_End_Data.end-Gene_Chr_Start_End_Data.start)/2).apply(math.ceil)
+    BED_Formated_Data["end"]=BED_Formated_Data["start"]+1
+
+
+    BED_Formated_Data["gene_id"]=BED_Formated_Data.index
+    # BED_Formated_Data["idx"]=Gene_Chr_Start_End_Data.feature_id
+    # BED_Formated_Data=BED_Formated_Data.set_index("idx")
+    BED_Formated_Data['#chr']='chr'+BED_Formated_Data['#chr'].astype(str)
+
+    # Gene_Chr_Start_End_Data=Gene_Chr_Start_End_Data.iloc[list(Expression_Data.index)]
         #1 Conver the RNA_seq ids to HIPSci ids.
     Mapping_File=pd.read_csv(mapping_file,sep="\t")
     try:
@@ -80,9 +116,6 @@ def main():
     Expression_Data=Expression_Data.rename(columns=Mapping_File)
     #2 Combine the Expression data and ID mapper to get a bed format.
     mergedDf = BED_Formated_Data.merge(Expression_Data, left_index=True, right_index=True)
-
-
-
     chrs = ['chr1','chr2','chr3','chr4','chr5','chr6','chr7','chr8','chr9','chr10'
             ,'chr11','chr12','chr13','chr14','chr15','chr16','chr17','chr18','chr19','chr20','chr21','chr22']
     
@@ -101,8 +134,6 @@ def main():
     # Now just save the file to BED file.
     # mergedDf["gene_id"]=mergedDf.index
     mergedDf.to_csv("Expression_Data.bed.gz", sep='\t', compression='gzip',index=False)
-
-
 
 if __name__ == '__main__':
     # Convert files to the BED format

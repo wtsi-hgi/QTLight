@@ -8,6 +8,7 @@ import pandas as pd
 import math
 import argparse
 import os
+from gtfparse import read_gtf
 
 def main():
     """Run CLI."""
@@ -65,10 +66,13 @@ def main():
     )
     options = parser.parse_args()
 
-
-
     genes = int(options.chunk_size)
-    Data = pd.read_csv(options.genome_annotation,sep='\t')
+    # Data = pd.read_csv(options.genome_annotation)
+    df = read_gtf(options.genome_annotation)
+    df2 = df[df.feature == 'gene']
+    Gene_Chr_Start_End_Data =df2[['gene_id','start','end','seqname']]
+    Gene_Chr_Start_End_Data.rename(columns={'gene_id':'feature_id','seqname':'chromosome'},inplace=True)
+    Data=Gene_Chr_Start_End_Data
 
     Phenotype_file = pd.read_csv(options.phenotype_file,sep='\t',index_col=0)
     Phenotype_file_index = list(Phenotype_file.index)
