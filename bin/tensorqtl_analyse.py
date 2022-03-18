@@ -138,7 +138,7 @@ def main():
                         phenotype_df.loc[phenotype_pos_df['chr']!='chrY'],
                         phenotype_pos_df.loc[phenotype_pos_df['chr']!='chrY'],nperm=int(options.nperm),
                         window=int(options.window),maf_threshold=0,
-                        covariates_df=covariates_df, seed=123456)
+                        covariates_df=covariates_df)
     print('----cis eQTLs processed ------')
     cis_df.head()
     cis_df.to_csv("Cis_eqtls.tsv",sep="\t")

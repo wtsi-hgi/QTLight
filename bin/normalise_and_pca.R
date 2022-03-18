@@ -19,19 +19,38 @@ Star_path = args[1]
 Mapping_Path = args[2]
 filter_type = args[3]
 
-# Star_path = '/Users/mo11/Downloads/bin/M1_Ctrl_phenotype.tsv'
-# Mapping_Path = '/Users/mo11/Downloads/bin/sample_mapping2.tsv'
+# Star_path = 'CD4_TCM-dMean_phenotype.tsv'
+# Mapping_Path = 'genotype_phenotype_mapping.tsv'
 
-Star_counts_pre = t(read.table(file = Star_path, sep = '\t',check.names=FALSE, row.names = 1,header = TRUE))
+Star_counts_pre = read.table(file = Star_path, sep = '\t',check.names=FALSE, row.names = 1,header = TRUE)
+
+percent_of_population_expressed = 0.05 #as per https://www.medrxiv.org/content/10.1101/2021.10.09.21264604v1.full.pdf We mapped cis-eQTL within a 1 megabase (MB) window of the TSS of each gene expressed
+# in at least 5% of the nuclei (belonging to a broad cell type)
+
+keep=c()
+for (row in 1:nrow(Star_counts_pre)) {
+  r1 = Star_counts_pre[row,]
+  number_elems = length(r1)
+  number_elems_greater_than_0 = length(r1[r1>0])
+  if ((number_elems_greater_than_0/number_elems>percent_of_population_expressed) & (number_elems_greater_than_0>1)){
+    keep <- append (keep,row)
+  }
+}
+
+Star_counts_pre = Star_counts_pre[keep, ]
+Star_counts_pre = t(Star_counts_pre)
+
+
 Experimental_grops = read.table(Mapping_Path, fill = TRUE,row.names = 2,check.names=FALSE,header = TRUE,sep = '\t')
 
 nonzero_genes = colSums(Star_counts_pre) != 0
 Star_counts_pre <- Star_counts_pre[,nonzero_genes]
 
+Star_counts_pre_t=t(Star_counts_pre)
 
 
-
-
+# keep <- apply(Star_counts_pre[0:], 1, function(x) length(unique(x[!is.na(x)])) != 1)
+# f = Star_counts_pre[keep, ]
 
 
 # We merge the Expreimental groups and the counts to make sure that they are in the same order, which is cruical for analysis.
@@ -50,6 +69,11 @@ all(rownames(Experimental_grops) == colnames(Star_counts))
 
 y <- DGEList(counts=Star_counts, group=Star_counts_pre$Sample_Category,samples=Experimental_grops)
 # design <- model.matrix(~ Experimental_grops$oxLDL.set + Experimental_grops$Donor.line + Experimental_grops$Sample.type..Ctrl.or.oxLDL.)
+
+
+
+
+
 
 if (filter_type=='filterByExpr'){
   # this approach is not very suitable for some scRNA datasets since they are quite sarse
@@ -70,6 +94,7 @@ if (filter_type=='filterByExpr'){
   cvs=c()
   transposed_rows=y$counts
   row_names = row.names(transposed_rows)
+  keep=c()
   for (row in 1:nrow(transposed_rows)) {
     r1 = transposed_rows[row,]
     cv2 <- sd(r1)^2 / mean(r1) ^2
@@ -81,7 +106,9 @@ if (filter_type=='filterByExpr'){
   row.names(df)=df$rows
   cvs= df[c('cvs')]
   median_of_hvgs = median(cvs$cvs, na.rm = TRUE)
-  keep = cvs < median_of_hvgs
+  q3 = quantile(cvs$cvs, 0.75)
+  q1 = quantile(cvs$cvs, 0.25)
+  keep = cvs < q3 
   y <- y[keep, keep.lib.sizes=TRUE]
   y <- calcNormFactors(y, method = "TMM")
 
@@ -111,12 +138,14 @@ if (filter_type=='filterByExpr'){
 #  Acutoff = -1e10
 #  )
 
+# I start to doubth about this apporach - permutations sometimes fail like this.
 # log2(CPM) as output
-TMM_normalised_counts_log <- cpm(y, log=TRUE) #https://www.rdocumentation.org/packages/edgeR/versions/3.14.0/topics/cpm 
-TMM_normalised_counts_log = TMM_normalised_counts_log[complete.cases(TMM_normalised_counts_log), ]
-# TMM_normalised_counts = t(t(y$counts)*y$samples$norm.factors)
-# norms = y$samples$norm.factors
-# TMM_normalised_counts_log = log(TMM_normalised_counts+1, 2) # Apply log2 transform on the TMM normalised counts.
+# TMM_normalised_counts_log <- cpm(y, log=TRUE) #https://www.rdocumentation.org/packages/edgeR/versions/3.14.0/topics/cpm 
+# TMM_normalised_counts_log = TMM_normalised_counts_log[complete.cases(TMM_normalised_counts_log), ]
+
+TMM_normalised_counts = t(t(y$counts)*y$samples$norm.factors)
+norms = y$samples$norm.factors
+TMM_normalised_counts_log = log(TMM_normalised_counts+1, 2) # Apply log2 transform on the TMM normalised counts.
 
 pcs = prcomp(TMM_normalised_counts_log, scale = TRUE)
 if(ncol(TMM_normalised_counts_log)<20){
