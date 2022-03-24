@@ -1,7 +1,7 @@
 
 process TENSORQTL {
     label 'gpu'
-    // tag {condition}
+    tag {condition}
     // label 'process_high_memory'
     
   // /lustre/scratch123/hgi/projects/ukbb_scrna/pipelines/singularity_images/nf_tensorqtl_1.2.img

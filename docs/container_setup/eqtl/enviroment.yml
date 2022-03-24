@@ -16,6 +16,7 @@ dependencies:
   - bioconductor-qvalue
   - r-RColorBrewer
   - r-devtools
+  - r-rlang=1.0.2
   - plink2
   - anndata
   - seaborn
@@ -29,6 +30,7 @@ dependencies:
   - pip
   - pip:
     - scanpy
-    - tensorqtl
+    - tensorqtl==1.0.5
     - numpy_sugar
     - limix==2.0.6
+    - gtfparse

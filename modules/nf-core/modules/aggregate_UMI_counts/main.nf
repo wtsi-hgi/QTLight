@@ -1,7 +1,7 @@
 
 
 process AGGREGATE_UMI_COUNTS {
-  publishDir  path: "${outdir}",
+  publishDir  path: "${outdir}/aggregated_counts",mode: "${params.copy_mode}",
               overwrite: "true"
     label 'process_low'
     if (workflow.containerEngine == 'singularity' && !params.singularity_pull_docker_container) {
@@ -19,6 +19,7 @@ process AGGREGATE_UMI_COUNTS {
   output:
     path("phenotype_file.tsv", emit:phenotype_file)
     path("genotype_phenotype_mapping.tsv", emit:genotype_phenotype_mapping)
+    path('*.tsv')
 
   script:
   outdir = params.outdir

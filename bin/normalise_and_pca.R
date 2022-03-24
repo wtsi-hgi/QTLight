@@ -7,24 +7,25 @@ library(ggplot2)
 library(ggfortify)
 library(ggplot2)
 library(PCAtools)
-
+# B_naive-dMean_phenotype.tsv
 
 args = commandArgs(trailingOnly=TRUE)
 
 if (length(args)==0) {
   stop("At least one argument must be supplied (input file).n", call.=FALSE)
 }
+Star_path = 'CD14_Mono-dSum_phenotype.tsv'
+Mapping_Path = 'genotype_phenotype_mapping.tsv'
 
 Star_path = args[1]
 Mapping_Path = args[2]
 filter_type = args[3]
 
-# Star_path = 'CD4_TCM-dMean_phenotype.tsv'
-# Mapping_Path = 'genotype_phenotype_mapping.tsv'
+
 
 Star_counts_pre = read.table(file = Star_path, sep = '\t',check.names=FALSE, row.names = 1,header = TRUE)
 
-percent_of_population_expressed = 0.05 #as per https://www.medrxiv.org/content/10.1101/2021.10.09.21264604v1.full.pdf We mapped cis-eQTL within a 1 megabase (MB) window of the TSS of each gene expressed
+percent_of_population_expressed = 0.50 #as per https://www.medrxiv.org/content/10.1101/2021.10.09.21264604v1.full.pdf We mapped cis-eQTL within a 1 megabase (MB) window of the TSS of each gene expressed
 # in at least 5% of the nuclei (belonging to a broad cell type)
 
 keep=c()
@@ -35,6 +36,7 @@ for (row in 1:nrow(Star_counts_pre)) {
   if ((number_elems_greater_than_0/number_elems>percent_of_population_expressed) & (number_elems_greater_than_0>1)){
     keep <- append (keep,row)
   }
+  # here also check how many elements are with equal values.
 }
 
 Star_counts_pre = Star_counts_pre[keep, ]
@@ -69,11 +71,6 @@ all(rownames(Experimental_grops) == colnames(Star_counts))
 
 y <- DGEList(counts=Star_counts, group=Star_counts_pre$Sample_Category,samples=Experimental_grops)
 # design <- model.matrix(~ Experimental_grops$oxLDL.set + Experimental_grops$Donor.line + Experimental_grops$Sample.type..Ctrl.or.oxLDL.)
-
-
-
-
-
 
 if (filter_type=='filterByExpr'){
   # this approach is not very suitable for some scRNA datasets since they are quite sarse
@@ -140,12 +137,12 @@ if (filter_type=='filterByExpr'){
 
 # I start to doubth about this apporach - permutations sometimes fail like this.
 # log2(CPM) as output
-# TMM_normalised_counts_log <- cpm(y, log=TRUE) #https://www.rdocumentation.org/packages/edgeR/versions/3.14.0/topics/cpm 
-# TMM_normalised_counts_log = TMM_normalised_counts_log[complete.cases(TMM_normalised_counts_log), ]
+TMM_normalised_counts_log <- cpm(y, log=TRUE) #https://www.rdocumentation.org/packages/edgeR/versions/3.14.0/topics/cpm 
+TMM_normalised_counts_log = TMM_normalised_counts_log[complete.cases(TMM_normalised_counts_log), ]
 
-TMM_normalised_counts = t(t(y$counts)*y$samples$norm.factors)
-norms = y$samples$norm.factors
-TMM_normalised_counts_log = log(TMM_normalised_counts+1, 2) # Apply log2 transform on the TMM normalised counts.
+# TMM_normalised_counts = t(t(y$counts)*y$samples$norm.factors)
+# norms = y$samples$norm.factors
+# TMM_normalised_counts_log = log(TMM_normalised_counts+1, 2) # Apply log2 transform on the TMM normalised counts.
 
 pcs = prcomp(TMM_normalised_counts_log, scale = TRUE)
 if(ncol(TMM_normalised_counts_log)<20){

@@ -2,7 +2,7 @@ process NORMALISE_and_PCA_PHENOTYPE{
      
     // Calulates bbknn neighbors and saves UMAPS of these
     // ------------------------------------------------------------------------
-    //tag { output_dir }
+    tag { condition }
     //cache false        // cache results from run
     scratch false      // use tmp directory
     label 'process_medium'
@@ -27,8 +27,10 @@ process NORMALISE_and_PCA_PHENOTYPE{
         tuple(val(condition),path(grouping_file),path("normalised_phenotype.tsv"),path("pcs.tsv"), emit: for_bed)
         val(condition), emit: cond1
         path("*.pdf")
+        path(phenotype_file)
     script:
-        """
+    
+        """ 
             normalise_and_pca.R ${phenotype_file} ${grouping_file} ${params.filter_method}
         """
     
