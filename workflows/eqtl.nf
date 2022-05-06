@@ -122,8 +122,10 @@ workflow EQTL {
     genome_annotation = Channel.from(params.annotation_file)
     // Prepeare chunking file
     
-     
+    // MBV method from QTLTools (PMID 28186259)  
     // // condition_channel.view()    
+    // RASCAL
+    // 
     SPLIT_PHENOTYPE_DATA(genotype_phenotype_mapping_file,phenotype_file,condition_channel)
 
     NORMALISE_and_PCA_PHENOTYPE(SPLIT_PHENOTYPE_DATA.out.phenotye_file,genotype_phenotype_mapping_file)
@@ -151,7 +153,6 @@ workflow EQTL {
         TENSORQTL_eqtls(
             PREPERE_EXP_BED.out.exp_bed,
             PLINK_CONVERT.out.plink_path,
-            
         )
     }
 

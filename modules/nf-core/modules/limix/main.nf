@@ -104,7 +104,7 @@ process LIMIX{
     // ------------------------------------------------------------------------
     tag { "${condition} ${chunking_range2}" }
     //cache false        // cache results from run
-    scratch false      // use tmp directory
+    // scratch false      // use tmp directory
     label 'process_low'
     if (workflow.containerEngine == 'singularity' && !params.singularity_pull_docker_container) {
         container "/software/hgi/containers/eqtl.img"
@@ -140,7 +140,6 @@ process LIMIX{
             ln -s snp_metadata_${chunking_range2}.txt ${condition}_snp_metadata_${chunking_range2}.txt
             ln -s qtl_results_${chunking_range2}.h5 ${condition}_qtl_results_${chunking_range2}.h5
             ln -s feature_metadata_${chunking_range2}.txt ${condition}_feature_metadata_${chunking_range2}.txt
-            
         """
     
 }

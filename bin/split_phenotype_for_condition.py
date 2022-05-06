@@ -49,6 +49,8 @@ def main():
     print('Done')
 
     Phenotype = pd.read_csv(options.phenotype,sep='\t',index_col=0)
+    if 'gene_name' in Phenotype.columns:
+        Phenotype = Phenotype.drop(columns=['gene_name'])
     Condition = options.condition.replace('[','').replace(']','')
     genome_phenotype = pd.read_csv(options.genome_phenotype,sep='\t')
 

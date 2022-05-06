@@ -1,4 +1,0 @@
-N E X T F L O W  ~  version 21.04.0
-Pulling nextflow-io/eqtl ...
-WARN: Cannot read project manifest -- Cause: Remote resource not found: https://api.github.com/repos/nextflow-io/eqtl/contents/nextflow.config
-Remote resource not found: https://api.github.com/repos/nextflow-io/eqtl/contents/main.nf

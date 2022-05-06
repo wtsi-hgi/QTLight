@@ -27,7 +27,7 @@ process SUBSET_GENOTYPE {
         samplename='subset'
         """
             tabix -p vcf ${donor_vcf} || echo 'not typical VCF'
-            bcftools view ${donor_vcf} -s ${file__reduced_dims} -Oz -o ${samplename}.subset.vcf.gz
+            bcftools view ${donor_vcf} -s ${file__reduced_dims} --force-samples -Oz -o ${samplename}.subset.vcf.gz
             rm ${donor_vcf}.tbi || echo 'not typical VCF'
         """
 }

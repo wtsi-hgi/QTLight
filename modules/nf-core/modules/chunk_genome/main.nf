@@ -24,7 +24,7 @@ process CHUNK_GENOME{
         path('limix_chunking.tsv'), emit: limix_condition_chunking
     script:
         """
-            generate_chunking_file.py --genome_annotation ${genome_annotation} --chunk_size 70 --phenotype_file ${phenotype_file} --covar_file ${pcs} --condition ${condition}
+            generate_chunking_file.py --genome_annotation ${genome_annotation} --chunk_size ${params.chunkSize} --phenotype_file ${phenotype_file} --covar_file ${pcs} --condition ${condition}
         """
     
 }
