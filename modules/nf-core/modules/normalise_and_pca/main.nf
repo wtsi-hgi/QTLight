@@ -30,7 +30,7 @@ process NORMALISE_and_PCA_PHENOTYPE{
         path(phenotype_file)
     script:
     
-        """ 
+        """  
             normalise_and_pca.R ${phenotype_file} ${grouping_file} ${params.filter_method}
         """
     

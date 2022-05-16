@@ -25,7 +25,9 @@ filter_type = args[3]
 
 Star_counts_pre = read.table(file = Star_path, sep = '\t',check.names=FALSE, row.names = 1,header = TRUE)
 
-percent_of_population_expressed = 0.50 #as per https://www.medrxiv.org/content/10.1101/2021.10.09.21264604v1.full.pdf We mapped cis-eQTL within a 1 megabase (MB) window of the TSS of each gene expressed
+percent_of_population_expressed = 0.2 #We want to only map the values that are expressed in at least 20% of donors. 
+#as per https://www.medrxiv.org/content/10.1101/2021.10.09.21264604v1.full.pdf 
+# We mapped cis-eQTL within a 1 megabase (MB) window of the TSS of each gene expressed
 # in at least 5% of the nuclei (belonging to a broad cell type)
 
 keep=c()

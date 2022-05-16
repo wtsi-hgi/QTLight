@@ -104,6 +104,9 @@ def main():
                         Genotype = individual_1_adata.obs.donor_id.unique()[0]
                         f = individual_1_adata.to_df()
                         # Change this to any aggregation strategy
+                        #as per https://www.medrxiv.org/content/10.1101/2021.10.09.21264604v1.full.pdf 
+                        # We mapped cis-eQTL within a 1 megabase (MB) window of the TSS of each gene expressed
+                        # in at least 5% of the nuclei (belonging to a broad cell type)
                         if (method =='dSum'):
                             data_aggregated_for_cell_and_individal = pd.DataFrame(f.sum(axis = 0))
                             data_aggregated_for_cell_and_individal.set_index(f.columns,inplace=True)
