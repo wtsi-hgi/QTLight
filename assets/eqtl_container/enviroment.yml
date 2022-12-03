@@ -25,7 +25,7 @@ dependencies:
   - bioconductor-rhdf5
   - r-RColorBrewer
   - r-devtools
-  - r-rlang=1.0.2
+  - r-rlang>=1.0.5
   - plink2
   - anndata
   - seaborn

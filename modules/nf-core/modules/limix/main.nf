@@ -24,7 +24,7 @@ process AGGREGATE_QTL_RESULTS{
     scratch false      // use tmp directory
     label 'process_low'
     if (workflow.containerEngine == 'singularity' && !params.singularity_pull_docker_container) {
-        container "/software/hgi/containers/eqtl.img"
+        container "${params.eqtl_container}"
     } else {
         container "quay.io/biocontainers/multiqc:1.10.1--py_0"
     }    
@@ -79,7 +79,7 @@ process TEST{
 process MULTIPLE_TESTING_CORRECTION{
     label 'process_low'
     if (workflow.containerEngine == 'singularity' && !params.singularity_pull_docker_container) {
-        container "/software/hgi/containers/eqtl.img"
+        container "${params.eqtl_container}"
     } else {
         container "quay.io/biocontainers/multiqc:1.10.1--py_0"
     }    
@@ -107,7 +107,7 @@ process LIMIX{
     // scratch false      // use tmp directory
     label 'process_low'
     if (workflow.containerEngine == 'singularity' && !params.singularity_pull_docker_container) {
-        container "/software/hgi/containers/eqtl.img"
+        container "${params.limix_container}"
     } else {
         container "quay.io/biocontainers/multiqc:1.10.1--py_0"
     }
@@ -136,7 +136,7 @@ process LIMIX{
         """
             export NUMBA_CACHE_DIR=/tmp
             export MPLCONFIGDIR=/tmp
-            limix_run --plink ${genotypeFile}/plink_genotypes -af ${annotationFile} -pf ${phenotypeFile} -cf ${covariateFile} -od ${outputFolder} -smf ${individual2sample_filename} -rf ${kinship_path} -gr ${chunking_range} -np ${numberOfPermutations} -maf ${minorAlleleFrequency} -hwe ${hwe} -cr ${callRate} -c -gm standardize -w ${windowSize} --block_size ${blockSize}
+            run_limix_QTL_analysis.py --plink ${genotypeFile}/plink_genotypes -af ${annotationFile} -pf ${phenotypeFile} -cf ${covariateFile} -od ${outputFolder} -smf ${individual2sample_filename} -rf ${kinship_path} -gr ${chunking_range} -np ${numberOfPermutations} -maf ${minorAlleleFrequency} -hwe ${hwe} -cr ${callRate} -c -gm standardize -w ${windowSize} --block_size ${blockSize}
             ln -s snp_metadata_${chunking_range2}.txt ${condition}_snp_metadata_${chunking_range2}.txt
             ln -s qtl_results_${chunking_range2}.h5 ${condition}_qtl_results_${chunking_range2}.h5
             ln -s feature_metadata_${chunking_range2}.txt ${condition}_feature_metadata_${chunking_range2}.txt

@@ -11,7 +11,7 @@ process TENSORQTL {
 
   if (workflow.containerEngine == 'singularity' && !params.singularity_pull_docker_container) {
     // container "/lustre/scratch123/hgi/projects/ukbb_scrna/pipelines/singularity_images/nf_tensorqtl_1.2.img"
-    container "/software/hgi/containers/eqtl.img"
+    container "${params.eqtl_container}"
   } else {
     container "wtsihgi/nf_cellbender_container:3cc9983"
   }
@@ -28,6 +28,7 @@ process TENSORQTL {
     // path("mapqtl_${oufnprfx}.cis_eqtl_qval.tsv.gz"), emit: qval_tsv
     path("Cis_eqtls.tsv"), emit: qtl_bin
     path("Cis_eqtls_qval.tsv"), emit: q_qtl_bin
+    path('nom_output')
 
   script:
 

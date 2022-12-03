@@ -9,6 +9,7 @@ __version__ = '0.0.1'
 
 import numpy as np
 import scipy.stats as stats
+import glob
 def main():
     import torch
     import pandas as pd
@@ -127,13 +128,25 @@ def main():
     pr = genotypeio.PlinkReader(plink_prefix_path)
     genotype_df = pr.load_genotypes()
     variant_df = pr.bim.set_index('snp')[['chrom', 'pos']]
+    Directory = './nom_output'
+    os.mkdir(Directory)
+    cis.map_nominal(genotype_df, variant_df,
+                    phenotype_df.loc[phenotype_pos_df['chr']!='chrY'],
+                    phenotype_pos_df.loc[phenotype_pos_df['chr']!='chrY'],
+                    covariates_df=covariates_df,prefix='cis_nominal1',
+                    output_dir=Directory, write_top=True, write_stats=True)
+    
+    all_files = glob.glob(f'{Directory}/cis_nominal*.parquet')
+    All_Data = pd.DataFrame()
+    count=0
+    for bf1 in all_files:
+        print(bf1)
+        df = pd.read_parquet(bf1)
+        df.to_csv(bf1.replace('.parquet','.tsv'),sep='\t',index=False)
+        os.remove(bf1) 
+        count+=1    
 
-    # cis.map_nominal(genotype_df, variant_df,
-    #                 phenotype_df.loc[phenotype_pos_df['chr']!='chrY'],
-    #                 phenotype_pos_df.loc[phenotype_pos_df['chr']!='chrY'],
-    #                 prefix, covariates_df=covariates_df,maf_threshold_interaction=0.05,
-    #                 run_eigenmt=True, output_dir='.', write_top=True, write_stats=True)
-
+    
     cis_df = cis.map_cis(genotype_df, variant_df, 
                         phenotype_df.loc[phenotype_pos_df['chr']!='chrY'],
                         phenotype_pos_df.loc[phenotype_pos_df['chr']!='chrY'],nperm=int(options.nperm),

@@ -7,7 +7,7 @@ process PREPROCESS_SAMPLE_MAPPING{
     scratch false      // use tmp directory
     label 'process_low'
     if (workflow.containerEngine == 'singularity' && !params.singularity_pull_docker_container) {
-        container "/software/hgi/containers/eqtl.img"
+        container "${params.eqtl_container}"
         
     } else {
         container "quay.io/biocontainers/multiqc:1.10.1--py_0"
