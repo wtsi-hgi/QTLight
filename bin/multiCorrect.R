@@ -1,3 +1,4 @@
+#!/usr/bin/env Rscript
 # .libPaths('/lustre/scratch123/hgi/teams/hgi/mo11/eQTL_mapping/marias_work/results/Limix_eQTLS/M0_oxLDL_qtls')
 rm()
 library("qvalue")

@@ -68,9 +68,13 @@ def main():
 
     genes = int(options.chunk_size)
     # Data = pd.read_csv(options.genome_annotation)
-    df = read_gtf(options.genome_annotation)
-    df2 = df[df.feature == 'gene']
-    Gene_Chr_Start_End_Data =df2[['gene_id','start','end','seqname']]
+    try:
+        df = read_gtf(options.genome_annotation)
+        df2 = df[df.feature == 'gene']
+        Gene_Chr_Start_End_Data =df2[['gene_id','start','end','seqname']]
+    except:
+        Gene_Chr_Start_End_Data = pd.read_csv(options.genome_annotation,index_col=None,sep='\t')
+        
     Gene_Chr_Start_End_Data.rename(columns={'gene_id':'feature_id','seqname':'chromosome'},inplace=True)
     Data=Gene_Chr_Start_End_Data
 

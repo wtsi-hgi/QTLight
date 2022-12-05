@@ -56,15 +56,13 @@ def main():
     mapping_file = options.mapping_file
     
     BED_Formated_Data=pd.DataFrame()
-    df = read_gtf(annotation_file)
-    df2 = df[df.feature == 'gene']
-    # d1 = df2[df2['gene_id']=='ENSG00000237491']
-    # df3 = d1[d1.feature == 'gene']
-    # df2[df2.end == 778769]
+    try:
+        df = read_gtf(annotation_file)
+        df2 = df[df.feature == 'gene']
+        Gene_Chr_Start_End_Data =df2[['gene_id','start','end','strand','seqname']]
+    except:
+        Gene_Chr_Start_End_Data = pd.read_csv(annotation_file,index_col=None,sep='\t')
 
-    Gene_Chr_Start_End_Data =df2[['gene_id','start','end','strand','seqname']]
-    # d1 = Gene_Chr_Start_End_Data[Gene_Chr_Start_End_Data['gene_id']=='ENSG00000237491']
-    # 
     Gene_Chr_Start_End_Data.rename(columns={'gene_id':'feature_id','seqname':'chromosome'},inplace=True)
     Gene_Chr_Start_End_Data.drop_duplicates(inplace=True)
     Gene_Chr_Start_End_Data=Gene_Chr_Start_End_Data.set_index('feature_id')

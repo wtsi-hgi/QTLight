@@ -1,3 +1,4 @@
+#!/usr/bin/env Rscript
 # .libPaths('/lustre/scratch118/humgen/hgi/users/mercury/scratch_mo11/r_server/r_libs_mo11')
 # library('tximport')
 library('edgeR')
