@@ -14,8 +14,8 @@ args = commandArgs(trailingOnly=TRUE)
 if (length(args)==0) {
   stop("At least one argument must be supplied (input file).n", call.=FALSE)
 }
-Star_path = 'CD14_Mono-dSum_phenotype.tsv'
-Mapping_Path = 'genotype_phenotype_mapping.tsv'
+Star_path = 'M0_100_phenotype.tsv'
+Mapping_Path = 'sample_mappings2.tsv'
 
 Star_path = args[1]
 Mapping_Path = args[2]
@@ -24,7 +24,7 @@ filter_type = args[3]
 
 
 Star_counts_pre = read.table(file = Star_path, sep = '\t',check.names=FALSE, row.names = 1,header = TRUE)
-
+colnames(Star_counts_pre)[duplicated(colnames(Star_counts_pre))]=paste0('rep_',colnames(Star_counts_pre)[duplicated(colnames(Star_counts_pre))])
 percent_of_population_expressed = 0.2 #We want to only map the values that are expressed in at least 20% of donors. 
 #as per https://www.medrxiv.org/content/10.1101/2021.10.09.21264604v1.full.pdf 
 # We mapped cis-eQTL within a 1 megabase (MB) window of the TSS of each gene expressed
@@ -45,7 +45,14 @@ Star_counts_pre = Star_counts_pre[keep, ]
 Star_counts_pre = t(Star_counts_pre)
 
 
-Experimental_grops = read.table(Mapping_Path, fill = TRUE,row.names = 2,check.names=FALSE,header = TRUE,sep = '\t')
+Experimental_grops = read.table(Mapping_Path, fill = TRUE,check.names=FALSE,header = TRUE,sep = '\t')
+Experimental_grops[duplicated(Experimental_grops[2]),2]=paste0('rep_',Experimental_grops[duplicated(Experimental_grops[2]),2])
+row.names(Experimental_grops) <- Experimental_grops[,2]
+Experimental_grops = Experimental_grops[,-2]
+Experimental_grops2=Experimental_grops
+Experimental_grops2$RNA = rownames(Experimental_grops)
+Experimental_grops2 <- Experimental_grops2[, c(1,3,2)]
+write.table(Experimental_grops2, file='mappings_handeling_repeats.tsv', quote=FALSE, row.names = FALSE,sep='\t')
 
 nonzero_genes = colSums(Star_counts_pre) != 0
 Star_counts_pre <- Star_counts_pre[,nonzero_genes]
@@ -66,6 +73,7 @@ Star_counts_pre = Star_counts_pre[!(is.na(Star_counts_pre$Genotype) | Star_count
 
 n=ncol(Experimental_grops)
 Experimental_grops = (Star_counts_pre[,(ncol(Star_counts_pre)-n+1):ncol(Star_counts_pre)])
+
 Star_counts = Star_counts_pre[,0:(ncol(Star_counts_pre)-n)]
 # Star_counts = subset(Star_counts, select = -c(Row.names))
 Star_counts=t(Star_counts)

@@ -7,7 +7,7 @@ process SPLIT_PHENOTYPE_DATA{
 
     tag{condition}
     scratch false      // use tmp directory
-    label 'process_low'
+    label 'process_medium_memory'
     if (workflow.containerEngine == 'singularity' && !params.singularity_pull_docker_container) {
         container "${params.eqtl_container}"
         

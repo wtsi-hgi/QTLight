@@ -133,7 +133,7 @@ workflow EQTL {
     CHUNK_GENOME(genome_annotation,NORMALISE_and_PCA_PHENOTYPE.out.filtered_phenotype)
     // if scRNA Take an anndata object with annotations and tell which condition is an agregation row. 
     
-    PREPROCESS_SAMPLE_MAPPING(genotype_phenotype_mapping_file)
+    PREPROCESS_SAMPLE_MAPPING(NORMALISE_and_PCA_PHENOTYPE.out.gen_phen_mapping)
     
     PREPERE_EXP_BED(NORMALISE_and_PCA_PHENOTYPE.out.for_bed,params.annotation_file,GENOTYPE_PC_CALCULATION.out.gtpca_plink)
 
