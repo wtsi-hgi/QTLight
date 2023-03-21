@@ -80,6 +80,7 @@ workflow EQTL {
     donorsvcf = Channel.from(params.input_vcf)
     // if single cell data then have to prepere pseudo bulk dataset.
     if (params.method=='bulk'){
+        log.info 'Lets Bulk analysis'
         genotype_phenotype_mapping_file=params.genotype_phenotype_mapping_file
         phenotype_file=params.phenotype_file
 
@@ -93,6 +94,7 @@ workflow EQTL {
 
 
     }else if (params.method=='single_cell'){
+        log.info 'Scrna analysis'
         AGGREGATE_UMI_COUNTS(params.phenotype_file,params.aggregation_collumn,params.n_min_cells,params.n_min_individ)
         genotype_phenotype_mapping_file = AGGREGATE_UMI_COUNTS.out.genotype_phenotype_mapping
         phenotype_file= AGGREGATE_UMI_COUNTS.out.phenotype_file
@@ -104,7 +106,7 @@ workflow EQTL {
             .map{row->row.Sample_Category}.set{condition_channel}
 
     }
-
+    
     channel_input_data_table=channel_input_data_table.unique()
     SUBSET_GENOTYPE(donorsvcf,channel_input_data_table.collect())
     // // // // For ext mapping there are multiple steps - 
@@ -123,7 +125,6 @@ workflow EQTL {
     // Prepeare chunking file
     
     // MBV method from QTLTools (PMID 28186259)  
-    // // condition_channel.view()    
     // RASCAL
     // 
     SPLIT_PHENOTYPE_DATA(genotype_phenotype_mapping_file,phenotype_file,condition_channel)

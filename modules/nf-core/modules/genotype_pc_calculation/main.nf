@@ -24,6 +24,6 @@ process GENOTYPE_PC_CALCULATION {
 
         """
             plink2 --freq counts --bfile ${plink_bed}/plink_genotypes --out tmp_gt_plink_freq
-            plink2 --pca --read-freq tmp_gt_plink_freq.acount  --bfile ${plink_bed}/plink_genotypes --out gtpca_plink
+            plink2 --pca ${params.covariates.nr_genotype_pcs} --read-freq tmp_gt_plink_freq.acount  --bfile ${plink_bed}/plink_genotypes --out gtpca_plink
         """
 }

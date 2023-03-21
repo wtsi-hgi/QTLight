@@ -20,7 +20,7 @@ Mapping_Path = 'sample_mappings2.tsv'
 Star_path = args[1]
 Mapping_Path = args[2]
 filter_type = args[3]
-
+number_phenotype_pcs = args[4]
 
 
 Star_counts_pre = read.table(file = Star_path, sep = '\t',check.names=FALSE, row.names = 1,header = TRUE)
@@ -155,10 +155,10 @@ TMM_normalised_counts_log = TMM_normalised_counts_log[complete.cases(TMM_normali
 # TMM_normalised_counts_log = log(TMM_normalised_counts+1, 2) # Apply log2 transform on the TMM normalised counts.
 
 pcs = prcomp(TMM_normalised_counts_log, scale = TRUE)
-if(ncol(TMM_normalised_counts_log)<20){
+if(ncol(TMM_normalised_counts_log)<number_phenotype_pcs){
   len1=ncol(TMM_normalised_counts_log)
 }else{
-  len1=20
+  len1=number_phenotype_pcs
 }
 
 
