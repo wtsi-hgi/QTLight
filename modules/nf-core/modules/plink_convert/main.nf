@@ -13,7 +13,7 @@ process PLINK_CONVERT{
         container "${params.eqtl_container}"
         
     } else {
-        container "quay.io/biocontainers/multiqc:1.10.1--py_0"
+        container "${params.eqtl_docker}"
     }
 
     input:

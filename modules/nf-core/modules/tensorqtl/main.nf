@@ -13,7 +13,7 @@ process TENSORQTL {
     // container "/lustre/scratch123/hgi/projects/ukbb_scrna/pipelines/singularity_images/nf_tensorqtl_1.2.img"
     container "${params.eqtl_container}"
   } else {
-    container "wtsihgi/nf_cellbender_container:3cc9983"
+    container "${params.eqtl_docker}"
   }
 
 

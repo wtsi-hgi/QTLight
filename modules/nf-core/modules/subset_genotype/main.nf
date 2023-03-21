@@ -8,8 +8,7 @@ process SUBSET_GENOTYPE {
     if (workflow.containerEngine == 'singularity' && !params.singularity_pull_docker_container) {
         container "${params.eqtl_container}"
     } else {
-        log.info 'change the docker container - this is not the right one'
-        container "quay.io/biocontainers/multiqc:1.10.1--py_0"
+        container "${params.eqtl_docker}"
     }
 
 

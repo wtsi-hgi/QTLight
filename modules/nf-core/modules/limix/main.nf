@@ -26,7 +26,7 @@ process AGGREGATE_QTL_RESULTS{
     if (workflow.containerEngine == 'singularity' && !params.singularity_pull_docker_container) {
         container "${params.eqtl_container}"
     } else {
-        container "quay.io/biocontainers/multiqc:1.10.1--py_0"
+        container "${params.eqtl_docker}"
     }    
     
 
@@ -81,7 +81,7 @@ process MULTIPLE_TESTING_CORRECTION{
     if (workflow.containerEngine == 'singularity' && !params.singularity_pull_docker_container) {
         container "${params.eqtl_container}"
     } else {
-        container "quay.io/biocontainers/multiqc:1.10.1--py_0"
+        container "${params.eqtl_docker}"
     }    
         
     input:
@@ -109,7 +109,7 @@ process LIMIX{
     if (workflow.containerEngine == 'singularity' && !params.singularity_pull_docker_container) {
         container "${params.limix_container}"
     } else {
-        container "quay.io/biocontainers/multiqc:1.10.1--py_0"
+        container "${params.eqtl_docker}"
     }
 
     input:
