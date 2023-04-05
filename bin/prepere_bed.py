@@ -8,6 +8,8 @@ import argparse
 import math
 from gtfparse import read_gtf
 
+gtf_type = 'gene' #transcript|gene   -- need to add an input switch for this
+
 def main():
     """Run CLI."""
     parser = argparse.ArgumentParser(
@@ -58,12 +60,25 @@ def main():
     BED_Formated_Data=pd.DataFrame()
     try:
         df = read_gtf(annotation_file)
-        df2 = df[df.feature == 'gene']
-        Gene_Chr_Start_End_Data =df2[['gene_id','start','end','strand','seqname']]
+        if (gtf_type=='gene'):
+            df2 = df[df.feature == 'gene']
+        elif (gtf_type=='transcript'):
+            df2 = df[df.feature == 'transcript']
+        else:
+            _ = 'you havent specified which type of analysis you are performing'
+        # Gene_Chr_Start_End_Data =df2[['gene_id','start','end','strand','seqname']]
+        Gene_Chr_Start_End_Data =df2[['transcript_id','start','end','strand','seqname']]
     except:
         Gene_Chr_Start_End_Data = pd.read_csv(annotation_file,index_col=None,sep='\t')
-
-    Gene_Chr_Start_End_Data.rename(columns={'gene_id':'feature_id','seqname':'chromosome'},inplace=True)
+        
+        
+    if (gtf_type=='gene'):
+        Gene_Chr_Start_End_Data.rename(columns={'gene_id':'feature_id','seqname':'chromosome'},inplace=True)
+    elif (gtf_type=='transcript'):
+        Gene_Chr_Start_End_Data.rename(columns={'transcript_id':'feature_id','seqname':'chromosome'},inplace=True)
+    else:
+        _ = 'you havent specified which type of analysis you are performing'
+        
     Gene_Chr_Start_End_Data.drop_duplicates(inplace=True)
     Gene_Chr_Start_End_Data=Gene_Chr_Start_End_Data.set_index('feature_id')
     #Load the expression data and the mapping file
