@@ -125,6 +125,10 @@ def main():
     # phenotype_df = phenotype_df[to_keep]
 
     print('----Fine read ------')
+    if torch.cuda.is_available():
+        print(f'  * using GPU ({torch.cuda.get_device_name(torch.cuda.current_device())})')
+    else:
+        print('  * WARNING: using CPU!')
     pr = genotypeio.PlinkReader(plink_prefix_path)
     genotype_df = pr.load_genotypes()
     variant_df = pr.bim.set_index('snp')[['chrom', 'pos']]

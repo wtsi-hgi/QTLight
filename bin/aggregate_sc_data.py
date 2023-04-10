@@ -46,6 +46,20 @@ def main():
         help=''
     )
     parser.add_argument(
+        '-gt', '--gt_id_column',
+        action='store',
+        dest='gt_id_column',
+        required=True,
+        help=''
+    )    
+    parser.add_argument(
+        '-sample', '--sample_column',
+        action='store',
+        dest='sample_column',
+        required=True,
+        help=''
+    )
+    parser.add_argument(
         '-ncells', '--n_cells',
         action='store',
         dest='n_cells',
@@ -72,7 +86,9 @@ def main():
     methods = methods.split(",")
     # h5ad = '/lustre/scratch123/hgi/projects/ukbb_scrna/pipelines/Pilot_UKB/qc/Franke_with_genotypes_nfCore/results/celltype/adata.h5ad'
     # agg_column = 'Azimuth:predicted.celltype.l2'
-    # n_individ=10
+    # gt_id_column = 'donor_id'
+    # sample_column = 'convoluted_samplename'
+    # n_individ=30
     # n_cells=10
     h5ad = options.h5ad
     agg_column = options.agg_column
@@ -85,7 +101,7 @@ def main():
         # here we estimate the genotype phenotype interaction file from the genotype, since the IDs are the same. 
 
     adata = sc.read_h5ad(filename=h5ad)
-    adata.obs['adata_phenotype_id'] = adata.obs.donor_id.astype('str')+'_'+adata.obs.convoluted_samplename.astype('str')
+    adata.obs['adata_phenotype_id'] = adata.obs.[gt_id_column].astype('str')+'_'+adata.obs[sample_column]astype('str')
     genotype_phenotype_mapping = []
     aggregated_data=pd.DataFrame()
     for method in methods:
@@ -101,7 +117,7 @@ def main():
                     individual_1_adata = cell_adata[cell_adata.obs['adata_phenotype_id']==individual_1]
                     if(individual_1_adata.obs.shape[0]>n_cells):
                         print(individual_1)
-                        Genotype = individual_1_adata.obs.donor_id.unique()[0]
+                        Genotype = individual_1_adata.obs[gt_id_column].unique()[0]
                         f = individual_1_adata.to_df()
                         # Change this to any aggregation strategy
                         #as per https://www.medrxiv.org/content/10.1101/2021.10.09.21264604v1.full.pdf 
