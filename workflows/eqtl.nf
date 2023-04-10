@@ -61,6 +61,7 @@ include {SPLIT_PHENOTYPE_DATA} from '../modules/nf-core/modules/split_phenotype_
 include {NORMALISE_and_PCA_PHENOTYPE} from '../modules/nf-core/modules/normalise_and_pca/main' 
 include {LIMIX_eqtls} from '../modules/nf-core/modules/limix/main'
 include {PREPROCESS_SAMPLE_MAPPING} from '../modules/nf-core/modules/preprocess_sample_mapping/main'
+include {NORMALISE_ANNDATA} from '../modules/nf-core/modules/normalise_anndata/main'
 include {AGGREGATE_UMI_COUNTS} from '../modules/nf-core/modules/aggregate_UMI_counts/main'
 include {CHUNK_GENOME} from '../modules/nf-core/modules/chunk_genome/main'
 include {PREPERE_EXP_BED} from '../modules/nf-core/modules/prepere_exp_bed/main'
@@ -95,7 +96,8 @@ workflow EQTL {
 
     }else if (params.method=='single_cell'){
         log.info 'Scrna analysis'
-        AGGREGATE_UMI_COUNTS(params.phenotype_file,params.aggregation_collumn,params.gt_id_column,params.sample_column,params.n_min_cells,params.n_min_individ)
+        NORMALISE_ANNDATA(params.phenotype_file)
+        AGGREGATE_UMI_COUNTS(NORMALISE_ANNDATA.out.adata,params.aggregation_collumn,params.gt_id_column,params.sample_column,params.n_min_cells,params.n_min_individ)
         genotype_phenotype_mapping_file = AGGREGATE_UMI_COUNTS.out.genotype_phenotype_mapping
         phenotype_file= AGGREGATE_UMI_COUNTS.out.phenotype_file
         genotype_phenotype_mapping_file.splitCsv(header: true, sep: params.input_tables_column_delimiter)
