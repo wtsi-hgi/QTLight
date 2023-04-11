@@ -32,7 +32,7 @@ process NORMALISE_and_PCA_PHENOTYPE{
     script:
     
         """  
-            normalise_and_pca.R ${phenotype_file} ${grouping_file} ${params.filter_method} ${params.covariates.nr_phenotype_pcs}
+            normalise_and_pca.R ${phenotype_file} ${grouping_file} ${params.filter_method} ${params.covariates.nr_phenotype_pcs} ${params.method}
         """
     
 }
