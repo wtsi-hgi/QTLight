@@ -95,7 +95,7 @@ workflow EQTL {
 
     }else if (params.method=='single_cell'){
         log.info 'Scrna analysis'
-        AGGREGATE_UMI_COUNTS(params.phenotype_file,params.aggregation_collumn,params.gt_id_column,params.sample_column,params.n_min_cells,params.n_min_individ)
+        AGGREGATE_UMI_COUNTS(params.phenotype_file,params.aggregation_columns,params.gt_id_column,params.sample_column,params.n_min_cells,params.n_min_individ)
         genotype_phenotype_mapping_file = AGGREGATE_UMI_COUNTS.out.genotype_phenotype_mapping
         phenotype_file= AGGREGATE_UMI_COUNTS.out.phenotype_file
         genotype_phenotype_mapping_file.splitCsv(header: true, sep: params.input_tables_column_delimiter)

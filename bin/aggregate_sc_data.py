@@ -39,9 +39,9 @@ def main():
     )
 
     parser.add_argument(
-        '-agg', '--agg_column',
+        '-agg', '--agg_columns',
         action='store',
-        dest='agg_column',
+        dest='agg_columns',
         required=True,
         help=''
     )
@@ -85,13 +85,14 @@ def main():
     methods = options.method
     methods = methods.split(",")
     # h5ad = '/lustre/scratch123/hgi/projects/ukbb_scrna/pipelines/Pilot_UKB/qc/Franke_with_genotypes_nfCore/results/celltype/adata.h5ad'
-    # agg_column = 'Azimuth:predicted.celltype.l2'
+    # agg_columns = 'Azimuth:predicted.celltype.l2'
+    # agg_columns='Azimuth:predicted.celltype.l2,Celltypist:Immune_All_High,Celltypist:Immune_All_Low'
     # gt_id_column = 'donor_id'
     # sample_column = 'convoluted_samplename'
     # n_individ=30
     # n_cells=10
     h5ad = options.h5ad
-    agg_column = options.agg_column
+    agg_columns = options.agg_columns.split(",")
     n_individ = int(options.n_individ)
     n_cells = int(options.n_cells)
     # if options.genotype_phenotype:
@@ -105,49 +106,52 @@ def main():
     genotype_phenotype_mapping = []
     aggregated_data=pd.DataFrame()
     for method in methods:
-        for type in adata.obs[agg_column].unique():
-            print(type)
-            print("----------")# 
-            # type='CD4 CTL'
-            cell_adata = adata[adata.obs[agg_column]==type]
-            if (len(cell_adata.obs['adata_phenotype_id'].unique())>n_individ):
-                aggregated_data_pre=pd.DataFrame()
-                genotype_phenotype_mapping_pre = []
-                for individual_1 in cell_adata.obs['adata_phenotype_id'].unique():
-                    individual_1_adata = cell_adata[cell_adata.obs['adata_phenotype_id']==individual_1]
-                    if(individual_1_adata.obs.shape[0]>n_cells):
-                        print(individual_1)
-                        Genotype = individual_1_adata.obs[gt_id_column].unique()[0]
-                        f = individual_1_adata.to_df()
-                        # Change this to any aggregation strategy
-                        #as per https://www.medrxiv.org/content/10.1101/2021.10.09.21264604v1.full.pdf 
-                        # We mapped cis-eQTL within a 1 megabase (MB) window of the TSS of each gene expressed
-                        # in at least 5% of the nuclei (belonging to a broad cell type)
-                        if (method =='dSum'):
-                            data_aggregated_for_cell_and_individal = pd.DataFrame(f.sum(axis = 0))
-                            data_aggregated_for_cell_and_individal.set_index(f.columns,inplace=True)
-                            type2= f"{type}-{method}"
-                        elif (method =='dMean'):
-                            data_aggregated_for_cell_and_individal = pd.DataFrame(f.mean(axis = 0))
-                            data_aggregated_for_cell_and_individal.set_index(f.columns,inplace=True)
-                            type2= f"{type}-{method}"
-                        else:
-                            print('Wrong method specified, please use dMean or dSum or both as a coma seperated sting dMean,dSum')
-                            break
-                        Phenotype = f"{type2}_{individual_1}".replace(' ','_')
-                        type2=type2.replace(' ','_')
-                        data_aggregated_for_cell_and_individal.rename(columns={0:Phenotype},inplace=True)
-                        aggregated_data_pre=pd.concat([aggregated_data_pre,data_aggregated_for_cell_and_individal],axis=1)
-                        genotype_phenotype_mapping_pre.append({'Genotype':Genotype,'RNA':Phenotype,'Sample_Category':type2})
-                # assess whether correct number of individuals ended up having right ammount of cells
-                if (len(aggregated_data_pre.columns)>=n_individ):
-                    aggregated_data=pd.concat([aggregated_data,aggregated_data_pre],axis=1)
-                    genotype_phenotype_mapping= genotype_phenotype_mapping+ genotype_phenotype_mapping_pre
-                    # f = pd.DataFrame(individual_1_adata.X.mean(axis=0))
+        for agg_col in agg_columns:
+            print(agg_col)
+            print("----------")
+            for type in adata.obs[agg_col].unique():
+                print(type)
+                print("----------")# 
+                # type='CD4 CTL'
+                cell_adata = adata[adata.obs[agg_col]==type]
+                if (len(cell_adata.obs['adata_phenotype_id'].unique())>n_individ):
+                    aggregated_data_pre=pd.DataFrame()
+                    genotype_phenotype_mapping_pre = []
+                    for individual_1 in cell_adata.obs['adata_phenotype_id'].unique():
+                        individual_1_adata = cell_adata[cell_adata.obs['adata_phenotype_id']==individual_1]
+                        if(individual_1_adata.obs.shape[0]>n_cells):
+                            print(individual_1)
+                            Genotype = individual_1_adata.obs[gt_id_column].unique()[0]
+                            f = individual_1_adata.to_df()
+                            # Change this to any aggregation strategy
+                            #as per https://www.medrxiv.org/content/10.1101/2021.10.09.21264604v1.full.pdf 
+                            # We mapped cis-eQTL within a 1 megabase (MB) window of the TSS of each gene expressed
+                            # in at least 5% of the nuclei (belonging to a broad cell type)
+                            if (method =='dSum'):
+                                data_aggregated_for_cell_and_individal = pd.DataFrame(f.sum(axis = 0))
+                                data_aggregated_for_cell_and_individal.set_index(f.columns,inplace=True)
+                                type2= f"{agg_col}-{type}-{method}"
+                            elif (method =='dMean'):
+                                data_aggregated_for_cell_and_individal = pd.DataFrame(f.mean(axis = 0))
+                                data_aggregated_for_cell_and_individal.set_index(f.columns,inplace=True)
+                                type2= f"{agg_col}-{type}-{method}"
+                            else:
+                                print('Wrong method specified, please use dMean or dSum or both as a coma seperated sting dMean,dSum')
+                                break
+                            Phenotype = f"{type2}_{individual_1}".replace(' ','_')
+                            type2=type2.replace(' ','_')
+                            data_aggregated_for_cell_and_individal.rename(columns={0:Phenotype},inplace=True)
+                            aggregated_data_pre=pd.concat([aggregated_data_pre,data_aggregated_for_cell_and_individal],axis=1)
+                            genotype_phenotype_mapping_pre.append({'Genotype':Genotype,'RNA':Phenotype,'Sample_Category':type2})
+                    # assess whether correct number of individuals ended up having right ammount of cells
+                    if (len(aggregated_data_pre.columns)>=n_individ):
+                        aggregated_data=pd.concat([aggregated_data,aggregated_data_pre],axis=1)
+                        genotype_phenotype_mapping= genotype_phenotype_mapping+ genotype_phenotype_mapping_pre
+                        # f = pd.DataFrame(individual_1_adata.X.mean(axis=0))
     genotype_phenotype_mapping = pd.DataFrame(genotype_phenotype_mapping)
     genotype_phenotype_mapping.to_csv('genotype_phenotype_mapping.tsv',sep='\t',index=False)
     aggregated_data.to_csv('phenotype_file.tsv',sep='\t',index=True)
-    print('Successfuly Finished')
+    print('Successfully Finished')
 
 
 
