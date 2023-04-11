@@ -136,7 +136,8 @@ workflow EQTL {
     
     PREPROCESS_SAMPLE_MAPPING(NORMALISE_and_PCA_PHENOTYPE.out.gen_phen_mapping)
     
-    PREPERE_EXP_BED(NORMALISE_and_PCA_PHENOTYPE.out.for_bed,params.annotation_file,GENOTYPE_PC_CALCULATION.out.gtpca_plink)
+    phenotype_pcs_channel = Channel.from(params.covariates.nr_phenotype_pcs)
+    PREPERE_EXP_BED(NORMALISE_and_PCA_PHENOTYPE.out.for_bed,params.annotation_file,GENOTYPE_PC_CALCULATION.out.gtpca_plink,phenotype_pcs_channel)
 
     // PREPERE_COVARIATES_FILE(GENOTYPE_PC_CALCULATION.out.gtpca_plink,)
 
