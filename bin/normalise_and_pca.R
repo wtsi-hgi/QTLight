@@ -21,7 +21,23 @@ Star_path = args[1]
 Mapping_Path = args[2]
 filter_type = args[3]
 number_phenotype_pcs = args[4]
+sc_or_bulk = args[5]
 
+# Functions from https://github.com/kauralasoo/eQTLUtils/blob/master/R/matrix_operations.R
+quantileNormaliseVector = function(x){
+  qnorm(rank(x,ties.method = "random")/(length(x)+1))
+}
+
+quantileNormaliseMatrix <- function(matrix){
+  quantile_matrix = matrix(0, nrow(matrix), ncol(matrix))
+  for (i in seq_along(matrix[1,])){
+    quantile_matrix[,i] = quantileNormaliseVector(matrix[,i])
+  }
+  #Add names
+  rownames(quantile_matrix) = rownames(matrix)
+  colnames(quantile_matrix) = colnames(matrix)
+  return(quantile_matrix)
+}
 
 Star_counts_pre = read.table(file = Star_path, sep = '\t',check.names=FALSE, row.names = 1,header = TRUE)
 colnames(Star_counts_pre)[duplicated(colnames(Star_counts_pre))]=paste0('rep_',colnames(Star_counts_pre)[duplicated(colnames(Star_counts_pre))])
@@ -147,16 +163,21 @@ if (filter_type=='filterByExpr'){
 
 # I start to doubth about this apporach - permutations sometimes fail like this.
 # log2(CPM) as output
-TMM_normalised_counts_log <- cpm(y, log=TRUE) #https://www.rdocumentation.org/packages/edgeR/versions/3.14.0/topics/cpm 
-TMM_normalised_counts_log = TMM_normalised_counts_log[complete.cases(TMM_normalised_counts_log), ]
+if (sc_or_bulk == 'bulk' && grepl('dSum', Star_path, fixed = TRUE)){
+  normalised_counts <- cpm(y, log=TRUE) #https://www.rdocumentation.org/packages/edgeR/versions/3.14.0/topics/cpm 
+  normalised_counts = normalised_counts[complete.cases(normalised_counts), ]
+}
+
+int_normalised_counts = normalised_counts
+int_normalised_counts$counts = quantileNormaliseMatrix(normalised_counts$counts)
 
 # TMM_normalised_counts = t(t(y$counts)*y$samples$norm.factors)
 # norms = y$samples$norm.factors
 # TMM_normalised_counts_log = log(TMM_normalised_counts+1, 2) # Apply log2 transform on the TMM normalised counts.
 
-pcs = prcomp(TMM_normalised_counts_log, scale = TRUE)
-if(ncol(TMM_normalised_counts_log)<number_phenotype_pcs){
-  len1=ncol(TMM_normalised_counts_log)
+pcs = prcomp(int_normalised_counts, scale = TRUE)
+if(ncol(int_normalised_counts)<number_phenotype_pcs){
+  len1=ncol(int_normalised_counts)
 }else{
   len1=number_phenotype_pcs
 }
@@ -165,12 +186,12 @@ if(ncol(TMM_normalised_counts_log)<number_phenotype_pcs){
 pcs20  = pcs$rotation[,1:len1]
 
 write.table(pcs20,file=paste('pcs.tsv',sep=''),sep='\t')
-write.table(TMM_normalised_counts_log,file=paste('normalised_phenotype.tsv',sep=''),sep='\t')
+write.table(int_normalised_counts,file=paste('normalised_phenotype.tsv',sep=''),sep='\t')
 
 # plots
 p <- pca(Star_counts, metadata = Experimental_grops, removeVar = 0.1)
-if(ncol(TMM_normalised_counts_log)<15){
-  len1=ncol(TMM_normalised_counts_log)
+if(ncol(int_normalised_counts)<15){
+  len1=ncol(int_normalised_counts)
 }else{
   len1=15
 }
