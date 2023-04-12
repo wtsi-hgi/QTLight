@@ -26,16 +26,16 @@ process TENSORQTL {
     // path("mapqtl_${oufnprfx}.cis_eqtl.tsv.gz"), emit: qtl_tsv
     // path("mapqtl_${oufnprfx}.cis_eqtl_dropped.tsv.gz"), emit: dropped_tsv
     // path("mapqtl_${oufnprfx}.cis_eqtl_qval.tsv.gz"), emit: qval_tsv
-    path("Cis_eqtls.tsv"), emit: qtl_bin
-    path("Cis_eqtls_qval.tsv"), emit: q_qtl_bin
+    path("Cis_eqtls.tsv"), emit: qtl_bin, optional: true
+    path("Cis_eqtls_qval.tsv"), emit: q_qtl_bin, optional: true
     path('nom_output')
 
   script:
-
-    
+  // If a file with interaction terms is provided, use the interaction script otherwise use the standard script
+  tensor_qtl_script = params.TensorQTL.interaction ? "tensorqtl_analyse_interaction.py --inter ${params.TensorQTL.interaction_file}" : "tensorqtl_analyse.py"   
     
     """
-      tensorqtl_analyse.py --plink_prefix_path ${plink_files_prefix}/plink_genotypes --expression_bed ${aggrnorm_counts_bed} --covariates_file ${genotype_pcs_tsv} -window ${params.windowSize} -nperm ${params.numberOfPermutations}
+      ${tensor_qtl_script} --plink_prefix_path ${plink_files_prefix}/plink_genotypes --expression_bed ${aggrnorm_counts_bed} --covariates_file ${genotype_pcs_tsv} -window ${params.windowSize} -nperm ${params.numberOfPermutations}
     """
 }
 
