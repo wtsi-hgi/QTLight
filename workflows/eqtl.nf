@@ -115,7 +115,6 @@ workflow EQTL {
     // // // // // 2) Generate the PLINK file
     PLINK_CONVERT(PREPROCESS_GENOTYPES.out.filtered_vcf)
     // // // 3) Generate the kinship matrix and genotype PCs
-    KINSHIP_CALCULATION(PLINK_CONVERT.out.plink_path)
     GENOTYPE_PC_CALCULATION(PLINK_CONVERT.out.plink_path)
     
     condition_channel = condition_channel.unique() 
@@ -141,6 +140,7 @@ workflow EQTL {
     // PREPERE_COVARIATES_FILE(GENOTYPE_PC_CALCULATION.out.gtpca_plink,)
 
     if (params.LIMIX.run){
+        KINSHIP_CALCULATION(PLINK_CONVERT.out.plink_path)
         LIMIX_eqtls(
         CHUNK_GENOME.out.limix_condition_chunking,
         PLINK_CONVERT.out.plink_path,
