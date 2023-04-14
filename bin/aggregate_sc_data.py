@@ -93,6 +93,8 @@ def main():
     # n_cells=10
     h5ad = options.h5ad
     agg_columns = options.agg_columns.split(",")
+    gt_id_column =  options.gt_id_column
+    sample_column = options.sample_column
     n_individ = int(options.n_individ)
     n_cells = int(options.n_cells)
     # if options.genotype_phenotype:
@@ -102,7 +104,7 @@ def main():
         # here we estimate the genotype phenotype interaction file from the genotype, since the IDs are the same. 
 
     adata = sc.read_h5ad(filename=h5ad)
-    adata.obs['adata_phenotype_id'] = adata.obs.[gt_id_column].astype('str')+'_'+adata.obs[sample_column]astype('str')
+    adata.obs['adata_phenotype_id'] = adata.obs[gt_id_column].astype('str')+'_'+adata.obs[sample_column].astype('str')
     genotype_phenotype_mapping = []
     aggregated_data=pd.DataFrame()
     for method in methods:
