@@ -20,7 +20,7 @@ Mapping_Path = 'sample_mappings2.tsv'
 Star_path = args[1]
 Mapping_Path = args[2]
 filter_type = args[3]
-number_phenotype_pcs = args[4]
+number_phenotype_pcs = as.numeric(args[4])
 
 max_number_phenotype_pcs =  max(strsplit(number_phenotype_pcs, ',')[[1]])
 
@@ -164,9 +164,9 @@ if(ncol(TMM_normalised_counts_log)<max_number_phenotype_pcs){
 }
 
 
-pcs20  = pcs$rotation[,1:len1]
+pcs_sliced  = pcs$rotation[,1:len1]
 
-write.table(pcs20,file=paste('pcs.tsv',sep=''),sep='\t')
+write.table(pcs_sliced,file=paste('pcs.tsv',sep=''),sep='\t')
 write.table(TMM_normalised_counts_log,file=paste('normalised_phenotype.tsv',sep=''),sep='\t')
 
 # plots
