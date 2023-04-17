@@ -5,7 +5,7 @@ process TENSORQTL {
     label 'process_low'
     
   // /lustre/scratch123/hgi/projects/ukbb_scrna/pipelines/singularity_images/nf_tensorqtl_1.2.img
-    publishDir  path: "${params.outdir}/TensorQTL_eQTLS/${condition}/${nr_phenotype_pcs}_pheno_pcs",
+    publishDir  path: "${params.outdir}/TensorQTL_eQTLS/${condition}/${nr_phenotype_pcs}",
                 overwrite: "true"
   
 
