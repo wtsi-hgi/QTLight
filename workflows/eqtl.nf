@@ -130,14 +130,17 @@ workflow EQTL {
     SPLIT_PHENOTYPE_DATA(genotype_phenotype_mapping_file,phenotype_file,condition_channel)
 
     NORMALISE_and_PCA_PHENOTYPE(SPLIT_PHENOTYPE_DATA.out.phenotye_file,genotype_phenotype_mapping_file)
+    filtered_pheno_channel =NORMALISE_and_PCA_PHENOTYPE.out.filtered_phenotype.map { tuple ->  [tuple[2],[[tuple[0],tuple[1]]]].combinations()}.flatten().collate(3)
+    for_bed_channel = NORMALISE_and_PCA_PHENOTYPE.out.for_bed.map { tuple ->  [tuple[3],[[tuple[0],tuple[1],tuple[2]]]].combinations()}.flatten().collate(4)
 
-    CHUNK_GENOME(genome_annotation,NORMALISE_and_PCA_PHENOTYPE.out.filtered_phenotype)
+
+    CHUNK_GENOME(genome_annotation,filtered_pheno_channel)
     // if scRNA Take an anndata object with annotations and tell which condition is an agregation row. 
     
     PREPROCESS_SAMPLE_MAPPING(NORMALISE_and_PCA_PHENOTYPE.out.gen_phen_mapping)
     
-    phenotype_pcs_channel = Channel.from(params.covariates.nr_phenotype_pcs)
-    PREPERE_EXP_BED(NORMALISE_and_PCA_PHENOTYPE.out.for_bed,params.annotation_file,GENOTYPE_PC_CALCULATION.out.gtpca_plink,phenotype_pcs_channel)
+
+    PREPERE_EXP_BED(for_bed_channel,params.annotation_file,GENOTYPE_PC_CALCULATION.out.gtpca_plink)
 
     // PREPERE_COVARIATES_FILE(GENOTYPE_PC_CALCULATION.out.gtpca_plink,)
 

@@ -51,13 +51,6 @@ def main():
         required=True,
         help=''
     )
-    parser.add_argument(
-        '-nppcs', '--n_phenotype_pcs',
-        action='store',
-        dest='n_phenotype_pcs',
-        required=True,
-        help=''
-    )
 
     options = parser.parse_args()
     genotype_pcs=options.genotype_pcs
@@ -71,8 +64,7 @@ def main():
         print('no')
 
     phenotype_pcs=options.phenotype_pcs
-    n_phenotype_pcs = int(options.n_phenotype_pcs)
-    phenotype_pcs= pd.read_csv(phenotype_pcs, sep='\t', index_col=0).iloc[:, : n_phenotype_pcs]
+    phenotype_pcs= pd.read_csv(phenotype_pcs, sep='\t', index_col=0)
 
     sample_map_file=options.sample_mapping
     sample_mapping = pd.read_csv(sample_map_file,sep='\t')
