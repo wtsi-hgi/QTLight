@@ -163,7 +163,7 @@ if (filter_type=='filterByExpr'){
 
 # I start to doubth about this apporach - permutations sometimes fail like this.
 # log2(CPM) as output
-if (sc_or_bulk == 'bulk' && grepl('dSum', Star_path, fixed = TRUE)){
+if (sc_or_bulk == 'bulk' || grepl('dSum', Star_path, fixed = TRUE)){
   normalised_counts <- cpm(y, log=TRUE) #https://www.rdocumentation.org/packages/edgeR/versions/3.14.0/topics/cpm 
   normalised_counts = normalised_counts[complete.cases(normalised_counts), ]
 }
