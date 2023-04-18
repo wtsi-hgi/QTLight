@@ -20,7 +20,9 @@ Mapping_Path = 'sample_mappings2.tsv'
 Star_path = args[1]
 Mapping_Path = args[2]
 filter_type = args[3]
-number_phenotype_pcs = args[4]
+number_phenotype_pcs = as.numeric(unlist(strsplit(args[4], ',')))
+
+max_number_phenotype_pcs =  max(number_phenotype_pcs)
 
 
 Star_counts_pre = read.table(file = Star_path, sep = '\t',check.names=FALSE, row.names = 1,header = TRUE)
@@ -155,16 +157,19 @@ TMM_normalised_counts_log = TMM_normalised_counts_log[complete.cases(TMM_normali
 # TMM_normalised_counts_log = log(TMM_normalised_counts+1, 2) # Apply log2 transform on the TMM normalised counts.
 
 pcs = prcomp(TMM_normalised_counts_log, scale = TRUE)
-if(ncol(TMM_normalised_counts_log)<number_phenotype_pcs){
-  len1=ncol(TMM_normalised_counts_log)
-}else{
-  len1=number_phenotype_pcs
+if(ncol(TMM_normalised_counts_log) < max_number_phenotype_pcs){
+  max_number_phenotype_pcs=ncol(TMM_normalised_counts_log)
+}
+
+for (npcs in number_phenotype_pcs){
+  if (max_number_phenotype_pcs < npcs){
+    npcs = max_number_phenotype_pcs
+  }
+  pcs_sliced  = pcs$rotation[,1:npcs]
+  write.table(pcs_sliced,file=paste0(npcs,'pcs.tsv'),sep='\t')
 }
 
 
-pcs20  = pcs$rotation[,1:len1]
-
-write.table(pcs20,file=paste('pcs.tsv',sep=''),sep='\t')
 write.table(TMM_normalised_counts_log,file=paste('normalised_phenotype.tsv',sep=''),sep='\t')
 
 # plots

@@ -95,7 +95,7 @@ workflow EQTL {
 
     }else if (params.method=='single_cell'){
         log.info 'Scrna analysis'
-        AGGREGATE_UMI_COUNTS(params.phenotype_file,params.aggregation_collumn,params.gt_id_column,params.sample_column,params.n_min_cells,params.n_min_individ)
+        AGGREGATE_UMI_COUNTS(params.phenotype_file,params.aggregation_columns,params.gt_id_column,params.sample_column,params.n_min_cells,params.n_min_individ)
         genotype_phenotype_mapping_file = AGGREGATE_UMI_COUNTS.out.genotype_phenotype_mapping
         phenotype_file= AGGREGATE_UMI_COUNTS.out.phenotype_file
         genotype_phenotype_mapping_file.splitCsv(header: true, sep: params.input_tables_column_delimiter)
@@ -129,13 +129,17 @@ workflow EQTL {
     SPLIT_PHENOTYPE_DATA(genotype_phenotype_mapping_file,phenotype_file,condition_channel)
 
     NORMALISE_and_PCA_PHENOTYPE(SPLIT_PHENOTYPE_DATA.out.phenotye_file,genotype_phenotype_mapping_file)
+    filtered_pheno_channel =NORMALISE_and_PCA_PHENOTYPE.out.filtered_phenotype.map { tuple ->  [tuple[2],[[tuple[0],tuple[1]]]].combinations()}.flatten().collate(3)
+    for_bed_channel = NORMALISE_and_PCA_PHENOTYPE.out.for_bed.map { tuple ->  [tuple[3],[[tuple[0],tuple[1],tuple[2]]]].combinations()}.flatten().collate(4)
 
-    CHUNK_GENOME(genome_annotation,NORMALISE_and_PCA_PHENOTYPE.out.filtered_phenotype)
+
+    CHUNK_GENOME(genome_annotation,filtered_pheno_channel)
     // if scRNA Take an anndata object with annotations and tell which condition is an agregation row. 
     
     PREPROCESS_SAMPLE_MAPPING(NORMALISE_and_PCA_PHENOTYPE.out.gen_phen_mapping)
     
-    PREPERE_EXP_BED(NORMALISE_and_PCA_PHENOTYPE.out.for_bed,params.annotation_file,GENOTYPE_PC_CALCULATION.out.gtpca_plink)
+
+    PREPERE_EXP_BED(for_bed_channel,params.annotation_file,GENOTYPE_PC_CALCULATION.out.gtpca_plink)
 
     // PREPERE_COVARIATES_FILE(GENOTYPE_PC_CALCULATION.out.gtpca_plink,)
 
