@@ -58,7 +58,7 @@ def main():
 
     norm_x = ro.r('res@assays$SCT@scale.data').T
 
-    adata.layers['scTransform_normalized'] = norm_x
+    adata.layers['scTransform_normalised'] = norm_x
 
     if output_file:
         adata.write('normAnnData.h5ad')

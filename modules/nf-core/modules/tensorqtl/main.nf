@@ -1,11 +1,11 @@
 
 process TENSORQTL {
-    label 'gpu'
-    tag {condition}
-    // label 'process_high_memory'
+    // label 'gpu'
+    tag "$condition, $nr_phenotype_pcs"
+    label 'process_low'
     
   // /lustre/scratch123/hgi/projects/ukbb_scrna/pipelines/singularity_images/nf_tensorqtl_1.2.img
-    publishDir  path: "${params.outdir}/TensorQTL_eQTLS/${condition}",
+    publishDir  path: "${params.outdir}/TensorQTL_eQTLS/${condition}/${nr_phenotype_pcs}",
                 overwrite: "true"
   
 
@@ -18,8 +18,7 @@ process TENSORQTL {
 
 
   input:
-    tuple(val(condition),path(aggrnorm_counts_bed),path(genotype_pcs_tsv))
-    // each path(genotype_pcs_tsv)
+    tuple(val(condition),path(aggrnorm_counts_bed),path(covariates_tsv),val(nr_phenotype_pcs))
     each path(plink_files_prefix)
 
   output:
@@ -31,11 +30,8 @@ process TENSORQTL {
     path('nom_output')
 
   script:
-
-    
-    
     """
-      tensorqtl_analyse.py --plink_prefix_path ${plink_files_prefix}/plink_genotypes --expression_bed ${aggrnorm_counts_bed} --covariates_file ${genotype_pcs_tsv} -window ${params.windowSize} -nperm ${params.numberOfPermutations}
+      tensorqtl_analyse.py --plink_prefix_path ${plink_files_prefix}/plink_genotypes --expression_bed ${aggrnorm_counts_bed} --covariates_file ${covariates_tsv} -window ${params.windowSize} -nperm ${params.numberOfPermutations}
     """
 }
 

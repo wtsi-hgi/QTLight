@@ -14,7 +14,7 @@ process GENOTYPE_PC_CALCULATION {
 
 
     input:
-        path(plink_bed)
+        path(plink_dir)
 
     output:
     
@@ -22,8 +22,13 @@ process GENOTYPE_PC_CALCULATION {
 
     script:
 
+        if(params.TensorQTL.use_gt_dosage==true && params.TensorQTL.run==true){
+        pgen_or_bed = "--pfile"
+        }else{
+        pgen_or_bed = "--bfile"
+        }
         """
-            plink2 --freq counts --bfile ${plink_bed}/plink_genotypes --out tmp_gt_plink_freq
-            plink2 --pca ${params.covariates.nr_genotype_pcs} --read-freq tmp_gt_plink_freq.acount  --bfile ${plink_bed}/plink_genotypes --out gtpca_plink
+            plink2 --freq counts ${pgen_or_bed} ${plink_dir}/plink_genotypes --out tmp_gt_plink_freq
+            plink2 --pca ${params.covariates.nr_genotype_pcs} --read-freq tmp_gt_plink_freq.acount  ${pgen_or_bed} ${plink_dir}/plink_genotypes --out gtpca_plink
         """
 }

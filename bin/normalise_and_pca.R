@@ -22,6 +22,11 @@ Mapping_Path = args[2]
 filter_type = args[3]
 number_phenotype_pcs = args[4]
 sc_or_bulk = args[5]
+inverse_normal = args[6]
+
+
+number_phenotype_pcs = as.numeric(unlist(strsplit(number_phenotype_pcs, ',')))
+max_number_phenotype_pcs =  max(number_phenotype_pcs)
 
 # Functions from https://github.com/kauralasoo/eQTLUtils/blob/master/R/matrix_operations.R
 quantileNormaliseVector = function(x){
@@ -166,26 +171,32 @@ if (filter_type=='filterByExpr'){
 if (sc_or_bulk == 'bulk' || grepl('dSum', Star_path, fixed = TRUE)){
   normalised_counts <- cpm(y, log=TRUE) #https://www.rdocumentation.org/packages/edgeR/versions/3.14.0/topics/cpm 
   normalised_counts = normalised_counts[complete.cases(normalised_counts), ]
+} else {
+  normalised_counts <– y
 }
 
-int_normalised_counts = normalised_counts
-int_normalised_counts$counts = quantileNormaliseMatrix(normalised_counts$counts)
+if (inverse_normal == TRUE){
+  normalised_counts$counts = quantileNormaliseMatrix(normalised_counts$counts)
+}
 
 # TMM_normalised_counts = t(t(y$counts)*y$samples$norm.factors)
 # norms = y$samples$norm.factors
 # TMM_normalised_counts_log = log(TMM_normalised_counts+1, 2) # Apply log2 transform on the TMM normalised counts.
 
-pcs = prcomp(int_normalised_counts, scale = TRUE)
-if(ncol(int_normalised_counts)<number_phenotype_pcs){
-  len1=ncol(int_normalised_counts)
-}else{
-  len1=number_phenotype_pcs
+pcs = prcomp(normalised_counts, scale = TRUE)
+if(ncol(normalised_counts) < max_number_phenotype_pcs){
+  max_number_phenotype_pcs=ncol(normalised_counts)
+}
+
+for (npcs in number_phenotype_pcs){
+  if (max_number_phenotype_pcs < npcs){
+    npcs = max_number_phenotype_pcs
+  }
+  pcs_sliced  = pcs$rotation[,1:npcs]
+  write.table(pcs_sliced,file=paste0(npcs,'pcs.tsv'),sep='\t')
 }
 
 
-pcs20  = pcs$rotation[,1:len1]
-
-write.table(pcs20,file=paste('pcs.tsv',sep=''),sep='\t')
 write.table(int_normalised_counts,file=paste('normalised_phenotype.tsv',sep=''),sep='\t')
 
 # plots

@@ -1,6 +1,6 @@
 process NORMALISE_and_PCA_PHENOTYPE{
      
-    // Calulates bbknn neighbors and saves UMAPS of these
+    // Normalise expression data and perform PCA
     // ------------------------------------------------------------------------
     tag { condition }
     //cache false        // cache results from run
@@ -23,8 +23,8 @@ process NORMALISE_and_PCA_PHENOTYPE{
         path(grouping_file)
         
     output:
-        tuple(val(condition),path("normalised_phenotype.tsv"), path("pcs.tsv") , emit: filtered_phenotype)
-        tuple(val(condition),path('mappings_handeling_repeats.tsv'),path("normalised_phenotype.tsv"),path("pcs.tsv"), emit: for_bed)
+        tuple(val(condition),path("normalised_phenotype.tsv"), path("*pcs.tsv") , emit: filtered_phenotype)
+        tuple(val(condition),path('mappings_handeling_repeats.tsv'),path("normalised_phenotype.tsv"),path("*pcs.tsv"), emit: for_bed)
         val(condition), emit: cond1
         path("*.pdf")
         path(phenotype_file)
