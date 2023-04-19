@@ -129,22 +129,18 @@ workflow EQTL {
     SPLIT_PHENOTYPE_DATA(genotype_phenotype_mapping_file,phenotype_file,condition_channel)
 
     NORMALISE_and_PCA_PHENOTYPE(SPLIT_PHENOTYPE_DATA.out.phenotye_file,genotype_phenotype_mapping_file)
-    filtered_pheno_channel =NORMALISE_and_PCA_PHENOTYPE.out.filtered_phenotype.map { tuple ->  [tuple[2],[[tuple[0],tuple[1]]]].combinations()}.flatten().collate(3)
-    for_bed_channel = NORMALISE_and_PCA_PHENOTYPE.out.for_bed.map { tuple ->  [tuple[3],[[tuple[0],tuple[1],tuple[2]]]].combinations()}.flatten().collate(4)
 
-
-    CHUNK_GENOME(genome_annotation,filtered_pheno_channel)
-    // if scRNA Take an anndata object with annotations and tell which condition is an agregation row. 
-    
-    PREPROCESS_SAMPLE_MAPPING(NORMALISE_and_PCA_PHENOTYPE.out.gen_phen_mapping)
-    
-
-    PREPERE_EXP_BED(for_bed_channel,params.annotation_file,GENOTYPE_PC_CALCULATION.out.gtpca_plink)
 
     // PREPERE_COVARIATES_FILE(GENOTYPE_PC_CALCULATION.out.gtpca_plink,)
 
     if (params.LIMIX.run){
+        
+        filtered_pheno_channel =NORMALISE_and_PCA_PHENOTYPE.out.filtered_phenotype.map { tuple ->  [tuple[2],[[tuple[0],tuple[1]]]].combinations()}.flatten().collate(3)
+        CHUNK_GENOME(genome_annotation,filtered_pheno_channel)
+
         KINSHIP_CALCULATION(PLINK_CONVERT.out.plink_path)
+        PREPROCESS_SAMPLE_MAPPING(NORMALISE_and_PCA_PHENOTYPE.out.gen_phen_mapping)
+
         LIMIX_eqtls(
         CHUNK_GENOME.out.limix_condition_chunking,
         PLINK_CONVERT.out.plink_path,
@@ -155,6 +151,10 @@ workflow EQTL {
     }
 
     if (params.TensorQTL.run){
+
+        for_bed_channel = NORMALISE_and_PCA_PHENOTYPE.out.for_bed.map { tuple ->  [tuple[3],[[tuple[0],tuple[1],tuple[2]]]].combinations()}.flatten().collate(4)
+        PREPERE_EXP_BED(for_bed_channel,params.annotation_file,GENOTYPE_PC_CALCULATION.out.gtpca_plink)
+
         TENSORQTL_eqtls(
             PREPERE_EXP_BED.out.exp_bed,
             PLINK_CONVERT.out.plink_path,
