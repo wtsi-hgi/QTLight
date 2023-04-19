@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
-__author__ = 'Matiss Ozols and Hannes Ponstingl'
-__date__ = '2021-11-25'
+__author__ = 'Tobi Alegbe'
+__date__ = '2023-04-18'
 __version__ = '0.0.1'
 
 # https://github.com/broadinstitute/tensorqtl
