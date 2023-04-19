@@ -22,10 +22,10 @@ process GENOTYPE_PC_CALCULATION {
 
     script:
 
-        if(params.use_gt_dosage==true){
+        if(params.TensorQTL.use_gt_dosage==true && params.TensorQTL.run==true){
         pgen_or_bed = "--pfile"
         }else{
-        bfile = "--bfile"
+        pgen_or_bed = "--bfile"
         }
         """
             plink2 --freq counts ${pgen_or_bed} ${plink_dir}/plink_genotypes --out tmp_gt_plink_freq

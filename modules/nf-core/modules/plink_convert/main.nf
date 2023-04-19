@@ -17,7 +17,7 @@ process PLINK_CONVERT{
     output:
         path("plink_genotypes"), emit: plink_path
     script:
-    if(params.use_gt_dosage==true){
+    if(params.TensorQTL.use_gt_dosage==true && params.TensorQTL.run==true){
       pgen_or_bed = "['dosage=DS'] --make-pgen"
     }else{
       pgen_or_bed = "--make-bed"
