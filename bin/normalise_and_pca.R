@@ -28,7 +28,7 @@ inverse_normal = args[6]
 number_phenotype_pcs = as.numeric(unlist(strsplit(number_phenotype_pcs, ',')))
 max_number_phenotype_pcs =  max(number_phenotype_pcs)
 
-# Functions from https://github.com/kauralasoo/eQTLUtils/blob/master/R/matrix_operations.R
+# Functions taken from https://github.com/kauralasoo/eQTLUtils/blob/master/R/matrix_operations.R
 quantileNormaliseVector = function(x){
   qnorm(rank(x,ties.method = "random")/(length(x)+1))
 }
@@ -42,6 +42,10 @@ quantileNormaliseMatrix <- function(matrix){
   rownames(quantile_matrix) = rownames(matrix)
   colnames(quantile_matrix) = colnames(matrix)
   return(quantile_matrix)
+}
+
+quantileNormaliseRows <- function(matrix,...){
+  t(quantileNormaliseMatrix(t(matrix), ...))
 }
 
 Star_counts_pre = read.table(file = Star_path, sep = '\t',check.names=FALSE, row.names = 1,header = TRUE)
@@ -139,11 +143,11 @@ if (filter_type=='filterByExpr'){
   keep = cvs < q3 
   y <- y[keep, keep.lib.sizes=TRUE]
   y <- calcNormFactors(y, method = "TMM")
-
+  
 }else if(filter_type=='None'){
   y=y
   y <- calcNormFactors(y, method = "TMM")
-
+  
   
   if (lengths(unique(Experimental_grops$Sample_Category)) ==1){
     y <- estimateDisp(y)
@@ -168,15 +172,16 @@ if (filter_type=='filterByExpr'){
 
 # I start to doubth about this apporach - permutations sometimes fail like this.
 # log2(CPM) as output
-if (sc_or_bulk == 'bulk' || grepl('dSum', Star_path, fixed = TRUE)){
+if ((sc_or_bulk == 'bulk') || grepl('-dSum', Star_path, fixed = TRUE)){
   normalised_counts <- cpm(y, log=TRUE) #https://www.rdocumentation.org/packages/edgeR/versions/3.14.0/topics/cpm 
   normalised_counts = normalised_counts[complete.cases(normalised_counts), ]
 } else {
-  normalised_counts <– y
+  normalised_counts <- y
 }
 
+# Apply inverse normal transformation to each row so traits are normally distributed
 if (inverse_normal == TRUE){
-  normalised_counts$counts = quantileNormaliseMatrix(normalised_counts$counts)
+  normalised_counts$counts = quantileNormaliseRows(normalised_counts$counts)
 }
 
 # TMM_normalised_counts = t(t(y$counts)*y$samples$norm.factors)
