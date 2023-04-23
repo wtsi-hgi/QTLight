@@ -6,16 +6,18 @@ __version__ = '0.0.1'
 
 
 import scanpy as sc
-from scipy.sparse import issparse
-import rpy2.robjects as ro
-import anndata2ri
+import pandas as pd
+import numpy as np
+from pysctransform import vst, get_hvg_residuals, SCTransform
+np.random.seed(42)
+import argparse
 
 
 def main():
     """Run CLI."""
     parser = argparse.ArgumentParser(
         description="""
-            Run scTransform on 10x data. Save to AnnData object. Based on the script from this issue https://github.com/scverse/scanpy/issues/1068#issuecomment-590009483
+            Run SCTransform on 10x AnnData. Save to AnnData object. Python port found here https://github.com/saketkc/pySCTransform/tree/develop
             """
     )
 
@@ -32,33 +34,36 @@ def main():
         help=''
     )
 
-    ro.r('library(Seurat)')
-    ro.r('library(scater)')
-    anndata2ri.activate()
-
     options = parser.parse_args()
+    h5ad = options.h5ad
     adata = sc.read_h5ad(filename=h5ad)
-
-    sc.pp.filter_genes(adata, min_cells=5)
     
-    if issparse(adata.X):
-        if not adata.X.has_sorted_indices:
-            adata.X.sort_indices()
 
-    for key in adata.layers:
-        if issparse(adata.layers[key]):
-            if not adata.layers[key].has_sorted_indices:
-                adata.layers[key].sort_indices()
+    # scTransform v1, works but needs a lot of memory
+    vst_out = vst(
+        adata.layers['counts'].T,
+        gene_names=adata.var_names.tolist(),
+        cell_names=adata.obs_names.tolist(),
+        method="theta_ml",
+        n_cells=2000,
+        verbosity=1)
 
-    ro.globalenv['adata'] = adata
-
-    ro.r('seurat_obj = as.Seurat(adata, counts="X", data = NULL)')
-
-    ro.r('res <- SCTransform(object=seurat_obj, return.only.var.genes = FALSE, do.correct.umi = FALSE)')
-
-    norm_x = ro.r('res@assays$SCT@scale.data').T
+    # scTransform v2, not working
+    # vst_out = vst(
+    #     adata.layers['counts'].T,
+    #     gene_names=adata.var_names.tolist(),
+    #     cell_names=adata.obs_names.tolist(),
+    #     method="fix-slope",
+    #     exclude_poisson=True,
+    #     correct_counts=True)
+    
+    norm_x = pd.DataFrame(data=vst_out["corrected_counts"].T,
+                          index = vst_out['model_parameters_fit'].index)
 
     adata.layers['scTransform_normalised'] = norm_x
 
-    if output_file:
-        adata.write('normAnnData.h5ad')
+    adata.write('normAnnData.h5ad')
+
+
+if __name__ == '__main__':
+    main()
