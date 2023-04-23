@@ -1,7 +1,7 @@
 
 process PREPERE_EXP_BED {
   label 'process_low'
-  tag {condition}
+  tag "$condition, $nr_phenotype_pcs"
   if (workflow.containerEngine == 'singularity' && !params.singularity_pull_docker_container) {
       container "${params.eqtl_container}"
       
@@ -11,15 +11,15 @@ process PREPERE_EXP_BED {
 
 
   input:
-    tuple(val(condition),path(mapping_file),path(expression_file),path(phenotype_pcs) )
+    tuple(path(phenotype_pcs),val(condition),path(mapping_file),path(expression_file))
     each path(annotation_file)
     each path(genotype_pcs)
 
   output:
-    tuple(val(condition),path("Expression_Data.bed.gz"),path('Covariates.tsv'), emit: exp_bed)
+    tuple(val(condition),path("Expression_Data.bed.gz"),path('Covariates.tsv'), val(nr_phenotype_pcs), emit: exp_bed)
 
   script:
-
+    nr_phenotype_pcs = phenotype_pcs.getSimpleName()
     if(params.sample_covariates==''){
       sample_covar =''
     }else{
