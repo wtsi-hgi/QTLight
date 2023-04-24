@@ -96,31 +96,32 @@ def main():
     plink_prefix_path=options.plink_prefix_path
     expression_bed=options.expression_bed
     covariates_file=options.covariates_file
+    interaction_file=options.inter
     outdir=options.outdir
-
 
     phenotype_df, phenotype_pos_df = read_phenotype_bed(expression_bed)
     
     
     covariates_df = pd.read_csv(covariates_file, sep='\t', index_col=0)
+    interaction_df = pd.read_csv(interaction_file, sep='\t', header=None, index_col=0)
     phenotype_df = phenotype_df[covariates_df.columns]
     # have to drop dublicate rownames. and average the repeated measures.
     phenotype_df.columns = phenotype_df.columns.str.split('.').str[0]
     covariates_df.columns = covariates_df.columns.str.split('.').str[0]
 
     covariates_df=covariates_df.loc[:,~covariates_df.columns.duplicated()]
+    interaction_df=interaction_df.loc[:,~interaction_df.columns.duplicated()]
     # this can be adjusted to take an average. TQTL can not account for repeated measures.
     phenotype_df=phenotype_df.loc[:,~phenotype_df.columns.duplicated()]
 
     covariates_df=covariates_df.T
     # not a good solution but atm
 
-    # covariates_df=covariates_df.set_index('IID')
-    # to_keep = list(set(covariates_df.index).intersection(set(phenotype_df.columns)))
-    # covariates_df=covariates_df.loc[to_keep]
-    # covariates_df= covariates_df
-
-    # phenotype_df = phenotype_df[to_keep]
+    # Remove samples that are not found in both phenotype and interaction dfs
+    to_keep = list(set(interaction_df.index).intersection(set(phenotype_df.columns),set(covariates_df.index)))
+    interaction_df=interaction_df.loc[to_keep]
+    covariates_df=covariates_df.loc[to_keep]
+    phenotype_df = phenotype_df[to_keep]
 
     print('----Fine read ------')
     if torch.cuda.is_available():
@@ -137,7 +138,7 @@ def main():
                     phenotype_pos_df.loc[phenotype_pos_df['chr']!='chrY'],
                     covariates_df=covariates_df,prefix='cis_inter1',
                     output_dir=Directory, write_top=True, write_stats=True,
-                    interaction_s=interaction_s, maf_threshold_interaction=0.05,
+                    interaction_df=interaction_df, maf_threshold_interaction=0.05,
                     run_eigenmt=True)
     
     all_files = glob.glob(f'{Directory}/cis_inter*.parquet')

@@ -1,7 +1,8 @@
 
 process TENSORQTL {
-    tensor_label = params.TensorQTL.utilise_gpu ? 'gpu' : "process_low"   
-    label {tensor_label}
+    // tensor_label = params.TensorQTL.utilise_gpu ? 'gpu' : "process_low"   
+    // label {tensor_label}
+    label 'process_low'
     tag "$condition, $nr_phenotype_pcs"
     
   // /lustre/scratch123/hgi/projects/ukbb_scrna/pipelines/singularity_images/nf_tensorqtl_1.2.img
@@ -34,10 +35,10 @@ process TENSORQTL {
   if (params.TensorQTL.interaction != '' ) {
     tensor_qtl_script = "tensorqtl_analyse_interaction.py --inter ${params.TensorQTL.interaction_file}"
   } else {
-    tensor_qtl_script = "tensorqtl_analyse.py"
+    tensor_qtl_script = "tensorqtl_analyse.py -nperm ${params.numberOfPermutations}"
   }
     """
-      ${tensor_qtl_script} --plink_prefix_path ${plink_files_prefix}/plink_genotypes --expression_bed ${aggrnorm_counts_bed} --covariates_file ${covariates_tsv} -window ${params.windowSize} -nperm ${params.numberOfPermutations}
+      ${tensor_qtl_script} --plink_prefix_path ${plink_files_prefix}/plink_genotypes --expression_bed ${aggrnorm_counts_bed} --covariates_file ${covariates_tsv} -window ${params.windowSize} 
     """
 }
 
