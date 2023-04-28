@@ -3,7 +3,7 @@
 process AGGREGATE_UMI_COUNTS {
   publishDir  path: "${outdir}/aggregated_counts",mode: "${params.copy_mode}",
               overwrite: "true"
-    label 'process_medium_memory'
+    label 'process_medium'
     if (workflow.containerEngine == 'singularity' && !params.singularity_pull_docker_container) {
         container "${params.eqtl_container}"
         

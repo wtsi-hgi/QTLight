@@ -137,8 +137,7 @@ def main():
                                 data_aggregated_for_cell_and_individal.set_index(f.columns,inplace=True)
                                 type2= f"{agg_col}-{type}-{method}"
                             elif (method =='dMean'):
-                                individual_1_adata.X = individual_1_adata.layers['dMean_normalised']
-                                f = individual_1_adata.to_df()
+                                f = individual_1_adata.layers['dMean_normalised'].to_df()
                                 data_aggregated_for_cell_and_individal = pd.DataFrame(f.mean(axis = 0))
                                 data_aggregated_for_cell_and_individal.set_index(f.columns,inplace=True)
                                 type2= f"{agg_col}-{type}-{method}"
