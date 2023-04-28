@@ -203,12 +203,12 @@ for (npcs in number_phenotype_pcs){
 }
 
 
-write.table(int_normalised_counts,file=paste('normalised_phenotype.tsv',sep=''),sep='\t')
+write.table(normalised_counts,file=paste('normalised_phenotype.tsv',sep=''),sep='\t')
 
 # plots
 p <- pca(Star_counts, metadata = Experimental_grops, removeVar = 0.1)
-if(ncol(int_normalised_counts)<15){
-  len1=ncol(int_normalised_counts)
+if(ncol(normalised_counts)<15){
+  len1=ncol(normalised_counts)
 }else{
   len1=15
 }
