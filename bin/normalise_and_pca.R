@@ -22,7 +22,8 @@ Mapping_Path = args[2]
 filter_type = args[3]
 number_phenotype_pcs = args[4]
 sc_or_bulk = args[5]
-inverse_normal = args[6]
+inverse_normal = as.logical(args[6])
+stopifnot(inverse_normal %in% c(TRUE, FALSE))
 
 
 number_phenotype_pcs = as.numeric(unlist(strsplit(number_phenotype_pcs, ',')))

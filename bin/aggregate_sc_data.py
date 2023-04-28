@@ -104,13 +104,15 @@ def main():
     #     genotype_phenotype = pd.read_csv(genotype_phenotype)
     # else:
         # here we estimate the genotype phenotype interaction file from the genotype, since the IDs are the same. 
-
+    print('Reading in data...')
     adata = sc.read_h5ad(filename=h5ad)
     adata.obs['adata_phenotype_id'] = adata.obs[gt_id_column].astype('str')+'_'+adata.obs[sample_column].astype('str')
     genotype_phenotype_mapping = []
     aggregated_data=pd.DataFrame()
 
     for method in methods:
+        if (method =='dMean'):
+            adata.X = adata.layers['dMean_normalised']
         for agg_col in agg_columns:
             print(agg_col)
             print("----------")
@@ -137,7 +139,7 @@ def main():
                                 data_aggregated_for_cell_and_individal.set_index(f.columns,inplace=True)
                                 type2= f"{agg_col}-{type}-{method}"
                             elif (method =='dMean'):
-                                f = individual_1_adata.layers['dMean_normalised'].to_df()
+                                f = individual_1_adata.to_df()
                                 data_aggregated_for_cell_and_individal = pd.DataFrame(f.mean(axis = 0))
                                 data_aggregated_for_cell_and_individal.set_index(f.columns,inplace=True)
                                 type2= f"{agg_col}-{type}-{method}"
