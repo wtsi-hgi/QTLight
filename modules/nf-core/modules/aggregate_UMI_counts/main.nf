@@ -3,7 +3,7 @@
 process AGGREGATE_UMI_COUNTS {
   publishDir  path: "${outdir}/aggregated_counts",mode: "${params.copy_mode}",
               overwrite: "true"
-    label 'process_medium_memory'
+    label 'process_medium'
     if (workflow.containerEngine == 'singularity' && !params.singularity_pull_docker_container) {
         container "${params.eqtl_container}"
         
@@ -14,7 +14,7 @@ process AGGREGATE_UMI_COUNTS {
 
   input:
     path(adata) // lists input files per donor
-    val(agg_column)
+    val(agg_columns)
     val(gt_id_column)
     val(sample_column)
     val(n_cells_min)
@@ -29,6 +29,6 @@ process AGGREGATE_UMI_COUNTS {
   outdir = params.outdir
   """
     
-    aggregate_sc_data.py --agg_column '${agg_column}' --gt_id_column '${gt_id_column}' --sample_column '${sample_column}' --n_cells ${n_cells_min} -n_individ ${n_donors_min} -h5ad ${adata} --method ${params.aggregation_method}
+    aggregate_sc_data.py --agg_columns '${agg_columns}' --gt_id_column '${gt_id_column}' --sample_column '${sample_column}' --n_cells ${n_cells_min} -n_individ ${n_donors_min} -h5ad ${adata} --method ${params.aggregation_method}
   """
 }
