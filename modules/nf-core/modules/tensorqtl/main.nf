@@ -32,7 +32,7 @@ process TENSORQTL {
 
   script:
   // If a file with interaction terms is provided, use the interaction script otherwise use the standard script   
-  if (params.TensorQTL.interaction != '' ) {
+  if (params.TensorQTL.interaction_file?.trim()) {
     tensor_qtl_script = "tensorqtl_analyse_interaction.py --inter ${params.TensorQTL.interaction_file}"
   } else {
     tensor_qtl_script = "tensorqtl_analyse.py -nperm ${params.numberOfPermutations}"

@@ -177,12 +177,12 @@ if ((sc_or_bulk == 'bulk') || grepl('-dSum', Star_path, fixed = TRUE)){
   normalised_counts <- cpm(y, log=TRUE) #https://www.rdocumentation.org/packages/edgeR/versions/3.14.0/topics/cpm 
   normalised_counts = normalised_counts[complete.cases(normalised_counts), ]
 } else {
-  normalised_counts <- y
+  normalised_counts <- y$counts
 }
-
 # Apply inverse normal transformation to each row so traits are normally distributed
 if (inverse_normal == TRUE){
-  normalised_counts$counts = quantileNormaliseRows(normalised_counts$counts)
+  print('Applying inverse normal transformation')
+  normalised_counts = quantileNormaliseRows(normalised_counts)
 }
 
 # TMM_normalised_counts = t(t(y$counts)*y$samples$norm.factors)
@@ -202,7 +202,14 @@ for (npcs in number_phenotype_pcs){
   write.table(pcs_sliced,file=paste0(npcs,'pcs.tsv'),sep='\t')
 }
 
+<<<<<<< HEAD
 
+=======
+<<<<<<< HEAD
+=======
+
+>>>>>>> 05298b280f63cbe6582fef55c60a42859d79bbba
+>>>>>>> 050309403243f31ade448f98eeb701dbd2b75c95
 write.table(normalised_counts,file=paste('normalised_phenotype.tsv',sep=''),sep='\t')
 
 # plots
