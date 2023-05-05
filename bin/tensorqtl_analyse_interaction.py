@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
-__author__ = 'Matiss Ozols and Hannes Ponstingl'
-__date__ = '2021-11-25'
+__author__ = 'Tobi Alegbe'
+__date__ = '2023-04-18'
 __version__ = '0.0.1'
 
 # https://github.com/broadinstitute/tensorqtl
@@ -61,14 +61,6 @@ def main():
     )
 
     parser.add_argument(
-        '-nperm', '--nperm',
-        action='store',
-        dest='nperm',
-        required=True,
-        help=''
-    )
-
-    parser.add_argument(
         '-bed', '--expression_bed',
         action='store',
         dest='expression_bed',
@@ -82,47 +74,54 @@ def main():
         required=True,
         help=''
     )
+    parser.add_argument(
+        '-inter', '--interaction_file',
+        action='store',
+        dest='inter',
+        required=True,
+        help=''
+    )
+    parser.add_argument(
+        '-o', '--outdir',
+        action='store',
+        dest='outdir',
+        required=False,
+        default='.',
+        help=''
+    )
 
     options = parser.parse_args()
     # ValueError: The BED file must define the TSS/cis-window center, with start+1 == end.
     # --plink_prefix_path plink_genotypes/plink_genotypes --expression_bed Expression_Data.bed.gz --covariates_file gtpca_plink.eigenvec
-    plink_prefix_path = 'plink_genotypes/plink_genotypes'
-    expression_bed = 'Expression_Data.bed.gz'
-    covariates_file = 'gtpca_plink.eigenvec'
-    # /lustre/scratch123/hgi/teams/hgi/mo11/eQTL_mapping/LIMIX/work/62/c8dd517ac8a526214952fb551f1c25
-    # prefix = 'bin/HipSci_all'
-    # extra = '/lustre/scratch123/hgi/projects/ukbb_scrna/pipelines/Pilot_UKB/eqtl/franke_data/work/ef/7573334e4e1958378cc11ac8d33f59/normaggrsum_NK_counts_chrAll.bed.gz'
     plink_prefix_path=options.plink_prefix_path
     expression_bed=options.expression_bed
     covariates_file=options.covariates_file
-
+    interaction_file=options.inter
+    outdir=options.outdir
 
     phenotype_df, phenotype_pos_df = read_phenotype_bed(expression_bed)
     
     
-    # phenotype_df =  pd.read_csv(expression_bed, sep='\t', index_col=0,header=None)
-    # phenotype_df.columns = phenotype_df.iloc[0]
-    # phenotype_df = phenotype_df.iloc[1: , :]
-    # phenotype_df = phenotype_df.reindex(phenotype_df.index.drop(0)).reset_index(drop=True)
     covariates_df = pd.read_csv(covariates_file, sep='\t', index_col=0)
+    interaction_df = pd.read_csv(interaction_file, sep='\t', header=None, index_col=0)
     phenotype_df = phenotype_df[covariates_df.columns]
     # have to drop dublicate rownames. and average the repeated measures.
     phenotype_df.columns = phenotype_df.columns.str.split('.').str[0]
     covariates_df.columns = covariates_df.columns.str.split('.').str[0]
 
     covariates_df=covariates_df.loc[:,~covariates_df.columns.duplicated()]
+    interaction_df=interaction_df.loc[:,~interaction_df.columns.duplicated()]
     # this can be adjusted to take an average. TQTL can not account for repeated measures.
     phenotype_df=phenotype_df.loc[:,~phenotype_df.columns.duplicated()]
 
     covariates_df=covariates_df.T
     # not a good solution but atm
 
-    # covariates_df=covariates_df.set_index('IID')
-    # to_keep = list(set(covariates_df.index).intersection(set(phenotype_df.columns)))
-    # covariates_df=covariates_df.loc[to_keep]
-    # covariates_df= covariates_df
-
-    # phenotype_df = phenotype_df[to_keep]
+    # Remove samples that are not found in both phenotype and interaction dfs
+    to_keep = list(set(interaction_df.index).intersection(set(phenotype_df.columns),set(covariates_df.index)))
+    interaction_df=interaction_df.loc[to_keep]
+    covariates_df=covariates_df.loc[to_keep]
+    phenotype_df = phenotype_df[to_keep]
 
     print('----Fine read ------')
     if torch.cuda.is_available():
@@ -132,15 +131,17 @@ def main():
     pr = genotypeio.PlinkReader(plink_prefix_path)
     genotype_df = pr.load_genotypes()
     variant_df = pr.bim.set_index('snp')[['chrom', 'pos']]
-    Directory = './nom_output'
+    Directory = f'{outdir}/inter_output'
     os.mkdir(Directory)
-    cis.map_nominal(genotype_df, variant_df,
-                    phenotype_df.loc[phenotype_pos_df['chr']!='chrY'],
+    cis.map_nominal(genotype_df, variant_df, 
+                    phenotype_df.loc[phenotype_pos_df['chr']!='chrY'], 
                     phenotype_pos_df.loc[phenotype_pos_df['chr']!='chrY'],
-                    covariates_df=covariates_df,prefix='cis_nominal1',
-                    output_dir=Directory, write_top=True, write_stats=True)
+                    covariates_df=covariates_df,prefix='cis_inter1',
+                    output_dir=Directory, write_top=True, write_stats=True,
+                    interaction_df=interaction_df, maf_threshold_interaction=0.05,
+                    run_eigenmt=True)
     
-    all_files = glob.glob(f'{Directory}/cis_nominal*.parquet')
+    all_files = glob.glob(f'{Directory}/cis_inter*.parquet')
     All_Data = pd.DataFrame()
     count=0
     for bf1 in all_files:
@@ -150,26 +151,5 @@ def main():
         os.remove(bf1) 
         count+=1    
 
-    
-    cis_df = cis.map_cis(genotype_df, variant_df, 
-                        phenotype_df.loc[phenotype_pos_df['chr']!='chrY'],
-                        phenotype_pos_df.loc[phenotype_pos_df['chr']!='chrY'],nperm=int(options.nperm),
-                        window=int(options.window),maf_threshold=0,
-                        covariates_df=covariates_df)
-    print('----cis eQTLs processed ------')
-    cis_df.head()
-    cis_df.to_csv("Cis_eqtls.tsv",sep="\t")
-    sv = ~np.isnan(cis_df['pval_beta'])
-    print(f"Dropping {sum(sv)} variants withouth Beta-approximated p-values to\n.")
-    cis_df_dropped = cis_df.loc[sv]
-    r = stats.pearsonr(cis_df_dropped['pval_perm'], cis_df_dropped['pval_beta'])[0]
-    calculate_qvalues(cis_df_dropped, qvalue_lambda=0.85)
-    cis_df_dropped.to_csv("Cis_eqtls_qval.tsv", sep='\t')
-
 if __name__ == '__main__':
     main()
-
-# trans_df = tensorqtl.trans.map_trans(genotype_df, phenotype_df, covariates_df, batch_size=10000,
-#                            return_sparse=True, pval_threshold=1e-5, maf_threshold=0.05)
-# trans_df = tensorqtl.trans.filter_cis(trans_df, phenotype_pos_df.T.to_dict(), variant_df, window=5000000)
-# trans_df.to_csv("Trans_eqtls.tsv",sep="\t")

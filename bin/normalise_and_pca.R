@@ -21,7 +21,33 @@ Star_path = args[1]
 Mapping_Path = args[2]
 filter_type = args[3]
 number_phenotype_pcs = args[4]
+sc_or_bulk = args[5]
+inverse_normal = as.logical(args[6])
+stopifnot(inverse_normal %in% c(TRUE, FALSE))
 
+
+number_phenotype_pcs = as.numeric(unlist(strsplit(number_phenotype_pcs, ',')))
+max_number_phenotype_pcs =  max(number_phenotype_pcs)
+
+# Functions taken from https://github.com/kauralasoo/eQTLUtils/blob/master/R/matrix_operations.R
+quantileNormaliseVector = function(x){
+  qnorm(rank(x,ties.method = "random")/(length(x)+1))
+}
+
+quantileNormaliseMatrix <- function(matrix){
+  quantile_matrix = matrix(0, nrow(matrix), ncol(matrix))
+  for (i in seq_along(matrix[1,])){
+    quantile_matrix[,i] = quantileNormaliseVector(matrix[,i])
+  }
+  #Add names
+  rownames(quantile_matrix) = rownames(matrix)
+  colnames(quantile_matrix) = colnames(matrix)
+  return(quantile_matrix)
+}
+
+quantileNormaliseRows <- function(matrix,...){
+  t(quantileNormaliseMatrix(t(matrix), ...))
+}
 
 Star_counts_pre = read.table(file = Star_path, sep = '\t',check.names=FALSE, row.names = 1,header = TRUE)
 colnames(Star_counts_pre)[duplicated(colnames(Star_counts_pre))]=paste0('rep_',colnames(Star_counts_pre)[duplicated(colnames(Star_counts_pre))])
@@ -118,11 +144,11 @@ if (filter_type=='filterByExpr'){
   keep = cvs < q3 
   y <- y[keep, keep.lib.sizes=TRUE]
   y <- calcNormFactors(y, method = "TMM")
-
+  
 }else if(filter_type=='None'){
   y=y
   y <- calcNormFactors(y, method = "TMM")
-
+  
   
   if (lengths(unique(Experimental_grops$Sample_Category)) ==1){
     y <- estimateDisp(y)
@@ -147,30 +173,49 @@ if (filter_type=='filterByExpr'){
 
 # I start to doubth about this apporach - permutations sometimes fail like this.
 # log2(CPM) as output
-TMM_normalised_counts_log <- cpm(y, log=TRUE) #https://www.rdocumentation.org/packages/edgeR/versions/3.14.0/topics/cpm 
-TMM_normalised_counts_log = TMM_normalised_counts_log[complete.cases(TMM_normalised_counts_log), ]
+if ((sc_or_bulk == 'bulk') || grepl('-dSum', Star_path, fixed = TRUE)){
+  normalised_counts <- cpm(y, log=TRUE) #https://www.rdocumentation.org/packages/edgeR/versions/3.14.0/topics/cpm 
+  normalised_counts = normalised_counts[complete.cases(normalised_counts), ]
+} else {
+  normalised_counts <- y$counts
+}
+# Apply inverse normal transformation to each row so traits are normally distributed
+if (inverse_normal == TRUE){
+  print('Applying inverse normal transformation')
+  normalised_counts = quantileNormaliseRows(normalised_counts)
+}
 
 # TMM_normalised_counts = t(t(y$counts)*y$samples$norm.factors)
 # norms = y$samples$norm.factors
 # TMM_normalised_counts_log = log(TMM_normalised_counts+1, 2) # Apply log2 transform on the TMM normalised counts.
 
-pcs = prcomp(TMM_normalised_counts_log, scale = TRUE)
-if(ncol(TMM_normalised_counts_log)<number_phenotype_pcs){
-  len1=ncol(TMM_normalised_counts_log)
-}else{
-  len1=number_phenotype_pcs
+pcs = prcomp(normalised_counts, scale = TRUE)
+if(ncol(normalised_counts) < max_number_phenotype_pcs){
+  max_number_phenotype_pcs=ncol(normalised_counts)
 }
 
+for (npcs in number_phenotype_pcs){
+  if (max_number_phenotype_pcs < npcs){
+    npcs = max_number_phenotype_pcs
+  }
+  pcs_sliced  = pcs$rotation[,1:npcs]
+  write.table(pcs_sliced,file=paste0(npcs,'pcs.tsv'),sep='\t')
+}
 
-pcs20  = pcs$rotation[,1:len1]
+<<<<<<< HEAD
 
-write.table(pcs20,file=paste('pcs.tsv',sep=''),sep='\t')
-write.table(TMM_normalised_counts_log,file=paste('normalised_phenotype.tsv',sep=''),sep='\t')
+=======
+<<<<<<< HEAD
+=======
+
+>>>>>>> 05298b280f63cbe6582fef55c60a42859d79bbba
+>>>>>>> 050309403243f31ade448f98eeb701dbd2b75c95
+write.table(normalised_counts,file=paste('normalised_phenotype.tsv',sep=''),sep='\t')
 
 # plots
 p <- pca(Star_counts, metadata = Experimental_grops, removeVar = 0.1)
-if(ncol(TMM_normalised_counts_log)<15){
-  len1=ncol(TMM_normalised_counts_log)
+if(ncol(normalised_counts)<15){
+  len1=ncol(normalised_counts)
 }else{
   len1=15
 }

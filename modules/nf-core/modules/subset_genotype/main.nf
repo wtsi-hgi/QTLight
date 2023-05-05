@@ -24,6 +24,7 @@ process SUBSET_GENOTYPE {
     script:
         file__reduced_dims = file__reduced_dims.join(",")
         samplename='subset'
+        sample_subset_file = donor_vcf.getSimpleName()
         """
             tabix -p vcf ${donor_vcf} || echo 'not typical VCF'
             bcftools view ${donor_vcf} -s ${file__reduced_dims} --force-samples -Oz -o ${samplename}.subset.vcf.gz
