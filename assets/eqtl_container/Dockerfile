@@ -46,6 +46,10 @@ RUN conda config --set always_yes yes --set changeps1 no && \
     conda clean -atipy && \
     rm ${HOME}/environment.yml
 RUN which conda    
-RUN python -V
-
-USER ${NB_USER}
+RUN pip install glimix-core
+RUN git clone https://github.com/broadinstitute/tensorqtl.git
+RUN cd tensorqtl && pip install -r install/requirements.txt .
+RUN git clone https://github.com/chrchang/plink-ng.git
+RUN cd plink-ng/2.0/Python/ && python3 setup.py build_ext && python3 setup.py install
+# RUN rm -r tensorqlt && rm -r plink-ng
+# USER ${NB_USER}
