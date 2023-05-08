@@ -21,11 +21,10 @@ process GENOTYPE_PC_CALCULATION {
         path("gtpca_plink.eigenvec"), emit: gtpca_plink
 
     script:
-
-        if(params.TensorQTL.use_gt_dosage==true && params.TensorQTL.run==true){
-        pgen_or_bed = "--pfile"
+        if (params.TensorQTL.use_gt_dosage && params.TensorQTL.run) {
+            pgen_or_bed = "--pfile"
         }else{
-        pgen_or_bed = "--bfile"
+            pgen_or_bed = "--bfile"
         }
         """
             plink2 --freq counts ${pgen_or_bed} ${plink_dir}/plink_genotypes --out tmp_gt_plink_freq

@@ -90,6 +90,14 @@ def main():
         help=''
     )
 
+    parser.add_argument(
+        '-dosage', '--dosage',
+        action='store_true',
+        dest='dosage',
+        default=False,
+        help=''
+    )
+
     options = parser.parse_args()
     # ValueError: The BED file must define the TSS/cis-window center, with start+1 == end.
     # --plink_prefix_path plink_genotypes/plink_genotypes --expression_bed Expression_Data.bed.gz --covariates_file gtpca_plink.eigenvec
@@ -98,6 +106,7 @@ def main():
     covariates_file=options.covariates_file
     interaction_file=options.inter
     outdir=options.outdir
+    dosage=options.dosage
 
     phenotype_df, phenotype_pos_df = read_phenotype_bed(expression_bed)
     
@@ -128,9 +137,11 @@ def main():
         print(f'  * using GPU ({torch.cuda.get_device_name(torch.cuda.current_device())})')
     else:
         print('  * WARNING: using CPU!')
-    pr = genotypeio.PlinkReader(plink_prefix_path)
-    genotype_df = pr.load_genotypes()
-    variant_df = pr.bim.set_index('snp')[['chrom', 'pos']]
+    # Replacing with simplier command
+    # pr = genotypeio.PlinkReader(plink_prefix_path)
+    # genotype_df = pr.load_genotypes()
+    # variant_df = pr.bim.set_index('snp')[['chrom', 'pos']]
+    genotype_df, variant_df = genotypeio.load_genotypes(plink_prefix_path, dosages=dosage)
     Directory = f'{outdir}/inter_output'
     os.mkdir(Directory)
     cis.map_nominal(genotype_df, variant_df, 

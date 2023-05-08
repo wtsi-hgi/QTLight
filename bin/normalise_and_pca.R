@@ -202,14 +202,6 @@ for (npcs in number_phenotype_pcs){
   write.table(pcs_sliced,file=paste0(npcs,'pcs.tsv'),sep='\t')
 }
 
-<<<<<<< HEAD
-
-=======
-<<<<<<< HEAD
-=======
-
->>>>>>> 05298b280f63cbe6582fef55c60a42859d79bbba
->>>>>>> 050309403243f31ade448f98eeb701dbd2b75c95
 write.table(normalised_counts,file=paste('normalised_phenotype.tsv',sep=''),sep='\t')
 
 # plots

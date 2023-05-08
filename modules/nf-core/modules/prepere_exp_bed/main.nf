@@ -25,9 +25,14 @@ process PREPERE_EXP_BED {
     }else{
       sample_covar ="--sample_covariates ${params.sample_covariates}"
     }
+    if (params.TensorQTL.use_gt_dosage && params.TensorQTL.run) {
+      pfile = "-pfile"
+    }else{
+    pfile = ""
+        }
     """
       echo ${condition}
       prepere_bed.py --annotation_file ${annotation_file} --mapping_file ${mapping_file} --expression_file ${expression_file}
-      prepere_covariates_file.py --genotype_pcs ${genotype_pcs} --phenotype_pcs ${phenotype_pcs} ${sample_covar} --sample_mapping ${mapping_file}
+      prepere_covariates_file.py --genotype_pcs ${genotype_pcs} --phenotype_pcs ${phenotype_pcs} ${sample_covar} --sample_mapping ${mapping_file} ${pfile}
     """
 }
