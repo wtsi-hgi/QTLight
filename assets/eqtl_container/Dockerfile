@@ -51,5 +51,6 @@ RUN git clone https://github.com/broadinstitute/tensorqtl.git
 RUN cd tensorqtl && pip install -r install/requirements.txt .
 RUN git clone https://github.com/chrchang/plink-ng.git
 RUN cd plink-ng/2.0/Python/ && python3 setup.py build_ext && python3 setup.py install
+RUN conda install -c bioconda bedtools
 # RUN rm -r tensorqlt && rm -r plink-ng
 # USER ${NB_USER}
