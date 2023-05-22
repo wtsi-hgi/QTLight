@@ -4,18 +4,16 @@ process TENSORQTL {
     label "${tensor_label}"
     tag "$condition, $nr_phenotype_pcs"
     
-  // /lustre/scratch123/hgi/projects/ukbb_scrna/pipelines/singularity_images/nf_tensorqtl_1.2.img
     publishDir  path: "${params.outdir}/TensorQTL_eQTLS/${condition}/${nr_phenotype_pcs}",
                 overwrite: "true"
   
 
   if (workflow.containerEngine == 'singularity' && !params.singularity_pull_docker_container) {
-    // container "/lustre/scratch123/hgi/projects/ukbb_scrna/pipelines/singularity_images/nf_tensorqtl_1.2.img"
     container "${params.eqtl_container}"
   } else {
     container "${params.eqtl_docker}"
   }
-
+  
 
   input:
     tuple(val(condition),path(aggrnorm_counts_bed),path(covariates_tsv),val(nr_phenotype_pcs))
@@ -44,7 +42,7 @@ process TENSORQTL {
     dosage = ""
   }
     """
-      /software/team152/bedtools sort -i ${aggrnorm_counts_bed} -header > Expression_Data.sorted.bed
+      bedtools sort -i ${aggrnorm_counts_bed} -header > Expression_Data.sorted.bed
       ${tensor_qtl_script} --plink_prefix_path ${plink_files_prefix}/plink_genotypes --expression_bed Expression_Data.sorted.bed --covariates_file ${covariates_tsv} -window ${params.windowSize} ${dosage}
     """
 }
