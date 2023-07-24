@@ -62,12 +62,14 @@ def main():
         df = read_gtf(annotation_file)
         if (gtf_type=='gene'):
             df2 = df[df.feature == 'gene']
+            Gene_Chr_Start_End_Data =df2[['gene_id','start','end','strand','seqname']]
         elif (gtf_type=='transcript'):
             df2 = df[df.feature == 'transcript']
+            Gene_Chr_Start_End_Data =df2[['transcript_id','start','end','strand','seqname']]
         else:
             _ = 'you havent specified which type of analysis you are performing'
-        # Gene_Chr_Start_End_Data =df2[['gene_id','start','end','strand','seqname']]
-        Gene_Chr_Start_End_Data =df2[['transcript_id','start','end','strand','seqname']]
+        # 
+        
     except:
         Gene_Chr_Start_End_Data = pd.read_csv(annotation_file,index_col=None,sep='\t')
         

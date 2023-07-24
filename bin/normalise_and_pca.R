@@ -14,14 +14,18 @@ args = commandArgs(trailingOnly=TRUE)
 if (length(args)==0) {
   stop("At least one argument must be supplied (input file).n", call.=FALSE)
 }
-Star_path = 'M0_100_phenotype.tsv'
-Mapping_Path = 'sample_mappings2.tsv'
+# Star_path = 'general_phenotype.tsv'
+# Mapping_Path = 'sample_mappings2.tsv'
+# filter_type = 'None'
+# number_phenotype_pcs='20'
+# norm type
 
 Star_path = args[1]
 Mapping_Path = args[2]
 filter_type = args[3]
 number_phenotype_pcs = args[4]
-
+norm_method = args[5]
+percent_op_pop_expressed = args[6]
 
 Star_counts_pre = read.table(file = Star_path, sep = '\t',check.names=FALSE, row.names = 1,header = TRUE)
 colnames(Star_counts_pre)[duplicated(colnames(Star_counts_pre))]=paste0('rep_',colnames(Star_counts_pre)[duplicated(colnames(Star_counts_pre))])
@@ -30,18 +34,20 @@ percent_of_population_expressed = 0.2 #We want to only map the values that are e
 # We mapped cis-eQTL within a 1 megabase (MB) window of the TSS of each gene expressed
 # in at least 5% of the nuclei (belonging to a broad cell type)
 
-keep=c()
-for (row in 1:nrow(Star_counts_pre)) {
-  r1 = Star_counts_pre[row,]
-  number_elems = length(r1)
-  number_elems_greater_than_0 = length(r1[r1>0])
-  if ((number_elems_greater_than_0/number_elems>percent_of_population_expressed) & (number_elems_greater_than_0>1)){
-    keep <- append (keep,row)
+if (percent_of_population_expressed>0){
+  keep=c()
+  for (row in 1:nrow(Star_counts_pre)) {
+    r1 = Star_counts_pre[row,]
+    number_elems = length(r1)
+    number_elems_greater_than_0 = length(r1[r1>0])
+    if ((number_elems_greater_than_0/number_elems>=percent_of_population_expressed) & (number_elems_greater_than_0>1)){
+      keep <- append (keep,row)
+    }
+    # here also check how many elements are with equal values.
   }
-  # here also check how many elements are with equal values.
+  Star_counts_pre = Star_counts_pre[keep, ]
+  
 }
-
-Star_counts_pre = Star_counts_pre[keep, ]
 Star_counts_pre = t(Star_counts_pre)
 
 
@@ -81,19 +87,11 @@ all(rownames(Experimental_grops) == colnames(Star_counts))
 
 y <- DGEList(counts=Star_counts, group=Star_counts_pre$Sample_Category,samples=Experimental_grops)
 # design <- model.matrix(~ Experimental_grops$oxLDL.set + Experimental_grops$Donor.line + Experimental_grops$Sample.type..Ctrl.or.oxLDL.)
-
 if (filter_type=='filterByExpr'){
   # this approach is not very suitable for some scRNA datasets since they are quite sarse
   keep <- filterByExpr(y,group=Star_counts_pre$Sample_Category)
   y <- y[keep, keep.lib.sizes=TRUE]
-  y <- calcNormFactors(y, method = "TMM")
-  
-  if (lengths(unique(Experimental_grops$Sample_Category)) ==1){
-    y <- estimateDisp(y)
-  }else{
-    design <- model.matrix(~ Experimental_grops$Sample_Category)
-    y <- estimateDisp(y,design)
-  }
+
 }else if(filter_type=='HVG'){
   # Highly variable genes (HVGs) were defined as the genes in the top two quartiles based on their squared coefficient of variation (CV^2 = variance / mean^2) calculated across all cells of each different cell-type. In this manner, we identified 21,592 HVGs for the iPSC Smart-Seq2 dataset, and 16,369 for the FPP 10X dataset.
   # https://genomebiology.biomedcentral.com/articles/10.1186/s13059-021-02407-x#Sec12
@@ -117,19 +115,9 @@ if (filter_type=='filterByExpr'){
   q1 = quantile(cvs$cvs, 0.25)
   keep = cvs < q3 
   y <- y[keep, keep.lib.sizes=TRUE]
-  y <- calcNormFactors(y, method = "TMM")
 
 }else if(filter_type=='None'){
   y=y
-  y <- calcNormFactors(y, method = "TMM")
-
-  
-  if (lengths(unique(Experimental_grops$Sample_Category)) ==1){
-    y <- estimateDisp(y)
-  }else{
-    design <- model.matrix(~ Experimental_grops$Sample_Category)
-    y <- estimateDisp(y,design)
-  }
 }
 
 
@@ -147,8 +135,35 @@ if (filter_type=='filterByExpr'){
 
 # I start to doubth about this apporach - permutations sometimes fail like this.
 # log2(CPM) as output
-TMM_normalised_counts_log <- cpm(y, log=TRUE) #https://www.rdocumentation.org/packages/edgeR/versions/3.14.0/topics/cpm 
-TMM_normalised_counts_log = TMM_normalised_counts_log[complete.cases(TMM_normalised_counts_log), ]
+
+if (norm_method=='TMM'){
+  y <- calcNormFactors(y, method = "TMM")
+  if (lengths(unique(Experimental_grops$Sample_Category)) ==1){
+    y <- estimateDisp(y)
+  }else{
+    design <- model.matrix(~ Experimental_grops$Sample_Category)
+    y <- estimateDisp(y,design)
+  }
+
+  TMM_normalised_counts_log <- cpm(y, log=TRUE) #https://www.rdocumentation.org/packages/edgeR/versions/3.14.0/topics/cpm 
+  TMM_normalised_counts_log = TMM_normalised_counts_log[complete.cases(TMM_normalised_counts_log), ]
+
+
+}else if(norm_method=='DESEQ'){
+  # deseq normalisation
+  counts = y$counts
+  # sampleTable <- data.frame(condition = factor(rep(c("VSMC"), ncol(Experimental_grops))))
+  # TMM_normalised_counts <- cpm(y, log=FALSE)
+  # sampleTable <-data.frame(condition = factor(Experimental_grops$Sample_Category))
+  all(colnames(counts) %in% rownames(Experimental_grops))
+  all(colnames(counts) == rownames(Experimental_grops))
+  Experimental_grops$Sample_Category=as.numeric(factor(Experimental_grops$Sample_Category))
+  mode(counts) <- "integer"
+  dds <- DESeqDataSetFromMatrix(countData = counts, colData = Experimental_grops, design = ~ 1)
+  ddsF <- dds[ rowSums(counts(dds)) > ncol(dds), ]
+  vst=varianceStabilizingTransformation(ddsF)
+  TMM_normalised_counts_log <- as.data.frame(assay(vst))
+}
 
 # TMM_normalised_counts = t(t(y$counts)*y$samples$norm.factors)
 # norms = y$samples$norm.factors
