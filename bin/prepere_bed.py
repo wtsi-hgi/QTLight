@@ -8,7 +8,7 @@ import argparse
 import math
 from gtfparse import read_gtf
 
-gtf_type = 'gene' #transcript|gene   -- need to add an input switch for this
+
 
 def main():
     """Run CLI."""
@@ -47,6 +47,14 @@ def main():
         help=''
     )
 
+    parser.add_argument(
+        '-gtf', '--gtf_type',
+        action='store',
+        dest='gtf_type',
+        required=True,
+        help='gtf_type'
+    )
+
     options = parser.parse_args()
     # print("performing data encoding in BED format")
     # Load the base that determines the gene starts and ends.
@@ -56,7 +64,8 @@ def main():
     annotation_file = options.annotation_file
     expression_file = options.expression_file
     mapping_file = options.mapping_file
-    
+    gtf_type = 'gene' #transcript|gene   -- need to add an input switch for this
+    gtf_type = options.gtf_type
     BED_Formated_Data=pd.DataFrame()
     try:
         df = read_gtf(annotation_file)
