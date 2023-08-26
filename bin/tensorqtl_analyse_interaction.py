@@ -82,6 +82,13 @@ def main():
         help=''
     )
     parser.add_argument(
+        '-maf', '--interaction_maf',
+        action='store',
+        dest='inter_maf',
+        required=True,
+        help=''
+    )
+    parser.add_argument(
         '-o', '--outdir',
         action='store',
         dest='outdir',
@@ -107,6 +114,7 @@ def main():
     interaction_file=options.inter
     outdir=options.outdir
     dosage=options.dosage
+    interaction_maf=float(options.inter_maf)
 
     phenotype_df, phenotype_pos_df = read_phenotype_bed(expression_bed)
     
@@ -142,17 +150,16 @@ def main():
     # genotype_df = pr.load_genotypes()
     # variant_df = pr.bim.set_index('snp')[['chrom', 'pos']]
     genotype_df, variant_df = genotypeio.load_genotypes(plink_prefix_path, dosages=dosage)
-    Directory = f'{outdir}/inter_output'
-    os.mkdir(Directory)
+    os.makedirs(outdir)
     cis.map_nominal(genotype_df, variant_df, 
                     phenotype_df.loc[phenotype_pos_df['chr']!='chrY'], 
                     phenotype_pos_df.loc[phenotype_pos_df['chr']!='chrY'],
                     covariates_df=covariates_df,prefix='cis_inter1',
-                    output_dir=Directory, write_top=True, write_stats=True,
-                    interaction_df=interaction_df, maf_threshold_interaction=0.05,
-                    run_eigenmt=True)
+                    output_dir=outdir, write_top=True, write_stats=True,
+                    interaction_df=interaction_df, maf_threshold_interaction=interaction_maf,
+                    run_eigenmt=True, window=int(options.window))
     
-    all_files = glob.glob(f'{Directory}/cis_inter*.parquet')
+    all_files = glob.glob(f'{outdir}/cis_inter*.parquet')
     All_Data = pd.DataFrame()
     count=0
     for bf1 in all_files:

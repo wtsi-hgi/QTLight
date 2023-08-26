@@ -153,15 +153,14 @@ def main():
     # genotype_df = pr.load_genotypes()
     # variant_df = pr.bim.set_index('snp')[['chrom', 'pos']]
     genotype_df, variant_df = genotypeio.load_genotypes(plink_prefix_path, dosages=dosage)
-    Directory = f'{outdir}/nom_output'
-    os.mkdir(Directory)
+    os.mkdir(outdir)
     cis.map_nominal(genotype_df, variant_df,
                     phenotype_df.loc[phenotype_pos_df['chr']!='chrY'],
                     phenotype_pos_df.loc[phenotype_pos_df['chr']!='chrY'],
                     covariates_df=covariates_df,prefix='cis_nominal1',
-                    output_dir=Directory, write_top=True, write_stats=True)
+                    output_dir=outdir, write_top=True, write_stats=True)
     
-    all_files = glob.glob(f'{Directory}/cis_nominal*.parquet')
+    all_files = glob.glob(f'{outdir}/cis_nominal*.parquet')
     All_Data = pd.DataFrame()
     count=0
     for bf1 in all_files:
@@ -179,13 +178,13 @@ def main():
                         covariates_df=covariates_df)
     print('----cis eQTLs processed ------')
     cis_df.head()
-    cis_df.to_csv("Cis_eqtls.tsv",sep="\t")
+    cis_df.to_csv(f"{outdir}/Cis_eqtls.tsv",sep="\t")
     sv = ~np.isnan(cis_df['pval_beta'])
     print(f"Dropping {sum(sv)} variants withouth Beta-approximated p-values to\n.")
     cis_df_dropped = cis_df.loc[sv]
     r = stats.pearsonr(cis_df_dropped['pval_perm'], cis_df_dropped['pval_beta'])[0]
     calculate_qvalues(cis_df_dropped, qvalue_lambda=0.85)
-    cis_df_dropped.to_csv("Cis_eqtls_qval.tsv", sep='\t')
+    cis_df_dropped.to_csv(f"{outdir}/Cis_eqtls_qval.tsv", sep='\t')
 
 if __name__ == '__main__':
     main()
