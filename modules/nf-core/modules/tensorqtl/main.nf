@@ -20,12 +20,9 @@ process TENSORQTL {
     each path(plink_files_prefix)
 
   output:
-    // path("mapqtl_${oufnprfx}.cis_eqtl.tsv.gz"), emit: qtl_tsv
-    // path("mapqtl_${oufnprfx}.cis_eqtl_dropped.tsv.gz"), emit: dropped_tsv
-    // path("mapqtl_${oufnprfx}.cis_eqtl_qval.tsv.gz"), emit: qval_tsv
     path("Cis_eqtls.tsv"), emit: qtl_bin, optional: true
     path("Cis_eqtls_qval.tsv"), emit: q_qtl_bin, optional: true
-    path(outpath)
+    tuple(val(condition),path(outpath)) emit: pc_qtls_path
 
   script:
   // If a file with interaction terms is provided, use the interaction script otherwise use the standard script   

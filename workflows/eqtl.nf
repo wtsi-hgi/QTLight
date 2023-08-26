@@ -161,6 +161,14 @@ workflow EQTL {
             PREPERE_EXP_BED.out.exp_bed,
             PLINK_CONVERT.out.plink_path,
         )
+        if (params.TensorQTL.optimise_pcs){
+            optim_pc_channel = TENSORQTL_eqtls.out.pc_qtls_path
+                .map { cellType, path -> 
+                    def newPath = path.toString().split('/').dropRight(1).join('/')
+                    [condition, condition_path]
+                }
+                .unique { it[0] }
+        OPTIMISE_PCs(optim_pc_channel)
     }
 
 
