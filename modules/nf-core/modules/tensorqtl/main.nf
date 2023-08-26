@@ -23,18 +23,19 @@ process TENSORQTL {
     // path("mapqtl_${oufnprfx}.cis_eqtl.tsv.gz"), emit: qtl_tsv
     // path("mapqtl_${oufnprfx}.cis_eqtl_dropped.tsv.gz"), emit: dropped_tsv
     // path("mapqtl_${oufnprfx}.cis_eqtl_qval.tsv.gz"), emit: qval_tsv
-    path("Cis_eqtls.tsv"), emit: qtl_bin, optional: true
-    path("Cis_eqtls_qval.tsv"), emit: q_qtl_bin, optional: true
+    path("${outpath}/Cis_eqtls.tsv"), emit: qtl_bin, optional: true
+    path("${outpath}/Cis_eqtls_qval.tsv"), emit: q_qtl_bin, optional: true
     path(outpath)
 
   script:
   // If a file with interaction terms is provided, use the interaction script otherwise use the standard script   
   if (params.TensorQTL.interaction_file?.trim()) {
-    tensor_qtl_script = "tensorqtl_analyse_interaction.py --inter ${params.TensorQTL.interaction_file}"
-    outpath = 'inter_output'
+    tensor_qtl_script = "tensorqtl_analyse_interaction.py -inter ${params.TensorQTL.interaction_file} --interaction_maf ${params.TensorQTL.interaction_maf}"
+    inter_name = file(params.TensorQTL.interaction_file).baseName
+    outpath = "./interaction_output/${inter_name}"
   } else {
     tensor_qtl_script = "tensorqtl_analyse.py -nperm ${params.numberOfPermutations}"
-    outpath = 'nom_output'
+    outpath = "./base_output/base"
   }
   if (params.TensorQTL.use_gt_dosage) {
     dosage = "--dosage"
@@ -43,7 +44,7 @@ process TENSORQTL {
   }
     """
       bedtools sort -i ${aggrnorm_counts_bed} -header > Expression_Data.sorted.bed
-      ${tensor_qtl_script} --plink_prefix_path ${plink_files_prefix}/plink_genotypes --expression_bed Expression_Data.sorted.bed --covariates_file ${covariates_tsv} -window ${params.windowSize} ${dosage}
+      ${tensor_qtl_script} --plink_prefix_path ${plink_files_prefix}/plink_genotypes --expression_bed Expression_Data.sorted.bed --covariates_file ${covariates_tsv} -window ${params.windowSize} ${dosage} --outdir ${outpath}
     """
 }
 
