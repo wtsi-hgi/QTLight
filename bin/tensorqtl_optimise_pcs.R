@@ -2,22 +2,29 @@ library(tidyverse)
 
 args = commandArgs(trailingOnly=TRUE)
 
-if (length(args)==0) {
-  stop("At least one argument must be supplied (input file).n", call.=FALSE)
+if(!interactive()){
+   pdf(NULL)
 }
 
 sumstats.dir = args[1]
 alpha = as.numeric(args[2])
+interaction.name = args[3]
+annot.name = args[4]
+out.dir = args[5]
 
 ##################
 # Read in files
 ##################
 
-sumstats.dir <- '/lustre/scratch126/humgen/projects/sc-eqtl-ibd/analysis/tobi_qtl_analysis/repos/nf-hgi_eqtl/results/TensorQTL_eQTLS/category__machine-B_Cell-dMean/'
-alpha <- 0.05
-annot.name <- basename(sumstats.dir)
+if (interaction.name == "NA") {
+  interaction.name = NA
+}
 
-sumstat.files <- list.files(sumstats.dir, pattern="*Cis_eqtls_qval.tsv", full.names=FALSE, recursive=TRUE)
+if (is.na(interaction.name)){
+  sumstat.files <- list.files(sumstats.dir, pattern="*Cis_eqtls_qval.tsv", full.names=FALSE, recursive=TRUE)
+} else {
+  sumstat.files <- list.files(sumstats.dir, pattern="*cis_inter1.cis_qtl_top_assoc.txt.gz", full.names=FALSE, recursive=TRUE)
+}
 
 list.of.sumstat.dfs <- lapply(sumstat.files, function(file.name) {
   # Get info from filename
@@ -35,8 +42,14 @@ list.of.sumstat.dfs <- lapply(sumstat.files, function(file.name) {
 sumstat.df <- bind_rows(list.of.sumstat.dfs)
 
 # Remove all non-significant hits
-sig.sumstat.df <- sumstat.df %>% 
-  filter(qval < alpha)
+
+if (is.na(interaction.name)){
+  sig.sumstat.df <- sumstat.df %>% 
+    filter(qval < alpha)
+} else {
+  sig.sumstat.df <- sumstat.df %>% 
+    filter(pval_adj_bh < alpha)
+}
 
 ###############
 # Make PC figure
@@ -83,11 +96,13 @@ ggplot(plot.pc.sig.sum.df, aes(x=num_PCs, y=num_eGenes)) +
   labs(x = "Number of PCs", y = "Number of eGenes", title = annot.name) +
   theme_bw()
 
-out.dir <- paste0(sumstats.dir, '/optim/')
 
-ggsave(paste0(out.dir,"-optimise_nPCs-FDR",gsub('[.]', 'pt', alpha),".pdf"),
-         width = 3, height = 3)
+
+out.path <- paste0(out.dir,"/optimise_nPCs-FDR",gsub('[.]', 'pt', alpha))
+
+
+# Save plot
+ggsave(paste0(out.path,".pdf"),width = 3, height = 3)
 
 # Save a file containing name and optimal PCs
-write_tsv(plot.pc.sig.sum.df, paste0(out.dir,"-optimise_nPCs-FDR",gsub('[.]', 'pt', alpha)".txt"))
-
+write_tsv(plot.pc.sig.sum.df, paste0(out.path,".txt"))

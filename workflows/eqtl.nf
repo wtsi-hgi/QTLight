@@ -163,8 +163,8 @@ workflow EQTL {
         )
         if (params.TensorQTL.optimise_pcs){
             optim_pc_channel = TENSORQTL_eqtls.out.pc_qtls_path
-                .map { cellType, path -> 
-                    def newPath = path.toString().split('/').dropRight(1).join('/')
+                .map { condition, path -> 
+                    def newPath = path.toString().split('/').dropRight(3).join('/')
                     [condition, condition_path]
                 }
                 .unique { it[0] }

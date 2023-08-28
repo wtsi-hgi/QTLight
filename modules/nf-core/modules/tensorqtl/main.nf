@@ -22,6 +22,7 @@ process TENSORQTL {
   output:
     path("${outpath}/Cis_eqtls.tsv"), emit: qtl_bin, optional: true
     path("${outpath}/Cis_eqtls_qval.tsv"), emit: q_qtl_bin, optional: true
+    path("${outpath}/cis_inter1.cis_qtl_top_assoc.txt.gz "), emit: int_qtl_bin, optional: true
     tuple(val(condition),path(outpath)) emit: pc_qtls_path
 
 
