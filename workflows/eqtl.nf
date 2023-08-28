@@ -168,8 +168,8 @@ workflow EQTL {
                     [condition, condition_path]
                 }
                 .unique { it[0] }
-        OPTIMISE_PCs(optim_pc_channel)
-    }
+            OPTIMISE_PCs(optim_pc_channel)
+        }
 
 
     // Then run a LIMIX and/or TensorQTL - here have to combine the inputs.
