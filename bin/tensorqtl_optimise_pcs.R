@@ -1,4 +1,9 @@
-library(tidyverse)
+#!/usr/bin/env Rscript
+
+library(ggplot2)
+library(stringr)
+library(readr)
+library(dplyr)
 
 args = commandArgs(trailingOnly=TRUE)
 
@@ -25,11 +30,12 @@ if (is.na(interaction.name)){
 } else {
   sumstat.files <- list.files(sumstats.dir, pattern="*cis_inter1.cis_qtl_top_assoc.txt.gz", full.names=FALSE, recursive=TRUE)
 }
-
 list.of.sumstat.dfs <- lapply(sumstat.files, function(file.name) {
   # Get info from filename
   split.file.name <- str_split(file.name,'/')[[1]]
-  n.pcs <- split.file.name[1]
+  symlink.dir <- split.file.name[2]
+  split.symlink.dir <- str_split(symlink.dir,'__')[[1]]
+  n.pcs <- split.symlink.dir[1]
   
   
   # Read file
@@ -94,8 +100,8 @@ ggplot(plot.pc.sig.sum.df, aes(x=num_PCs, y=num_eGenes)) +
   geom_point(data=plot.optimal.pc.sig.sum.df,
              colour='red') +
   labs(x = "Number of PCs", y = "Number of eGenes", title = annot.name) +
-  theme_bw()
-
+  theme_bw() +
+  theme(title=element_text(size=6,face="bold"))
 
 
 out.path <- paste0(out.dir,"/optimise_nPCs-FDR",gsub('[.]', 'pt', alpha))

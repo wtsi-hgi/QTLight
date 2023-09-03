@@ -153,7 +153,7 @@ def main():
     # genotype_df = pr.load_genotypes()
     # variant_df = pr.bim.set_index('snp')[['chrom', 'pos']]
     genotype_df, variant_df = genotypeio.load_genotypes(plink_prefix_path, dosages=dosage)
-    os.mkdir(outdir)
+    os.makedirs(outdir)
     cis.map_nominal(genotype_df, variant_df,
                     phenotype_df.loc[phenotype_pos_df['chr']!='chrY'],
                     phenotype_pos_df.loc[phenotype_pos_df['chr']!='chrY'],
