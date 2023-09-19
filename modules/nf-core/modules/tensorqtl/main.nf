@@ -73,6 +73,7 @@ process OPTIMISE_PCS{
     tag { condition }
     scratch false      // use tmp directory
     label 'process_low'
+    errorStrategy 'ignore'
 
 
     publishDir  path: "${params.outdir}/TensorQTL_eQTLS/${condition}",
