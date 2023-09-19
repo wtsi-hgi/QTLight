@@ -8,7 +8,7 @@ import argparse
 import math
 from gtfparse import read_gtf
 
-gtf_type = 'gene' #transcript|gene   -- need to add an input switch for this
+
 
 def main():
     """Run CLI."""
@@ -47,6 +47,14 @@ def main():
         help=''
     )
 
+    parser.add_argument(
+        '-gtf', '--gtf_type',
+        action='store',
+        dest='gtf_type',
+        required=True,
+        help='gtf_type'
+    )
+
     options = parser.parse_args()
     # print("performing data encoding in BED format")
     # Load the base that determines the gene starts and ends.
@@ -56,18 +64,21 @@ def main():
     annotation_file = options.annotation_file
     expression_file = options.expression_file
     mapping_file = options.mapping_file
-    
+    gtf_type = 'gene' #transcript|gene   -- need to add an input switch for this
+    gtf_type = options.gtf_type
     BED_Formated_Data=pd.DataFrame()
     try:
         df = read_gtf(annotation_file)
         if (gtf_type=='gene'):
             df2 = df[df.feature == 'gene']
+            Gene_Chr_Start_End_Data =df2[['gene_id','start','end','strand','seqname']]
         elif (gtf_type=='transcript'):
             df2 = df[df.feature == 'transcript']
+            Gene_Chr_Start_End_Data =df2[['transcript_id','start','end','strand','seqname']]
         else:
             _ = 'you havent specified which type of analysis you are performing'
-        # Gene_Chr_Start_End_Data =df2[['gene_id','start','end','strand','seqname']]
-        Gene_Chr_Start_End_Data =df2[['transcript_id','start','end','strand','seqname']]
+        # 
+        
     except:
         Gene_Chr_Start_End_Data = pd.read_csv(annotation_file,index_col=None,sep='\t')
         
