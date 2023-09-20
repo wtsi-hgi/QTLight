@@ -14,7 +14,7 @@ def main():
     import torch
     import pandas as pd
     import tensorqtl
-    from tensorqtl import read_phenotype_bed, genotypeio, cis, calculate_qvalues
+    from tensorqtl import read_phenotype_bed, genotypeio, cis, calculate_qvalues,pgen 
     print('PyTorch {}'.format(torch.__version__))
     print('Pandas {}'.format(pd.__version__))
     print('Tensorqtl {}'.format(tensorqtl.__version__))
@@ -90,7 +90,17 @@ def main():
         help=''
     )
 
+    parser.add_argument(
+        '-maf', '--maf',
+        action='store',
+        dest='maf',
+        required=False,
+        default=0.05,
+        help=''
+    )
+
     options = parser.parse_args()
+    maf=float(options.maf)
     # ValueError: The BED file must define the TSS/cis-window center, with start+1 == end.
     # --plink_prefix_path plink_genotypes/plink_genotypes --expression_bed Expression_Data.bed.gz --covariates_file gtpca_plink.eigenvec
     plink_prefix_path=options.plink_prefix_path
@@ -98,7 +108,7 @@ def main():
     covariates_file=options.covariates_file
     interaction_file=options.inter
     outdir=options.outdir
-
+    
     phenotype_df, phenotype_pos_df = read_phenotype_bed(expression_bed)
     
     
@@ -146,15 +156,15 @@ def main():
         variant_df.index=variant_df.index.rename('snp')
         variant_df=variant_df[['chrom', 'pos']]
         del variant_df2
-        
+    genotype_df = pr.load_genotypes()    
     Directory = f'{outdir}/inter_output'
     os.mkdir(Directory)
     cis.map_nominal(genotype_df, variant_df, 
                     phenotype_df.loc[phenotype_pos_df['chr']!='chrY'], 
                     phenotype_pos_df.loc[phenotype_pos_df['chr']!='chrY'],
                     covariates_df=covariates_df,prefix='cis_inter1',
-                    output_dir=Directory, write_top=True, write_stats=True,
-                    interaction_df=interaction_df, maf_threshold_interaction=0.05,
+                    maf_threshold=maf, maf_threshold_interaction=0.05, output_dir=Directory, write_top=True, write_stats=True,
+                    interaction_df=interaction_df,
                     run_eigenmt=True)
     
     all_files = glob.glob(f'{Directory}/cis_inter*.parquet')
