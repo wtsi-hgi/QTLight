@@ -1,0 +1,46 @@
+#!/usr/bin/env python
+
+__author__ = 'M.Ozols'
+__date__ = '2023-09-18'
+__version__ = '0.0.1'
+
+import pandas as pd
+import argparse
+parser = argparse.ArgumentParser(
+    description="""
+        Replace GT filed
+        """
+)
+
+parser.add_argument(
+    '-v', '--version',
+    action='version',
+    version='%(prog)s {version}'.format(version=__version__)
+)
+
+parser.add_argument(
+    '-gp', '--genotype_phenotype_mapping',
+    action='store',
+    dest='genotype_phenotype_mapping',
+    required=True,
+    help=''
+)
+
+parser.add_argument(
+    '-m', '--mappings',
+    action='store',
+    dest='mappings',
+    required=True,
+    help=''
+)
+
+options = parser.parse_args()
+
+Mapping_File = pd.read_csv(options.mappings,sep='\t')
+Mapping_File = Mapping_File.set_index('RNA')
+genotype_phenotype_mapping = pd.read_csv(options.genotype_phenotype_mapping,sep='\t')
+genotype_phenotype_mapping = genotype_phenotype_mapping.set_index('Genotype')
+genotype_phenotype_mapping.insert(0,'Genotype','')
+genotype_phenotype_mapping['Genotype']=Mapping_File['Genotype']
+genotype_phenotype_mapping.to_csv('remap_genotype_phenotype_mapping.tsv',sep='\t',index=False)
+print('Done')

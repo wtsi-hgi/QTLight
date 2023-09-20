@@ -56,7 +56,10 @@ def main():
     genotype_pcs=options.genotype_pcs
     covariates_df = pd.read_csv(genotype_pcs, sep='\t', index_col=0)
     covariates_df=covariates_df.rename(columns={'IID':'Genotype'})
-    covariates_df=covariates_df.set_index('Genotype')
+    try:
+        covariates_df=covariates_df.set_index('Genotype')
+    except:
+        print('col already set')
 
     if (options.sample_covariates):
         print('yes')

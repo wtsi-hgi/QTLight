@@ -8,6 +8,7 @@ process PLINK_CONVERT{
     if (workflow.containerEngine == 'singularity' && !params.singularity_pull_docker_container) {
         container "${params.eqtl_container}"
         
+        
     } else {
         container "${params.eqtl_docker}"
     }
@@ -18,7 +19,7 @@ process PLINK_CONVERT{
         path("plink_genotypes"), emit: plink_path
     script:
     if(params.TensorQTL.use_gt_dosage==true && params.TensorQTL.run==true){
-      pgen_or_bed = "['dosage=DS'] --make-pgen"
+      pgen_or_bed = "'dosage=DS' --make-pgen"
     }else{
       pgen_or_bed = "--make-bed"
     }

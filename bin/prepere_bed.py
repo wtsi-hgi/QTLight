@@ -77,7 +77,7 @@ def main():
             Gene_Chr_Start_End_Data =df2[['transcript_id','start','end','strand','seqname']]
         else:
             _ = 'you havent specified which type of analysis you are performing'
-        # 
+            # 
         
     except:
         Gene_Chr_Start_End_Data = pd.read_csv(annotation_file,index_col=None,sep='\t')
@@ -124,6 +124,7 @@ def main():
 
 
     BED_Formated_Data["gene_id"]=BED_Formated_Data.index
+    BED_Formated_Data = BED_Formated_Data.sort_values(by=['#chr','start','end'])
     # BED_Formated_Data["idx"]=Gene_Chr_Start_End_Data.feature_id
     # BED_Formated_Data=BED_Formated_Data.set_index("idx")
     BED_Formated_Data['#chr']='chr'+BED_Formated_Data['#chr'].astype(str)

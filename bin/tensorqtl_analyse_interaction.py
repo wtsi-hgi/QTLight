@@ -128,9 +128,25 @@ def main():
         print(f'  * using GPU ({torch.cuda.get_device_name(torch.cuda.current_device())})')
     else:
         print('  * WARNING: using CPU!')
-    pr = genotypeio.PlinkReader(plink_prefix_path)
-    genotype_df = pr.load_genotypes()
-    variant_df = pr.bim.set_index('snp')[['chrom', 'pos']]
+        
+        
+    try:
+        # Here we have Plink1 bin,bed,fam
+        pr = genotypeio.PlinkReader(plink_prefix_path)
+        variant_df = pr.bim.set_index('snp')[['chrom', 'pos']]
+    except:
+        # Here we have Plink2 psam,pgen,pvar
+        pr = pgen.PgenReader(plink_prefix_path)
+        variant_df2 = pr.variant_dfs
+        variant_df = pd.DataFrame()
+        for k1 in variant_df2.keys():
+            dic1=pd.DataFrame(variant_df2[k1])
+            dic1['chrom']=k1
+            variant_df=pd.concat([variant_df,dic1])
+        variant_df.index=variant_df.index.rename('snp')
+        variant_df=variant_df[['chrom', 'pos']]
+        del variant_df2
+        
     Directory = f'{outdir}/inter_output'
     os.mkdir(Directory)
     cis.map_nominal(genotype_df, variant_df, 
