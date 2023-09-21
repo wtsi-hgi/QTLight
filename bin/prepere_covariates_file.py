@@ -52,14 +52,28 @@ def main():
         help=''
     )
 
+    parser.add_argument(
+        '-pfile', '--pfile',
+        action='store_true',
+        dest='pfile',
+        default=False,
+        help=''
+    )
+
     options = parser.parse_args()
     genotype_pcs=options.genotype_pcs
+    pfile=options.pfile
     covariates_df = pd.read_csv(genotype_pcs, sep='\t', index_col=0)
-    covariates_df=covariates_df.rename(columns={'IID':'Genotype'})
-    try:
-        covariates_df=covariates_df.set_index('Genotype')
-    except:
-        print('col already set')
+
+    if pfile:
+        covariates_df.index.names = ['Genotype']
+    else:
+        covariates_df=covariates_df.rename(columns={'IID':'Genotype'})
+        try:
+          covariates_df=covariates_df.set_index('Genotype')
+      except:
+          print('col already set')
+
 
     if (options.sample_covariates):
         print('yes')

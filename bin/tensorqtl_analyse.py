@@ -84,6 +84,23 @@ def main():
     )
 
     parser.add_argument(
+        '-o', '--outdir',
+        action='store',
+        dest='outdir',
+        required=False,
+        default='.',
+        help=''
+    )
+
+    parser.add_argument(
+        '-dosage', '--dosage',
+        action='store_true',
+        dest='dosage',
+        default=False,
+        help=''
+    )
+
+    parser.add_argument(
         '-maf', '--maf',
         action='store',
         dest='maf',
@@ -106,6 +123,8 @@ def main():
     plink_prefix_path=options.plink_prefix_path
     expression_bed=options.expression_bed
     covariates_file=options.covariates_file
+    outdir=options.outdir
+    dosage=options.dosage
 
 
     phenotype_df, phenotype_pos_df = read_phenotype_bed(expression_bed)
@@ -140,32 +159,46 @@ def main():
         print(f'  * using GPU ({torch.cuda.get_device_name(torch.cuda.current_device())})')
     else:
         print('  * WARNING: using CPU!')
-    try:
-        # Here we have Plink1 bin,bed,fam
-        pr = genotypeio.PlinkReader(plink_prefix_path)
-        variant_df = pr.bim.set_index('snp')[['chrom', 'pos']]
-    except:
-        # Here we have Plink2 psam,pgen,pvar
-        pr = pgen.PgenReader(plink_prefix_path)
-        variant_df2 = pr.variant_dfs
-        variant_df = pd.DataFrame()
-        for k1 in variant_df2.keys():
-            dic1=pd.DataFrame(variant_df2[k1])
-            dic1['chrom']=k1
-            variant_df=pd.concat([variant_df,dic1])
-        variant_df.index=variant_df.index.rename('snp')
-        variant_df=variant_df[['chrom', 'pos']]
-        del variant_df2
-    genotype_df = pr.load_genotypes()
-    Directory = './nom_output'
-    os.mkdir(Directory)
+
+    # Replacing with simplier command
+    # pr = genotypeio.PlinkReader(plink_prefix_path)
+    # genotype_df = pr.load_genotypes()
+    # variant_df = pr.bim.set_index('snp')[['chrom', 'pos']]
+    genotype_df, variant_df = genotypeio.load_genotypes(plink_prefix_path, dosages=dosage)
+    os.makedirs(outdir)
     cis.map_nominal(genotype_df, variant_df,
                     phenotype_df.loc[phenotype_pos_df['chr']!='chrY'],
-                    phenotype_pos_df.loc[phenotype_pos_df['chr']!='chrY'],maf_threshold=maf,
-                    covariates_df=covariates_df,window=int(options.window),prefix='cis_nominal1',
-                    output_dir=Directory, write_top=True, write_stats=True,run_eigenmt=True)
+                    phenotype_pos_df.loc[phenotype_pos_df['chr']!='chrY'],
+                    covariates_df=covariates_df,prefix='cis_nominal1',
+                    output_dir=outdir, write_top=True, write_stats=True)
+
+    #     try:
+    #         # Here we have Plink1 bin,bed,fam
+    #         pr = genotypeio.PlinkReader(plink_prefix_path)
+    #         variant_df = pr.bim.set_index('snp')[['chrom', 'pos']]
+    #     except:
+    #         # Here we have Plink2 psam,pgen,pvar
+    #         pr = pgen.PgenReader(plink_prefix_path)
+    #         variant_df2 = pr.variant_dfs
+    #         variant_df = pd.DataFrame()
+    #         for k1 in variant_df2.keys():
+    #             dic1=pd.DataFrame(variant_df2[k1])
+    #             dic1['chrom']=k1
+    #             variant_df=pd.concat([variant_df,dic1])
+    #         variant_df.index=variant_df.index.rename('snp')
+    #         variant_df=variant_df[['chrom', 'pos']]
+    #         del variant_df2
+    #     genotype_df = pr.load_genotypes()
+    #     Directory = './nom_output'
+    #     os.mkdir(Directory)
+    #     cis.map_nominal(genotype_df, variant_df,
+    #                     phenotype_df.loc[phenotype_pos_df['chr']!='chrY'],
+    #                     phenotype_pos_df.loc[phenotype_pos_df['chr']!='chrY'],maf_threshold=maf,
+    #                     covariates_df=covariates_df,window=int(options.window),prefix='cis_nominal1',
+    #                     output_dir=Directory, write_top=True, write_stats=True,run_eigenmt=True)
+
     
-    all_files = glob.glob(f'{Directory}/cis_nominal*.parquet')
+    all_files = glob.glob(f'{outdir}/cis_nominal*.parquet')
     All_Data = pd.DataFrame()
     count=0
     for bf1 in all_files:
@@ -174,6 +207,7 @@ def main():
         df.to_csv(bf1.replace('.parquet','.tsv'),sep='\t',index=False)
         os.remove(bf1) 
         count+=1    
+
 
     try:
         cis_df = cis.map_cis(genotype_df, variant_df, 
@@ -209,6 +243,7 @@ def main():
         # r = stats.pearsonr(cis_df_dropped['pval_perm'], cis_df_dropped['pval_beta'])[0]
         # calculate_qvalues(cis_df_dropped, qvalue_lambda=0.85)
         cis_df_dropped.to_csv("Cis_eqtls_qval.tsv", sep='\t')
+
 
 if __name__ == '__main__':
     main()

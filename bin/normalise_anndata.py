@@ -65,10 +65,18 @@ def main():
     if method == 'cp10k':
         # Total-count normalize (library-size correct) the data matrix X to
         # counts per million, so that counts become comparable among cells.
-        adata.layers['dMean_normalised'] = sc.pp.normalize_total(adata,
-                                                            target_sum=1e4,
-                                                            exclude_highly_expressed=False,
-                                                            inplace=False)['X']
+        adata.layers['dMean_normalised']= sc.pp.log1p(sc.pp.normalize_total(adata,
+                                                        target_sum=1e4,
+                                                        exclude_highly_expressed=False,
+                                                        inplace=False)['X'])
+    
+    # if method == 'pearson':
+    #     # Uses the Pearson residuals to normalise the data similar to scTransform
+    #     # but working implementation in python
+    #     adata.layers['dMean_normalised']= sc.pp.log1p(sc.pp.normalize_total(adata,
+    #                                                     target_sum=1e4,
+    #                                                     exclude_highly_expressed=False,
+    #                                                     inplace=False)['X'])
 
     
     # if method == 'scT':

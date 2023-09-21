@@ -66,6 +66,7 @@ include {AGGREGATE_UMI_COUNTS} from '../modules/nf-core/modules/aggregate_UMI_co
 include {CHUNK_GENOME} from '../modules/nf-core/modules/chunk_genome/main'
 include {PREPERE_EXP_BED} from '../modules/nf-core/modules/prepere_exp_bed/main'
 include {TENSORQTL_eqtls} from '../modules/nf-core/modules/tensorqtl/main'
+// include {OPTIMISE_PCS} from '../modules/nf-core/modules/optimise_pcs/main'
 /*
 ========================================================================================
     RUN MAIN WORKFLOW
@@ -168,6 +169,7 @@ workflow EQTL {
             PREPERE_EXP_BED.out.exp_bed,
             PLINK_CONVERT.out.plink_path,
         )
+
     }
 
 

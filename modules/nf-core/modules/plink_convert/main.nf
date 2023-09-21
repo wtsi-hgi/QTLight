@@ -18,11 +18,13 @@ process PLINK_CONVERT{
     output:
         path("plink_genotypes"), emit: plink_path
     script:
+
     if(params.TensorQTL.use_gt_dosage==true && params.TensorQTL.run==true){
       pgen_or_bed = "'dosage=DS' --make-pgen"
     }else{
       pgen_or_bed = "--make-bed"
     }
+
         """
             mkdir plink_genotypes
             plink2 --vcf ${file__vcf} ${pgen_or_bed} ${params.plink2_filters} --hwe ${params.hwe} --out plink_genotypes/plink_genotypes
