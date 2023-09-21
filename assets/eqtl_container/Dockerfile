@@ -52,5 +52,14 @@ RUN cd tensorqtl && pip install -r install/requirements.txt .
 RUN git clone https://github.com/chrchang/plink-ng.git
 RUN cd plink-ng/2.0/Python/ && python3 setup.py build_ext && python3 setup.py install
 RUN conda install -c bioconda bedtools
+RUN conda install -c bioconda plink
+RUN rm -r tensorqtl
+RUN rm -r plink-ng
+RUN ls
+RUN rm -r tmp2 analysis
+RUN rm -r /tmp/miniconda.sh
+# RUN pip install --upgrade pandas
+RUN pip install gtfparse==1.2.1
+RUN pip install Pgenlib
 # RUN rm -r tensorqlt && rm -r plink-ng
 # USER ${NB_USER}
