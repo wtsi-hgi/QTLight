@@ -1,25 +1,13 @@
-# ![nf-core/eqtl](docs/images/nf-core-eqtl_logo.png)
-
-[![GitHub Actions CI Status](https://github.com/nf-core/eqtl/workflows/nf-core%20CI/badge.svg)](https://github.com/nf-core/eqtl/actions?query=workflow%3A%22nf-core+CI%22)
-[![GitHub Actions Linting Status](https://github.com/nf-core/eqtl/workflows/nf-core%20linting/badge.svg)](https://github.com/nf-core/eqtl/actions?query=workflow%3A%22nf-core+linting%22)
-[![AWS CI](https://img.shields.io/badge/CI%20tests-full%20size-FF9900?labelColor=000000&logo=Amazon%20AWS)](https://nf-co.re/eqtl/results)
-[![Cite with Zenodo](http://img.shields.io/badge/DOI-10.5281/zenodo.XXXXXXX-1073c8?labelColor=000000)](https://doi.org/10.5281/zenodo.XXXXXXX)
-
-[![Nextflow](https://img.shields.io/badge/nextflow%20DSL2-%E2%89%A521.04.0-23aa62.svg?labelColor=000000)](https://www.nextflow.io/)
-[![run with conda](http://img.shields.io/badge/run%20with-conda-3EB049?labelColor=000000&logo=anaconda)](https://docs.conda.io/en/latest/)
-[![run with docker](https://img.shields.io/badge/run%20with-docker-0db7ed?labelColor=000000&logo=docker)](https://www.docker.com/)
-[![run with singularity](https://img.shields.io/badge/run%20with-singularity-1d355c.svg?labelColor=000000)](https://sylabs.io/docs/)
-
-[![Get help on Slack](http://img.shields.io/badge/slack-nf--core%20%23eqtl-4A154B?labelColor=000000&logo=slack)](https://nfcore.slack.com/channels/eqtl)
-[![Follow on Twitter](http://img.shields.io/badge/twitter-%40nf__core-1DA1F2?labelColor=000000&logo=twitter)](https://twitter.com/nf_core)
-[![Watch on YouTube](http://img.shields.io/badge/youtube-nf--core-FF0000?labelColor=000000&logo=youtube)](https://www.youtube.com/c/nf-core)
-
 ## Introduction
 
 <!-- TODO nf-core: Write a 1-2 sentence summary of what data the pipeline is for and what it does -->
 **nf-core/eqtl** is a bioinformatics best-practice analysis pipeline for eqtl analysis.
 
- We have worked together with Anna Cuomo and Marc Jan (Bonder) and prepared a pipeline for currently running TensorQTL and LIMIX on bulk and single cell RNA seq datasets and assessed the overlap of the eGenes identified by both methodologies. While TensorQTL is very fast, this methodology uses linear regression which may not be capable in adequately represent the underlying population structure and other covariates, whereas Limix, while very computationally intensive is based on the linear mixed models (LMM) where the kinship matrices can be provided and hence accounting for random effects in a better manner. 
+<p align="center">
+  <img src="https://github.com/wtsi-hgi/eqtl/blob/main/assets/images/Logo.png" width="60%"/>
+</p>
+
+This pipeline is running TensorQTL and/or LIMIX on bulk and single cell RNA seq datasets and assessed the overlap of the eGenes identified by both methodologies. While TensorQTL is very fast, this methodology uses linear regression which may not be capable in adequately represent the underlying population structure and other covariates, whereas Limix, while very computationally intensive is based on the linear mixed models (LMM) where the kinship matrices can be provided and hence accounting for random effects in a better manner. 
 
 The pipeline is built using [Nextflow](https://www.nextflow.io), a workflow tool to run tasks across multiple compute infrastructures in a very portable manner. It uses Docker/Singularity containers making installation trivial and results highly reproducible. The [Nextflow DSL2](https://www.nextflow.io/docs/latest/dsl2.html) implementation of this pipeline uses one container per process which makes it much easier to maintain and update software dependencies. Where possible, these processes have been submitted to and installed from [nf-core/modules](https://github.com/nf-core/modules) in order to make them available to all nf-core pipelines, and to everyone within the Nextflow community!
 
@@ -33,7 +21,7 @@ On release, automated continuous integration tests run the pipeline on a full-si
 1. Genotype preperation, filtering and subsetting ([`bcftools`]( https://github.com/single-cell-genetics/limix_qtl ))
 2. Genotype conversion to PLINK format and filtering ([`PLINK2`]( https://github.com/single-cell-genetics/limix_qtl ))
 3. Genotype kinship matrix calculation ([`PLINK2`]( https://github.com/single-cell-genetics/limix_qtl ))
-4. Genotype PC calculation ([`PLINK2`]( https://github.com/single-cell-genetics/limix_qtl ))
+4. Genotype and Phenotype PC calculation and QTL mapping with various number of PCs ([`PLINK2`]( https://github.com/single-cell-genetics/limix_qtl ))
 5. LIMIX eqtl mapping ([`LIMIX`]( https://github.com/single-cell-genetics/limix_qtl ))
 6. TensorQTL eqtl mapping ([`TensorQTL`](https://github.com/broadinstitute/tensorqtl))
 

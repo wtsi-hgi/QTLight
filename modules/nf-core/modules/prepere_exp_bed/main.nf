@@ -32,7 +32,7 @@ process PREPERE_EXP_BED {
         }
     """
       echo ${condition}
-      prepere_bed.py --annotation_file ${annotation_file} --mapping_file ${mapping_file} --expression_file ${expression_file}
+      prepere_bed.py --annotation_file ${annotation_file} --mapping_file ${mapping_file} --expression_file ${expression_file} --gtf_type ${params.gtf_type}
       prepere_covariates_file.py --genotype_pcs ${genotype_pcs} --phenotype_pcs ${phenotype_pcs} ${sample_covar} --sample_mapping ${mapping_file} ${pfile}
     """
 }

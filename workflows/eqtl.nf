@@ -61,7 +61,7 @@ include {SPLIT_PHENOTYPE_DATA} from '../modules/nf-core/modules/split_phenotype_
 include {NORMALISE_and_PCA_PHENOTYPE} from '../modules/nf-core/modules/normalise_and_pca/main' 
 include {LIMIX_eqtls} from '../modules/nf-core/modules/limix/main'
 include {PREPROCESS_SAMPLE_MAPPING} from '../modules/nf-core/modules/preprocess_sample_mapping/main'
-include {NORMALISE_ANNDATA} from '../modules/nf-core/modules/normalise_anndata/main'
+include {NORMALISE_ANNDATA; REMAP_GENOTPE_ID} from '../modules/nf-core/modules/normalise_anndata/main'
 include {AGGREGATE_UMI_COUNTS} from '../modules/nf-core/modules/aggregate_UMI_counts/main'
 include {CHUNK_GENOME} from '../modules/nf-core/modules/chunk_genome/main'
 include {PREPERE_EXP_BED} from '../modules/nf-core/modules/prepere_exp_bed/main'
@@ -82,7 +82,7 @@ workflow EQTL {
     donorsvcf = Channel.from(params.input_vcf)
     // if single cell data then have to prepere pseudo bulk dataset.
     if (params.method=='bulk'){
-        log.info 'Lets Bulk analysis'
+        log.info '------ Bulk analysis ------'
         genotype_phenotype_mapping_file=params.genotype_phenotype_mapping_file
         phenotype_file=params.phenotype_file
 
@@ -96,10 +96,17 @@ workflow EQTL {
 
 
     }else if (params.method=='single_cell'){
-        log.info 'Scrna analysis'
+        log.info '------ Scrna analysis ------'
         NORMALISE_ANNDATA(params.phenotype_file)
         AGGREGATE_UMI_COUNTS(NORMALISE_ANNDATA.out.adata,params.aggregation_columns,params.gt_id_column,params.sample_column,params.n_min_cells,params.n_min_individ)
-        genotype_phenotype_mapping_file = AGGREGATE_UMI_COUNTS.out.genotype_phenotype_mapping
+        if(params.genotype_phenotype_mapping_file!=''){
+            // Here user has provided a genotype phenotype file where the provided gt_id_column is contaiming a mapping file instead of actual genotype
+            REMAP_GENOTPE_ID(AGGREGATE_UMI_COUNTS.out.genotype_phenotype_mapping,params.genotype_phenotype_mapping_file)
+            genotype_phenotype_mapping_file = REMAP_GENOTPE_ID.out.remap_genotype_phenotype_mapping
+        }else{
+            genotype_phenotype_mapping_file = AGGREGATE_UMI_COUNTS.out.genotype_phenotype_mapping
+        }
+
         phenotype_file= AGGREGATE_UMI_COUNTS.out.phenotype_file
         genotype_phenotype_mapping_file.splitCsv(header: true, sep: params.input_tables_column_delimiter)
             .map{row->tuple(row.Genotype)}.distinct()

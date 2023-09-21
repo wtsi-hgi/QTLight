@@ -23,13 +23,9 @@ sc_or_bulk = args[5]
 inverse_normal = as.logical(args[6])
 stopifnot(inverse_normal %in% c(TRUE, FALSE))
 
-# Star_path = 'everything__machine-Everything-dMean_phenotype.tsv'
-# Mapping_Path = '../../../results/aggregated_counts/genotype_phenotype_mapping.tsv'
-# filter_type = 'HVG'
-# number_phenotype_pcs = '2,4,6,8,10,12,14,16,18,20,22,24,26,28,30,32,34,36,38,40'
-# sc_or_bulk = 'single_cell'
-# inverse_normal = TRUE
 
+norm_method = args[7]
+percent_of_population_expressed = args[8]
 
 number_phenotype_pcs = as.numeric(unlist(strsplit(number_phenotype_pcs, ',')))
 max_number_phenotype_pcs =  max(number_phenotype_pcs)
@@ -61,18 +57,20 @@ percent_of_population_expressed = 0.2 #We want to only map the values that are e
 # We mapped cis-eQTL within a 1 megabase (MB) window of the TSS of each gene expressed
 # in at least 5% of the nuclei (belonging to a broad cell type)
 
-keep=c()
-for (row in 1:nrow(Star_counts_pre)) {
-  r1 = Star_counts_pre[row,]
-  number_elems = length(r1)
-  number_elems_greater_than_0 = length(r1[r1>0])
-  if ((number_elems_greater_than_0/number_elems>percent_of_population_expressed) & (number_elems_greater_than_0>1)){
-    keep <- append (keep,row)
+if (percent_of_population_expressed>0){
+  keep=c()
+  for (row in 1:nrow(Star_counts_pre)) {
+    r1 = Star_counts_pre[row,]
+    number_elems = length(r1)
+    number_elems_greater_than_0 = length(r1[r1>0])
+    if ((number_elems_greater_than_0/number_elems>=percent_of_population_expressed) & (number_elems_greater_than_0>1)){
+      keep <- append (keep,row)
+    }
+    # here also check how many elements are with equal values.
   }
-  # here also check how many elements are with equal values.
+  Star_counts_pre = Star_counts_pre[keep, ]
+  
 }
-
-Star_counts_pre = Star_counts_pre[keep, ]
 Star_counts_pre = t(Star_counts_pre)
 
 Experimental_grops = read.table(Mapping_Path, fill = TRUE,check.names=FALSE,header = TRUE,sep = '\t')
@@ -110,7 +108,6 @@ all(rownames(Experimental_grops) == colnames(Star_counts))
 
 y <- DGEList(counts=Star_counts, group=Star_counts_pre$Sample_Category,samples=Experimental_grops)
 # design <- model.matrix(~ Experimental_grops$oxLDL.set + Experimental_grops$Donor.line + Experimental_grops$Sample.type..Ctrl.or.oxLDL.)
-
 if (filter_type=='filterByExpr'){
   # this approach is not very suitable for some scRNA datasets since they are quite sarse
   keep <- filterByExpr(y,group=Star_counts_pre$Sample_Category)
@@ -175,11 +172,27 @@ if (filter_type=='filterByExpr'){
 # I start to doubt about this approach - permutations sometimes fail like this.
 # log2(CPM) as output
 if ((sc_or_bulk == 'bulk') || grepl('-dSum', Star_path, fixed = TRUE)){
-  normalised_counts <- cpm(y, log=TRUE) #https://www.rdocumentation.org/packages/edgeR/versions/3.14.0/topics/cpm 
-  normalised_counts = normalised_counts[complete.cases(normalised_counts), ]
+  if (norm_method=='TMM'){
+    normalised_counts <- cpm(y, log=TRUE) #https://www.rdocumentation.org/packages/edgeR/versions/3.14.0/topics/cpm 
+    normalised_counts = normalised_counts[complete.cases(normalised_counts), ]
+  }else if(norm_method=='DESEQ'){
+    counts = y$counts
+    # sampleTable <- data.frame(condition = factor(rep(c("VSMC"), ncol(Experimental_grops))))
+    # TMM_normalised_counts <- cpm(y, log=FALSE)
+    # sampleTable <-data.frame(condition = factor(Experimental_grops$Sample_Category))
+    all(colnames(counts) %in% rownames(Experimental_grops))
+    all(colnames(counts) == rownames(Experimental_grops))
+    Experimental_grops$Sample_Category=as.numeric(factor(Experimental_grops$Sample_Category))
+    mode(counts) <- "integer"
+    dds <- DESeqDataSetFromMatrix(countData = counts, colData = Experimental_grops, design = ~ 1)
+    ddsF <- dds[ rowSums(counts(dds)) > ncol(dds), ]
+    vst=varianceStabilizingTransformation(ddsF)
+    normalised_counts <- as.data.frame(assay(vst))
+  }
 } else {
   normalised_counts <- y$counts
 }
+
 # Apply inverse normal transformation to each row so traits are normally distributed
 if (inverse_normal == TRUE){
   print('Applying inverse normal transformation')

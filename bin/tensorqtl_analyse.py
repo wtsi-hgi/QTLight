@@ -14,7 +14,7 @@ def main():
     import torch
     import pandas as pd
     import tensorqtl
-    from tensorqtl import read_phenotype_bed, genotypeio, cis, calculate_qvalues
+    from tensorqtl import read_phenotype_bed, genotypeio, cis, calculate_qvalues,pgen 
     print('PyTorch {}'.format(torch.__version__))
     print('Pandas {}'.format(pd.__version__))
     print('Tensorqtl {}'.format(tensorqtl.__version__))
@@ -100,7 +100,18 @@ def main():
         help=''
     )
 
+    parser.add_argument(
+        '-maf', '--maf',
+        action='store',
+        dest='maf',
+        required=False,
+        default=0.05,
+        help=''
+    )
+
     options = parser.parse_args()
+    maf=float(options.maf)
+    
     # ValueError: The BED file must define the TSS/cis-window center, with start+1 == end.
     # --plink_prefix_path plink_genotypes/plink_genotypes --expression_bed Expression_Data.bed.gz --covariates_file gtpca_plink.eigenvec
     plink_prefix_path = 'plink_genotypes/plink_genotypes'
@@ -148,6 +159,7 @@ def main():
         print(f'  * using GPU ({torch.cuda.get_device_name(torch.cuda.current_device())})')
     else:
         print('  * WARNING: using CPU!')
+
     # Replacing with simplier command
     # pr = genotypeio.PlinkReader(plink_prefix_path)
     # genotype_df = pr.load_genotypes()
@@ -159,6 +171,32 @@ def main():
                     phenotype_pos_df.loc[phenotype_pos_df['chr']!='chrY'],
                     covariates_df=covariates_df,prefix='cis_nominal1',
                     output_dir=outdir, write_top=True, write_stats=True)
+
+    #     try:
+    #         # Here we have Plink1 bin,bed,fam
+    #         pr = genotypeio.PlinkReader(plink_prefix_path)
+    #         variant_df = pr.bim.set_index('snp')[['chrom', 'pos']]
+    #     except:
+    #         # Here we have Plink2 psam,pgen,pvar
+    #         pr = pgen.PgenReader(plink_prefix_path)
+    #         variant_df2 = pr.variant_dfs
+    #         variant_df = pd.DataFrame()
+    #         for k1 in variant_df2.keys():
+    #             dic1=pd.DataFrame(variant_df2[k1])
+    #             dic1['chrom']=k1
+    #             variant_df=pd.concat([variant_df,dic1])
+    #         variant_df.index=variant_df.index.rename('snp')
+    #         variant_df=variant_df[['chrom', 'pos']]
+    #         del variant_df2
+    #     genotype_df = pr.load_genotypes()
+    #     Directory = './nom_output'
+    #     os.mkdir(Directory)
+    #     cis.map_nominal(genotype_df, variant_df,
+    #                     phenotype_df.loc[phenotype_pos_df['chr']!='chrY'],
+    #                     phenotype_pos_df.loc[phenotype_pos_df['chr']!='chrY'],maf_threshold=maf,
+    #                     covariates_df=covariates_df,window=int(options.window),prefix='cis_nominal1',
+    #                     output_dir=Directory, write_top=True, write_stats=True,run_eigenmt=True)
+
     
     all_files = glob.glob(f'{outdir}/cis_nominal*.parquet')
     All_Data = pd.DataFrame()
@@ -170,21 +208,42 @@ def main():
         os.remove(bf1) 
         count+=1    
 
-    
-    cis_df = cis.map_cis(genotype_df, variant_df, 
-                        phenotype_df.loc[phenotype_pos_df['chr']!='chrY'],
-                        phenotype_pos_df.loc[phenotype_pos_df['chr']!='chrY'],nperm=int(options.nperm),
-                        window=int(options.window),maf_threshold=0,
-                        covariates_df=covariates_df)
-    print('----cis eQTLs processed ------')
-    cis_df.head()
-    cis_df.to_csv(f"{outdir}/Cis_eqtls.tsv",sep="\t")
-    sv = ~np.isnan(cis_df['pval_beta'])
-    print(f"Dropping {sum(sv)} variants withouth Beta-approximated p-values to\n.")
-    cis_df_dropped = cis_df.loc[sv]
-    r = stats.pearsonr(cis_df_dropped['pval_perm'], cis_df_dropped['pval_beta'])[0]
-    calculate_qvalues(cis_df_dropped, qvalue_lambda=0.85)
-    cis_df_dropped.to_csv(f"{outdir}/Cis_eqtls_qval.tsv", sep='\t')
+
+    try:
+        cis_df = cis.map_cis(genotype_df, variant_df, 
+                            phenotype_df.loc[phenotype_pos_df['chr']!='chrY'],
+                            phenotype_pos_df.loc[phenotype_pos_df['chr']!='chrY'],nperm=int(options.nperm),
+                            window=int(options.window),
+                            covariates_df=covariates_df,maf_threshold=maf)
+        print('----cis eQTLs processed ------')
+        cis_df.head()
+        cis_df.to_csv("Cis_eqtls.tsv",sep="\t")
+        sv = ~np.isnan(cis_df['pval_beta'])
+        print(f"Dropping {sum(sv)} variants withouth Beta-approximated p-values to\n.")
+        cis_df_dropped = cis_df.loc[sv]
+        # r = stats.pearsonr(cis_df_dropped['pval_perm'], cis_df_dropped['pval_beta'])[0]
+        calculate_qvalues(cis_df_dropped, qvalue_lambda=0.85)
+        cis_df_dropped.to_csv("Cis_eqtls_qval.tsv", sep='\t')
+    except:
+        # The beta aproximation sometimes doesnt work and results in a failure of the qtl mapping. 
+        # This seems to be caused by failure to aproximate the betas
+        # Hence the folowing part of the code if the above fails avoiding beta aproximation and 
+        cis_df = cis.map_cis(genotype_df, variant_df, 
+                            phenotype_df.loc[phenotype_pos_df['chr']!='chrY'],
+                            phenotype_pos_df.loc[phenotype_pos_df['chr']!='chrY'],nperm=int(options.nperm),
+                            window=int(options.window),
+                            covariates_df=covariates_df,maf_threshold=maf,seed=7,beta_approx=False)
+            
+        print('----cis eQTLs processed ------')
+        cis_df.head()
+        cis_df.to_csv("Cis_eqtls.tsv",sep="\t")
+        sv = ~np.isnan(cis_df['pval_beta'])
+        print(f"Dropping {sum(sv)} variants withouth Beta-approximated p-values to\n.")
+        cis_df_dropped = cis_df.loc[sv]
+        # r = stats.pearsonr(cis_df_dropped['pval_perm'], cis_df_dropped['pval_beta'])[0]
+        # calculate_qvalues(cis_df_dropped, qvalue_lambda=0.85)
+        cis_df_dropped.to_csv("Cis_eqtls_qval.tsv", sep='\t')
+
 
 if __name__ == '__main__':
     main()
