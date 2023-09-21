@@ -4,7 +4,7 @@
 **nf-core/eqtl** is a bioinformatics best-practice analysis pipeline for eqtl analysis.
 
 <p align="center">
-  <img src="https://github.com/wtsi-hgi/eqtl/blob/merged_mo11/assets/images/Logo.png" width="60%"/>
+  <img src="https://github.com/wtsi-hgi/eqtl/blob/main/assets/images/Logo.png" width="60%"/>
 </p>
 
 This pipeline is running TensorQTL and/or LIMIX on bulk and single cell RNA seq datasets and assessed the overlap of the eGenes identified by both methodologies. While TensorQTL is very fast, this methodology uses linear regression which may not be capable in adequately represent the underlying population structure and other covariates, whereas Limix, while very computationally intensive is based on the linear mixed models (LMM) where the kinship matrices can be provided and hence accounting for random effects in a better manner. 
