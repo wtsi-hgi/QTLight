@@ -71,7 +71,7 @@ def main():
         covariates_df=covariates_df.rename(columns={'IID':'Genotype'})
         try:
           covariates_df=covariates_df.set_index('Genotype')
-      except:
+        except:
           print('col already set')
 
 

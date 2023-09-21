@@ -52,7 +52,7 @@ process PREP_OPTIMISE_PCS {
     tuple val(condition), val(paths)
 
     output:
-    tuple val(condition), file("${condition}_symlink")
+    tuple val(condition), path("${condition}_symlink")
 
     script:
     paths_str = paths.join(" ")
