@@ -21,7 +21,7 @@ On release, automated continuous integration tests run the pipeline on a full-si
 1. Genotype preperation, filtering and subsetting ([`bcftools`]( https://github.com/single-cell-genetics/limix_qtl ))
 2. Genotype conversion to PLINK format and filtering ([`PLINK2`]( https://github.com/single-cell-genetics/limix_qtl ))
 3. Genotype kinship matrix calculation ([`PLINK2`]( https://github.com/single-cell-genetics/limix_qtl ))
-4. Genotype PC calculation ([`PLINK2`]( https://github.com/single-cell-genetics/limix_qtl ))
+4. Genotype and Phenotype PC calculation and QTL mapping with various number of PCs ([`PLINK2`]( https://github.com/single-cell-genetics/limix_qtl ))
 5. LIMIX eqtl mapping ([`LIMIX`]( https://github.com/single-cell-genetics/limix_qtl ))
 6. TensorQTL eqtl mapping ([`TensorQTL`](https://github.com/broadinstitute/tensorqtl))
 
