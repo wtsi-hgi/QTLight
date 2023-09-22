@@ -217,13 +217,13 @@ def main():
                             covariates_df=covariates_df,maf_threshold=maf)
         print('----cis eQTLs processed ------')
         cis_df.head()
-        cis_df.to_csv("Cis_eqtls.tsv",sep="\t")
+        cis_df.to_csv(f"{outdir}/Cis_eqtls.tsv",sep="\t")
         sv = ~np.isnan(cis_df['pval_beta'])
         print(f"Dropping {sum(sv)} variants withouth Beta-approximated p-values to\n.")
         cis_df_dropped = cis_df.loc[sv]
         # r = stats.pearsonr(cis_df_dropped['pval_perm'], cis_df_dropped['pval_beta'])[0]
         calculate_qvalues(cis_df_dropped, qvalue_lambda=0.85)
-        cis_df_dropped.to_csv("Cis_eqtls_qval.tsv", sep='\t')
+        cis_df_dropped.to_csv(f"{outdir}/Cis_eqtls_qval.tsv", sep='\t')
     except:
         # The beta aproximation sometimes doesnt work and results in a failure of the qtl mapping. 
         # This seems to be caused by failure to aproximate the betas
@@ -236,13 +236,13 @@ def main():
             
         print('----cis eQTLs processed ------')
         cis_df.head()
-        cis_df.to_csv("Cis_eqtls.tsv",sep="\t")
+        cis_df.to_csv(f"{outdir}/Cis_eqtls.tsv",sep="\t")
         sv = ~np.isnan(cis_df['pval_beta'])
         print(f"Dropping {sum(sv)} variants withouth Beta-approximated p-values to\n.")
         cis_df_dropped = cis_df.loc[sv]
         # r = stats.pearsonr(cis_df_dropped['pval_perm'], cis_df_dropped['pval_beta'])[0]
         # calculate_qvalues(cis_df_dropped, qvalue_lambda=0.85)
-        cis_df_dropped.to_csv("Cis_eqtls_qval.tsv", sep='\t')
+        cis_df_dropped.to_csv(f"{outdir}/Cis_eqtls_qval.tsv", sep='\t')
 
 
 if __name__ == '__main__':

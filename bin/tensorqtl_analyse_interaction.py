@@ -188,7 +188,7 @@ def main():
                     phenotype_df.loc[phenotype_pos_df['chr']!='chrY'], 
                     phenotype_pos_df.loc[phenotype_pos_df['chr']!='chrY'],
                     covariates_df=covariates_df,prefix='cis_inter1',
-                    maf_threshold=maf, maf_threshold_interaction=interaction_maf, output_dir=Directory, write_top=True, write_stats=True,
+                    maf_threshold=maf, maf_threshold_interaction=interaction_maf, output_dir=outdir, write_top=True, write_stats=True,
                     interaction_df=interaction_df,
                     run_eigenmt=True)
     
