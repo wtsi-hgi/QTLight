@@ -11,6 +11,13 @@ if(!interactive()){
    pdf(NULL)
 }
 
+
+sumstats.dir = './'
+alpha = as.numeric(0.05)
+interaction.name = 'NA'
+annot.name = 'Celltypist:Immune_All_High:predicted_labels-Monocytes-dMean'
+out.dir = './OPTIM_pcs/base_output__base'
+
 sumstats.dir = args[1]
 alpha = as.numeric(args[2])
 interaction.name = args[3]
