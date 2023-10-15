@@ -3,6 +3,7 @@ tensor_label = params.TensorQTL.utilise_gpu ? 'gpu' : "process_low"
 process TENSORQTL {  
     label "${tensor_label}"
     tag "$condition, $nr_phenotype_pcs"
+    // cache false
     
     publishDir  path: "${params.outdir}/TensorQTL_eQTLS/${condition}/",
                 overwrite: "true"
@@ -95,6 +96,7 @@ process OPTIMISE_PCS{
         path("${outpath}/optimise_nPCs-FDR${alpha_text}.txt"), emit: optimise_nPCs
         path("${outpath}/Cis_eqtls.tsv"), emit: optim_qtl_bin, optional: true
         path("${outpath}/Cis_eqtls_qval.tsv"), emit: optim_q_qtl_bin, optional: true
+        path("${outpath}/Cis_eqtls_independent.tsv"), emit: optim_independent_qtl_bin, optional: true
         path("${outpath}/cis_inter1.cis_qtl_top_assoc.txt.gz "), emit: optim_int_qtl_bin, optional: true
         path(outpath)
     script:
