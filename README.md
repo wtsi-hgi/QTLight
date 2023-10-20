@@ -17,7 +17,7 @@ The pipeline is built using [Nextflow](https://www.nextflow.io), a workflow tool
 On release, automated continuous integration tests run the pipeline on a full-sized dataset on the AWS cloud infrastructure. This ensures that the pipeline runs on AWS, has sensible resource allocation defaults set to run on real-world datasets, and permits the persistent storage of results to benchmark between pipeline releases and other analysis sources. The results obtained from the full-sized test can be viewed on the [nf-core website](https://nf-co.re/eqtl/results).
 
 <p align="center">
-  <img src="https://github.com/wtsi-hgi/yascp/blob/main/assets/images/eqtl_workflow.png" width="100%"/>
+  <img src="https://github.com/wtsi-hgi/eqtl/blob/main/assets/images/eqtl_workflow.png" width="100%"/>
 </p>
 
 ## Pipeline summary
