@@ -19,7 +19,7 @@ process PREPROCESS_GENOTYPES{
         path("filtered_vcf.vcf.gz") , emit: filtered_vcf
     script:
         """
-            bcftools view --known ${params.bcftools_filters}  --min-af ${params.maf}:minor ${file__vcf} -O z -o filtered_vcf.vcf.gz
+            bcftools view --known ${params.bcftools_filters} --min-af ${params.maf}:minor ${file__vcf} -Oz -o filtered_vcf.vcf.gz
             
         """
     

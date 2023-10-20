@@ -4,35 +4,43 @@ library(edgeR)
 library(DESeq2)
 library(ggplot2)
 # library(dplyr)
-library(ggfortify)
 library(ggplot2)
 library(PCAtools)
-# B_naive-dMean_phenotype.tsv
+set.seed(2023)
+
 
 args = commandArgs(trailingOnly=TRUE)
 
 if (length(args)==0) {
   stop("At least one argument must be supplied (input file).n", call.=FALSE)
 }
+
 # Star_path = 'general_phenotype.tsv'
-# Mapping_Path = 'sample_mappings2.tsv'
+# Mapping_Path = 'sample_mappings2.tsv '
 # filter_type = 'None'
-# number_phenotype_pcs='20'
-# norm type
+# # number_phenotype_pcs = args[4]
+# sc_or_bulk = 'bulk'
+# inverse_normal = as.logical('TRUE')
+# stopifnot(inverse_normal %in% c(TRUE, FALSE))
+# norm_method = 'NONE'
+# percent_of_population_expressed = '0.2'
+
+
 
 Star_path = args[1]
 Mapping_Path = args[2]
 filter_type = args[3]
-number_phenotype_pcs = args[4]
-sc_or_bulk = args[5]
-inverse_normal = as.logical(args[6])
+# number_phenotype_pcs = args[4]
+sc_or_bulk = args[4]
+inverse_normal = as.logical(args[5])
 stopifnot(inverse_normal %in% c(TRUE, FALSE))
 
-norm_method = args[7]
-percent_of_population_expressed = args[8]
 
-number_phenotype_pcs = as.numeric(unlist(strsplit(number_phenotype_pcs, ',')))
-max_number_phenotype_pcs =  max(number_phenotype_pcs)
+norm_method = args[6]
+percent_of_population_expressed = args[7]
+
+# number_phenotype_pcs = as.numeric(unlist(strsplit(number_phenotype_pcs, ',')))
+# max_number_phenotype_pcs =  max(number_phenotype_pcs)
 
 # Functions taken from https://github.com/kauralasoo/eQTLUtils/blob/master/R/matrix_operations.R
 quantileNormaliseVector = function(x){
@@ -77,7 +85,6 @@ if (percent_of_population_expressed>0){
 }
 Star_counts_pre = t(Star_counts_pre)
 
-
 Experimental_grops = read.table(Mapping_Path, fill = TRUE,check.names=FALSE,header = TRUE,sep = '\t')
 Experimental_grops[duplicated(Experimental_grops[2]),2]=paste0('rep_',Experimental_grops[duplicated(Experimental_grops[2]),2])
 row.names(Experimental_grops) <- Experimental_grops[,2]
@@ -98,11 +105,14 @@ Star_counts_pre_t=t(Star_counts_pre)
 
 
 # We merge the Expreimental groups and the counts to make sure that they are in the same order, which is cruical for analysis.
-Star_counts_pre <- transform(merge(Star_counts_pre, Experimental_grops, by=0,all.x = TRUE,), row.names=Row.names, Row.names=NULL)
+Star_counts_pre = merge(Star_counts_pre, Experimental_grops, by=0,all.x = TRUE,)
+rownames(Star_counts_pre) <- Star_counts_pre[,'Row.names']
+Star_counts_pre = Star_counts_pre[,!(names(Star_counts_pre) %in% c("Row.names"))]
+
+
 Star_counts_pre = Star_counts_pre[complete.cases(Star_counts_pre$Sample_Category),]
 #Remove the counts where there is no genotype
 Star_counts_pre = Star_counts_pre[!(is.na(Star_counts_pre$Genotype) | Star_counts_pre$Genotype==""), ]
-
 
 n=ncol(Experimental_grops)
 Experimental_grops = (Star_counts_pre[,(ncol(Star_counts_pre)-n+1):ncol(Star_counts_pre)])
@@ -164,8 +174,6 @@ if (filter_type=='filterByExpr'){
   }
 }
 
-
-
 # dge <- edgeR::DGEList(counts=dm)
 # dge <- edgeR::calcNormFactors(dge)
 
@@ -177,7 +185,7 @@ if (filter_type=='filterByExpr'){
 #  Acutoff = -1e10
 #  )
 
-# I start to doubth about this apporach - permutations sometimes fail like this.
+# I start to doubt about this approach - permutations sometimes fail like this.
 # log2(CPM) as output
 if ((sc_or_bulk == 'bulk') || grepl('-dSum', Star_path, fixed = TRUE)){
   if (norm_method=='TMM'){
@@ -196,6 +204,8 @@ if ((sc_or_bulk == 'bulk') || grepl('-dSum', Star_path, fixed = TRUE)){
     ddsF <- dds[ rowSums(counts(dds)) > ncol(dds), ]
     vst=varianceStabilizingTransformation(ddsF)
     normalised_counts <- as.data.frame(assay(vst))
+  }else if(norm_method=='NONE'){
+    normalised_counts <- y$counts
   }
 } else {
   normalised_counts <- y$counts
@@ -210,20 +220,19 @@ if (inverse_normal == TRUE){
 # TMM_normalised_counts = t(t(y$counts)*y$samples$norm.factors)
 # norms = y$samples$norm.factors
 # TMM_normalised_counts_log = log(TMM_normalised_counts+1, 2) # Apply log2 transform on the TMM normalised counts.
-
 pcs = prcomp(normalised_counts, scale = TRUE)
-if(ncol(normalised_counts) < max_number_phenotype_pcs){
-  max_number_phenotype_pcs=ncol(normalised_counts)
-}
+# if(ncol(normalised_counts) < max_number_phenotype_pcs){
+#   max_number_phenotype_pcs=ncol(normalised_counts)
+# }
 
-for (npcs in number_phenotype_pcs){
-  if (max_number_phenotype_pcs < npcs){
-    npcs = max_number_phenotype_pcs
-  }
-  pcs_sliced  = pcs$rotation[,1:npcs]
-  write.table(pcs_sliced,file=paste0(npcs,'pcs.tsv'),sep='\t')
-}
-
+# for (npcs in number_phenotype_pcs){
+#   if (max_number_phenotype_pcs < npcs){
+#     npcs = max_number_phenotype_pcs
+#   }
+#   pcs_sliced  = pcs$rotation[,1:npcs]
+#   write.table(pcs_sliced,file=paste0(npcs,'pcs.tsv'),sep='\t')
+# }
+write.table(pcs$rotation,file=paste0('all__pcs.tsv'),sep='\t')
 write.table(normalised_counts,file=paste('normalised_phenotype.tsv',sep=''),sep='\t')
 
 # plots
@@ -233,7 +242,7 @@ if(ncol(normalised_counts)<15){
 }else{
   len1=15
 }
-pdf("screenplot.pdf") 
+pdf("screeplot.pdf") 
 screeplot(p, components = 1:len1)
 dev.off()
 
