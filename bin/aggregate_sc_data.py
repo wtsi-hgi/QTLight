@@ -161,8 +161,5 @@ def main():
     aggregated_data.to_csv('phenotype_file.tsv',sep='\t',index=True)
     print('Successfully Finished')
 
-
-
-
 if __name__ == '__main__':
     main()
