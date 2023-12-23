@@ -3,16 +3,22 @@
 <!-- TODO nf-core: Write a 1-2 sentence summary of what data the pipeline is for and what it does -->
 **nf-core/eqtl** is a bioinformatics best-practice analysis pipeline for eqtl analysis.
 
+
 <p align="center">
   <img src="https://github.com/wtsi-hgi/eqtl/blob/main/assets/images/Logo.png" width="60%"/>
 </p>
 
 This pipeline is running TensorQTL and/or LIMIX on bulk and single cell RNA seq datasets and assessed the overlap of the eGenes identified by both methodologies. While TensorQTL is very fast, this methodology uses linear regression which may not be capable in adequately represent the underlying population structure and other covariates, whereas Limix, while very computationally intensive is based on the linear mixed models (LMM) where the kinship matrices can be provided and hence accounting for random effects in a better manner. 
 
+
 The pipeline is built using [Nextflow](https://www.nextflow.io), a workflow tool to run tasks across multiple compute infrastructures in a very portable manner. It uses Docker/Singularity containers making installation trivial and results highly reproducible. The [Nextflow DSL2](https://www.nextflow.io/docs/latest/dsl2.html) implementation of this pipeline uses one container per process which makes it much easier to maintain and update software dependencies. Where possible, these processes have been submitted to and installed from [nf-core/modules](https://github.com/nf-core/modules) in order to make them available to all nf-core pipelines, and to everyone within the Nextflow community!
 
 <!-- TODO nf-core: Add full-sized test dataset and amend the paragraph below if applicable -->
 On release, automated continuous integration tests run the pipeline on a full-sized dataset on the AWS cloud infrastructure. This ensures that the pipeline runs on AWS, has sensible resource allocation defaults set to run on real-world datasets, and permits the persistent storage of results to benchmark between pipeline releases and other analysis sources. The results obtained from the full-sized test can be viewed on the [nf-core website](https://nf-co.re/eqtl/results).
+
+<p align="center">
+  <img src="https://github.com/wtsi-hgi/eqtl/blob/main/assets/images/eqtl_workflow.png" width="100%"/>
+</p>
 
 ## Pipeline summary
 
@@ -72,11 +78,7 @@ The nf-core/eqtl pipeline comes with documentation about the pipeline [usage](ht
 
 ## Credits
 
-nf-core/eqtl was originally written by Matiss Ozols.
-
-We thank the following people for their extensive assistance in the development of this pipeline:
-
-<!-- TODO nf-core: If applicable, make list of people who have also contributed -->
+nf-core/eqtl was originally written by Matiss Ozols with contributions from Anna Cuomo, Marc Jan Bonder, Hannes Ponstingl, Tobi Alegbe.
 
 ## Contributions and Support
 
@@ -85,6 +87,10 @@ If you would like to contribute to this pipeline, please see the [contributing g
 For further information or help, don't hesitate to get in touch on the [Slack `#eqtl` channel](https://nfcore.slack.com/channels/eqtl) (you can join with [this invite](https://nf-co.re/join/slack)).
 
 ## Citations
+
+Currently pipeline has not been published but we would really appreciate if you could please acknowlage the use of this pipeline in your work:
+
+> Ozols, M. et al. 2023. eqtl (Quantitative Trait Loci mapping pipeline): GitHub. https://github.com/wtsi-hgi/eqtl. 
 
 <!-- TODO nf-core: Add citation for pipeline after first release. Uncomment lines below and update Zenodo doi and badge at the top of this file. -->
 <!-- If you use  nf-core/eqtl for your analysis, please cite it using the following doi: [10.5281/zenodo.XXXXXX](https://doi.org/10.5281/zenodo.XXXXXX) -->

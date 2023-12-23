@@ -1,0 +1,70 @@
+#%Module1.0
+set version 1.0
+set program Yascp
+
+set version [file tail [module-info version [module-info name]]]
+ 
+proc ModulesHelp { } {
+    global version
+    puts stderr "YASCP (Yet Another Single Cell Pieline: https://github.com/wtsi-hgi/yascp) is a nextflow pipeline that QCs the scRNA Cellranger data by removing ambient RNA, deconvoluting donors, assigning celltypes, analysing concordances vs expected genotypes"
+    puts stderr ""
+    puts stderr "Yascp module has been set to run in multiple modes:"
+    puts stderr "	*yascp -v :will describe the checkout tag used."
+    puts stderr " 	*yascp test :will run a OneK1k test dataset."
+    puts stderr " 	*yascp sample_input :will create a directory sample_input in your current working directory where you will sample input files."
+    puts stderr " 	*yascp fetch :(you need an input.tsv file (ap per this: https://github.com/wtsi-hgi/yascp/blob/main/sample_input/input.tsv) in project directory where you would like to fetch the cellranged data. This file should contain sanger_sample_id as a header and all the uniqie sanger sample ids in the folowin rows) will fetch the cellranger data and prepeare the basic yascp inputs."
+    puts stderr "  	*yascp clean inputs.nf: will rsync results and extract symlinks from the folder defined as an 'outdir' and then remove work directory to avoid running out of quota (this will remove nextflow catche and pipeline will need to be rerun from beggining if needed)"
+    puts stderr "	*yascp input.nf :will run your samples as defined in input file. If you are unsure how to fill in the info file please refear to this documentation: https://github.com/wtsi-hgi/yascp/blob/main/docs/usage.md"
+    puts stderr ""
+    puts stderr "For the data interpretation please folow this documentation: https://github.com/wtsi-hgi/yascp/tree/main/docs"
+    puts stderr ""
+    puts stderr "To avoid unnecessary singularity image pull please run: export SINGULARITY_CACHEDIR='/software/hgi/containers/yascp' prior job sumbission"
+}
+ 
+module-whatis   "Yascp version $version"
+module-whatis   "Name: yascp"
+module-whatis   "Version: 1.0"
+ 
+set install /software/hgi/pipelines/yascp
+module load ISG/singularity/3.6.4
+module load HGI/common/nextflow/22.04.4
+
+set-function yascp {
+     if [[ $@ == "-v" ]]; then
+        command echo  -e "yascp v=1.0; \n Available at https://github.com/wtsi-hgi/yascp \n commit bd43f9baea487aa3811129bd2e01f0d682ce3a7d"
+    elif [[ $@ == "test" ]]; then
+        command echo -e "Runing test code from OneK1k" && bash /software/hgi/pipelines/yascp/assets/deploy_scripts/bsub_test.sh
+    elif [[ $@ == "sample_input" ]]; then
+        command cp -r /software/hgi/pipelines/yascp/sample_input ./
+    elif [[ $1 == "clean" ]]; then
+        command echo -e "Removing work dir; after this you will not be able to use the catche to restart pipeline \n\n" && bash /software/hgi/pipelines/yascp/assets/deploy_scripts/bsub__removeWork.sh $2
+    elif [[ $@ == "info" ]]; then
+        command echo -e "\n\n#####YASCP 1.0#####\n###################\n###########################\nYASCP (Yet Another Single Cell Pieline)[https://github.com/wtsi-hgi/yascp] is a nextflow pipeline that QCs the scRNA Cellranger data by removing ambient RNA, deconvoluting donors, assigning celltypes, analysing concordances vs expected genotypes\n###########################\n\nYascp module has been set to run in multiple modes:\n 	*yascp -v :will describe the checkout tag used. \n 	*yascp test :will run a OneK1k test dataset. \n 	*yascp sample_input :will create a directory sample_input in your current working directory where you will sample input files. \n 	*yascp fetch :(you need an input.tsv file [ap per this: https://github.com/wtsi-hgi/yascp/blob/main/sample_input/input.tsv] in project directory where you would like to fetch the cellranged data. This file should contain sanger_sample_id as a header and all the uniqie sanger sample ids in the folowin rows) will fetch the cellranger data and prepeare the basic yascp inputs. \n  	*yascp clean inputs.nf: will rsync results and extract symlinks from the folder defined as an 'outdir' and then remove work directory to avoid running out of quota (this will remove nextflow catche and pipeline will need to be rerun from beggining if needed)\n	*yascp input.nf :will run your samples as defined in input file. If you are unsure how to fill in the info file please refear to this documentation: https://github.com/wtsi-hgi/yascp/blob/main/docs/usage.md \n\n For the data interpretation please folow this documentation: https://github.com/wtsi-hgi/yascp/tree/main/docs"
+    elif [[ $@ == "fetch" ]]; then
+        command echo -e "if you have prepeared an input.tsv file with a header 'sanger_sample_id' that lists all the unique sanger sample ids to retrieve then this will be now fetched. \n" && bash /software/hgi/pipelines/yascp_nf_irods_to_lustre/scripts/bsub_module.sh
+    else
+        command bash /software/hgi/pipelines/yascp/assets/deploy_scripts/bsub.sh "$@"
+    fi
+}   
+
+set-function yascp_local {
+     if [[ $@ == "-v" ]]; then
+        command echo  -e "yascp v=1.0; \n Available at https://github.com/wtsi-hgi/yascp \n commit bd43f9baea487aa3811129bd2e01f0d682ce3a7d"
+    elif [[ $@ == "test" ]]; then
+        command echo -e "Runing test code from OneK1k" && bash /software/hgi/pipelines/yascp/assets/deploy_scripts/nohup_start_nextflow_lsf_test.sh
+    elif [[ $@ == "sample_input" ]]; then
+        command cp -r /software/hgi/pipelines/yascp/sample_input ./
+    elif [[ $@ == "info" ]]; then
+        command echo -e "\n\n#####YASCP 1.0#####\nYascp module has been set to run in multiple modes:\n 	*yascp -v :will describe the checkout tag used. \n 	*yascp y=test :will run a OneK1k test dataset. \n 	*yascp sample_input :will create a directory sample_input in your current working directory where you will sample input files. \n 	*yascp input.nf :will run your samples as defined in input file. If you are unsure how to fill in the info file please refear to this documentation: https://github.com/wtsi-hgi/yascp/blob/main/docs/usage.md \n\n For the data interpretation please folow this documentation: https://github.com/wtsi-hgi/yascp/tree/main/docs"
+    else
+        command bash /software/hgi/pipelines/yascp/assets/deploy_scripts/nohup_start_nextflow_lsf.sh "$@"
+    fi
+}   
+
+set-function which {
+    if [[ $@ == "yascp" ]]; then
+        command echo  -e "\nRunning Yascp v=1.0; \n Available at https://github.com/wtsi-hgi/yascp \n commit bd43f9baea487aa3811129bd2e01f0d682ce3a7d \n by running comand yascp input.nf the job will be submitted to a long que, if you do not wish to submit the job to que you can run yascp_local"
+    else
+        command which "$@"
+    fi
+}

@@ -66,6 +66,7 @@ include {AGGREGATE_UMI_COUNTS} from '../modules/nf-core/modules/aggregate_UMI_co
 include {CHUNK_GENOME} from '../modules/nf-core/modules/chunk_genome/main'
 include {PREPERE_EXP_BED} from '../modules/nf-core/modules/prepere_exp_bed/main'
 include {TENSORQTL_eqtls} from '../modules/nf-core/modules/tensorqtl/main'
+include {SUBSET_PCS} from '../modules/nf-core/modules/covar_processing/main'
 // include {OPTIMISE_PCS} from '../modules/nf-core/modules/optimise_pcs/main'
 /*
 ========================================================================================
@@ -140,6 +141,10 @@ workflow EQTL {
 
     NORMALISE_and_PCA_PHENOTYPE(SPLIT_PHENOTYPE_DATA.out.phenotye_file,genotype_phenotype_mapping_file)
 
+    Channel.of(params.covariates.nr_phenotype_pcs).splitCsv().flatten().set{pcs}
+    NORMALISE_and_PCA_PHENOTYPE.out.for_bed.combine(pcs).set{test123}
+
+    SUBSET_PCS(test123)
 
     // PREPERE_COVARIATES_FILE(GENOTYPE_PC_CALCULATION.out.gtpca_plink,)
 
@@ -162,7 +167,7 @@ workflow EQTL {
 
     if (params.TensorQTL.run){
 
-        for_bed_channel = NORMALISE_and_PCA_PHENOTYPE.out.for_bed.map { tuple ->  [tuple[3],[[tuple[0],tuple[1],tuple[2]]]].combinations()}.flatten().collate(4)
+        for_bed_channel = SUBSET_PCS.out.for_bed.map { tuple ->  [tuple[3],[[tuple[0],tuple[1],tuple[2]]]].combinations()}.flatten().collate(4)
         PREPERE_EXP_BED(for_bed_channel,params.annotation_file,GENOTYPE_PC_CALCULATION.out.gtpca_plink)
 
         TENSORQTL_eqtls(
