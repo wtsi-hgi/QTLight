@@ -104,18 +104,8 @@ def main():
         default=False,
         help=''
     )
-    
-  parser.add_argument(
-        '-maf', '--maf',
-        action='store',
-        dest='maf',
-        required=False,
-        default=0.05,
-        help=''
-    )
 
     options = parser.parse_args()
-    maf=float(options.maf)
     # ValueError: The BED file must define the TSS/cis-window center, with start+1 == end.
     # --plink_prefix_path plink_genotypes/plink_genotypes --expression_bed Expression_Data.bed.gz --covariates_file gtpca_plink.eigenvec
     plink_prefix_path=options.plink_prefix_path
@@ -188,7 +178,7 @@ def main():
                     phenotype_df.loc[phenotype_pos_df['chr']!='chrY'], 
                     phenotype_pos_df.loc[phenotype_pos_df['chr']!='chrY'],
                     covariates_df=covariates_df,prefix='cis_inter1',
-                    maf_threshold=maf, maf_threshold_interaction=interaction_maf, output_dir=outdir, write_top=True, write_stats=True,
+                    maf_threshold=interaction_maf, maf_threshold_interaction=interaction_maf, output_dir=outdir, write_top=True, write_stats=True,
                     interaction_df=interaction_df,
                     run_eigenmt=True)
     
