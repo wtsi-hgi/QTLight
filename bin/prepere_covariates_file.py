@@ -90,7 +90,7 @@ def main():
     covariates_df = covariates_df.add_prefix('Genotype ')
     phenotype_pcs = phenotype_pcs.add_prefix('Phenotype ')
 
-    idx = set(phenotype_pcs.index).intersection(set(covariates_df.index))
+    idx = list(set(phenotype_pcs.index).intersection(set(covariates_df.index)))
     covariates_df = covariates_df.loc[idx]
     phenotype_pcs = phenotype_pcs.loc[list(idx)]
 

@@ -97,7 +97,7 @@ def main():
     f = list(Expression_Data.index)
     # f.append('ENSG00000177757')
     f2 = set(Gene_Chr_Start_End_Data.index).intersection(set(f))
-    Gene_Chr_Start_End_Data = Gene_Chr_Start_End_Data.loc[f2]
+    Gene_Chr_Start_End_Data = Gene_Chr_Start_End_Data.loc[list(f2)]
     
     BED_Formated_Data["#chr"]=Gene_Chr_Start_End_Data.chromosome
     

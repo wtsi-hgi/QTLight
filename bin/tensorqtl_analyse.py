@@ -13,6 +13,7 @@ import glob
 def main():
     import torch
     import pandas as pd
+    import sys
     import tensorqtl
     from tensorqtl import read_phenotype_bed, genotypeio, cis, calculate_qvalues,pgen 
     print('PyTorch {}'.format(torch.__version__))
