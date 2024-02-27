@@ -49,17 +49,14 @@ RUN which conda
 RUN pip install glimix-core
 RUN git clone https://github.com/broadinstitute/tensorqtl.git
 RUN cd tensorqtl && pip install -r install/requirements.txt .
-RUN git clone https://github.com/chrchang/plink-ng.git
-RUN cd plink-ng/2.0/Python/ && python3 setup.py build_ext && python3 setup.py install
-RUN conda install -c bioconda bedtools
-RUN conda install -c bioconda plink
+RUN pip install Pgenlib
+RUN apt install zip --yes
+RUN wget https://github.com/arq5x/bedtools2/releases/download/v2.30.0/bedtools.static.binary && mv bedtools.static.binary /usr/bin/bedtools && chmod a+x /usr/bin/bedtools
+RUN cd /usr/bin/ && wget https://s3.amazonaws.com/plink1-assets/plink_linux_x86_64_20231211.zip && unzip plink_linux_x86_64_20231211.zip
 RUN rm -r tensorqtl
-RUN rm -r plink-ng
 RUN ls
 RUN rm -r tmp2 analysis
 RUN rm -r /tmp/miniconda.sh
-# RUN pip install --upgrade pandas
 RUN pip install gtfparse==1.2.1
-RUN pip install Pgenlib
-# RUN rm -r tensorqlt && rm -r plink-ng
-# USER ${NB_USER}
+
+RUN which python
