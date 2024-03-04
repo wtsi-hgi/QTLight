@@ -1,0 +1,13 @@
+#/bin/bash
+
+if [[ $@ == "-v" ]]; then
+    command echo  -e "eqtl v=1.0; \n Available at https://github.com/wtsi-hgi/eqtl \n commit bd43f9baea487aa3811129bd2e01f0d682ce3a7d"
+elif [[ $@ == "test" ]]; then
+    command echo -e "Runing test code from OneK1k" && bash $SCRIPT_DIR/../../../assets/deploy_scripts/nohup_start_nextflow_lsf_test.sh
+elif [[ $@ == "sample_input" ]]; then
+    command cp -r $SCRIPT_DIR/../../../sample_input ./
+elif [[ $@ == "info" ]]; then
+    command echo -e "\n\n#####eqtl 1.0#####\neqtl module has been set to run in multiple modes:\n 	*eqtl -v :will describe the checkout tag used. \n 	*eqtl y=test :will run a OneK1k test dataset. \n 	*eqtl sample_input :will create a directory sample_input in your current working directory where you will sample input files. \n 	*eqtl input.nf :will run your samples as defined in input file. If you are unsure how to fill in the info file please refear to this documentation: https://github.com/wtsi-hgi/eqtl/blob/main/docs/usage.md \n\n For the data interpretation please folow this documentation: https://github.com/wtsi-hgi/eqtl/tree/main/docs"
+else
+    command bash $SCRIPT_DIR/../../../assets/deploy_scripts/nohup_start_nextflow_lsf.sh "$@"
+fi

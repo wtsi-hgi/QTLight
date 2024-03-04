@@ -146,6 +146,9 @@ def main():
     phenotype_df=phenotype_df.loc[:,~phenotype_df.columns.duplicated()]
 
     covariates_df=covariates_df.T
+    
+    phenotype_df1 = list(set(phenotype_pos_df[phenotype_pos_df['chr']!='chrY'].index))
+    
     # not a good solution but atm
 
     # covariates_df=covariates_df.set_index('IID')
@@ -168,8 +171,8 @@ def main():
     genotype_df, variant_df = genotypeio.load_genotypes(plink_prefix_path, dosages=dosage)
     os.makedirs(outdir)
     cis.map_nominal(genotype_df, variant_df,
-                    phenotype_df.loc[phenotype_pos_df['chr']!='chrY'],
-                    phenotype_pos_df.loc[phenotype_pos_df['chr']!='chrY'],
+                    phenotype_df.loc[phenotype_df1],
+                    phenotype_pos_df.loc[phenotype_df1],
                     covariates_df=covariates_df,prefix='cis_nominal1',
                     output_dir=outdir, write_top=True, write_stats=True)
 
@@ -212,8 +215,8 @@ def main():
 
     try:
         cis_df = cis.map_cis(genotype_df, variant_df, 
-                            phenotype_df.loc[phenotype_pos_df['chr']!='chrY'],
-                            phenotype_pos_df.loc[phenotype_pos_df['chr']!='chrY'],nperm=int(options.nperm),
+                            phenotype_df.loc[phenotype_df1],
+                            phenotype_pos_df.loc[phenotype_df1],nperm=int(options.nperm),
                             window=int(options.window),
                             covariates_df=covariates_df,maf_threshold=maf)
         print('----cis eQTLs processed ------')
@@ -229,9 +232,10 @@ def main():
         # The beta aproximation sometimes doesnt work and results in a failure of the qtl mapping. 
         # This seems to be caused by failure to aproximate the betas
         # Hence the folowing part of the code if the above fails avoiding beta aproximation and 
+        print('----cis eQTLs failed to aproximate betas ------')
         cis_df = cis.map_cis(genotype_df, variant_df, 
-                            phenotype_df.loc[phenotype_pos_df['chr']!='chrY'],
-                            phenotype_pos_df.loc[phenotype_pos_df['chr']!='chrY'],nperm=int(options.nperm),
+                            phenotype_df.loc[phenotype_df1],
+                            phenotype_pos_df.loc[phenotype_df1],nperm=int(options.nperm),
                             window=int(options.window),
                             covariates_df=covariates_df,maf_threshold=maf,seed=7,beta_approx=False)
             

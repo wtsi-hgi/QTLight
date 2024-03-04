@@ -8,8 +8,6 @@ import argparse
 import math
 from gtfparse import read_gtf
 
-
-
 def main():
     """Run CLI."""
     parser = argparse.ArgumentParser(

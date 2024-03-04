@@ -3,7 +3,7 @@ INPUT_FILE=$1
 dt=`date +"%Y_%m_%d_%T"`
 cp nextflow.nohup.log ./nextflow.nohup_$dt.log2 || echo 'first time running'
 # activate Nextflow conda env
-
+SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
 # clean up previous run files
 rm -f *.log
 rm -f nextflow.nohup.PID.txt 
@@ -21,7 +21,7 @@ export RUN_ID="${PWD##*/}"
 # export TEMP=$PWD/tmp
 # export TMP_DIR=$PWD/tmp
 
-echo $RUN_ID | nextflow run /software/hgi/pipelines/yascp -profile sanger -c $INPUT_FILE --nf_ci_loc $PWD -entry WORK_DIR_REMOVAL --remove_work_dir -resume > nextflow.nohup.log 2>&1 & 
+echo $RUN_ID | nextflow run $SCRIPT_DIR/../.. -profile sanger -c $INPUT_FILE --nf_ci_loc $PWD -entry WORK_DIR_REMOVAL --remove_work_dir -resume > nextflow.nohup.log 2>&1 & 
 
 # get process PID 
 sleep 1 && export PID=$(pgrep -f "\\-\\-nf_ci_loc $RUN_DIR")

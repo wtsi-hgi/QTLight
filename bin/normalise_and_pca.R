@@ -14,16 +14,16 @@ args = commandArgs(trailingOnly=TRUE)
 if (length(args)==0) {
   stop("At least one argument must be supplied (input file).n", call.=FALSE)
 }
-
-# Star_path = 'general_phenotype.tsv'
-# Mapping_Path = 'sample_mappings2.tsv '
-# filter_type = 'None'
-# # number_phenotype_pcs = args[4]
-# sc_or_bulk = 'bulk'
-# inverse_normal = as.logical('TRUE')
-# stopifnot(inverse_normal %in% c(TRUE, FALSE))
-# norm_method = 'NONE'
-# percent_of_population_expressed = '0.2'
+# azimuth.celltyp.l2-gdT-dSum_phenotype.tsv remap_genotype_phenotype_mapping.tsv None single_cell TRUE NONE 0.2
+Star_path = 'azimuth.celltyp.l2-gdT-dSum_phenotype.tsv'
+Mapping_Path = 'remap_genotype_phenotype_mapping.tsv'
+filter_type = 'None'
+# number_phenotype_pcs = args[4]
+sc_or_bulk = 'single_cell'
+inverse_normal = as.logical('TRUE')
+stopifnot(inverse_normal %in% c(TRUE, FALSE))
+norm_method = 'NONE'
+percent_of_population_expressed = '0.2'
 
 
 

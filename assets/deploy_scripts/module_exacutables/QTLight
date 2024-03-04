@@ -1,0 +1,26 @@
+#/bin/bash
+
+SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
+
+if [[ $@ == "-v" ]]; then
+    command echo -e "eqtl v=1.0; \n Available at https://github.com/wtsi-hgi/QTLight \n commit bd43f9baea487aa3811129bd2e01f0d682ce3a7d"
+elif [[ $@ == "sample_input" ]]; then
+    command cp -r $SCRIPT_DIR/../../../sample_input ./
+elif [[ $@ == "info" ]]; then
+    command echo -e "\n\n#####eqtl 1.0#####\n###################\n###########################\n \
+    eqtl[https://github.com/wtsi-hgi/QTLight] is a nextflow pipeline that performs eQTL analysis of scRNA, bulk, ATAC, Chip and any other QTLs\n###########################\n\n \
+    eqtl module has been set to run in multiple modes:\n 	*eqtl -v :will describe the checkout tag used. \n 	*eqtl test :will run a OneK1k test dataset. \n 	*eqtl sample_input :will create a directory sample_input in your current working directory where you will sample input files. \n \
+    *eqtl fetch :(you need an input.tsv file [ap per this: https://github.com/wtsi-hgi/QTLight/blob/main/sample_input/input.tsv] in project directory where you would like to fetch the cellranged data. This file should contain sanger_sample_id as a header and all the uniqie sanger sample ids in the folowin rows) will fetch the cellranger data and prepeare the basic eqtl inputs. \n  \
+    *eqtl clean inputs.nf: will rsync results and extract symlinks from the folder defined as an 'outdir' and then remove work directory to avoid running out of quota (this will remove nextflow catche and pipeline will need to be rerun from beggining if needed)\n \
+    *eqtl input.nf :will run your samples as defined in input file. If you are unsure how to fill in the info file please refear to this documentation: https://github.com/wtsi-hgi/QTLight/blob/main/docs/usage.md \n\n For the data interpretation please folow this documentation: https://github.com/wtsi-hgi/QTLight/tree/main/docs"
+elif [[ $@ == "-h" ]]; then
+    command echo -e "\n\n#####eqtl 1.0#####\n###################\n###########################\n \
+    eqtl[https://github.com/wtsi-hgi/QTLight] is a nextflow pipeline that performs eQTL analysis of scRNA, bulk, ATAC, Chip and any other QTLs\n###########################\n\n \
+    eqtl module has been set to run in multiple modes:\n 	*eqtl -v :will describe the checkout tag used. \n 	*eqtl test :will run a OneK1k test dataset. \n 	*eqtl sample_input :will create a directory sample_input in your current working directory where you will sample input files. \n \
+    *eqtl fetch :(you need an input.tsv file [ap per this: https://github.com/wtsi-hgi/QTLight/blob/main/sample_input/input.tsv] in project directory where you would like to fetch the cellranged data. This file should contain sanger_sample_id as a header and all the uniqie sanger sample ids in the folowin rows) will fetch the cellranger data and prepeare the basic eqtl inputs. \n  \
+    *eqtl clean inputs.nf: will rsync results and extract symlinks from the folder defined as an 'outdir' and then remove work directory to avoid running out of quota (this will remove nextflow catche and pipeline will need to be rerun from beggining if needed)\n \
+    *eqtl input.nf :will run your samples as defined in input file. If you are unsure how to fill in the info file please refear to this documentation: https://github.com/wtsi-hgi/QTLight/blob/main/docs/usage.md \n\n For the data interpretation please folow this documentation: https://github.com/wtsi-hgi/QTLight/tree/main/docs"
+
+else
+    command bash $SCRIPT_DIR/../bsub.sh "$@"
+fi

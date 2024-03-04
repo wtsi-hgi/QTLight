@@ -5,7 +5,7 @@ INPUT_FILE=$1
 export RUN_ID="${PWD##*/}"
 
 # export SINGULARITY_CACHEDIR='/software/hgi/containers/yascp'
-
+SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
 export NXF_OPTS="-Xms5G -Xmx5G"
 export SINGULARITY_TMPDIR=$PWD/work/tmp
 export TEMP=$PWD/work/tmp
@@ -25,5 +25,5 @@ fi
 
 sample="$RUN_ID.yascp"
 echo -e "\nSubmitting yascp (https://github.com/wtsi-hgi/yascp) in test mode withsample OneK1k dataset"
-bsub -R'select[mem>4000] rusage[mem=4000]' -J yascp_test -n 1 -M 4000 -o yascp_test.o -e yascp_test.e -q normal bash /software/hgi/pipelines/yascp/assets/deploy_scripts/nohup_start_nextflow_lsf_test.sh
+bsub -R'select[mem>4000] rusage[mem=4000]' -J yascp_test -n 1 -M 4000 -o yascp_test.o -e yascp_test.e -q normal bash $SCRIPT_DIR/../../assets/deploy_scripts/nohup_start_nextflow_lsf_test.sh
 echo "Submitted job can be killed with: bkill -J yascp_test"

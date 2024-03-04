@@ -183,10 +183,10 @@ def main():
   #     genotype_df = pr.load_genotypes()    
   #     Directory = f'{outdir}/inter_output'
   #     os.mkdir(Directory)
-
+    phenotype_df1 = list(set(phenotype_pos_df[phenotype_pos_df['chr']!='chrY'].index))
     cis.map_nominal(genotype_df, variant_df, 
-                    phenotype_df.loc[phenotype_pos_df['chr']!='chrY'], 
-                    phenotype_pos_df.loc[phenotype_pos_df['chr']!='chrY'],
+                    phenotype_df.loc[phenotype_df1], 
+                    phenotype_pos_df.loc[phenotype_df1],
                     covariates_df=covariates_df,prefix='cis_inter1',
                     maf_threshold=maf, maf_threshold_interaction=interaction_maf, output_dir=outdir, write_top=True, write_stats=True,
                     interaction_df=interaction_df,
