@@ -19,19 +19,22 @@ process NORMALISE_and_PCA_PHENOTYPE{
     }
 
     input:
-        tuple(val(condition),path(phenotype_file))
-        path(grouping_file)
+        tuple(val(condition),path(phenotype_file),path(grouping_file))
+        
 
     output:
-        tuple(val(condition),path("normalised_phenotype.tsv"), path("all__pcs.tsv") , emit: filtered_phenotype)
-        tuple(val(condition),path('mappings_handeling_repeats.tsv'),path("normalised_phenotype.tsv"),path("all__pcs.tsv"), emit: for_bed)
-        val(condition), emit: cond1
+        tuple(val(outname),path("normalised_phenotype.tsv"), path("all__pcs.tsv") , emit: filtered_phenotype)
+        tuple(val(outname),path('mappings_handeling_repeats.tsv'),path("normalised_phenotype.tsv"),path("all__pcs.tsv"), emit: for_bed)
+        val(outname), emit: cond1
         path("*.pdf")
         path(phenotype_file)
         path('mappings_handeling_repeats.tsv'), emit: gen_phen_mapping
     script:
-    
+        prefix = (phenotype_file =~ /^([^_]+)___/)[0][1] ?: 'all'
+        outname = "${condition}_${prefix}"
         """  
+            echo ${prefix}
+            echo ${outname}
             normalise_and_pca.R ${phenotype_file} ${grouping_file} ${params.filter_method} ${params.method} ${params.inverse_normal_transform} ${params.norm_method} ${params.percent_of_population_expressed}
         """
     

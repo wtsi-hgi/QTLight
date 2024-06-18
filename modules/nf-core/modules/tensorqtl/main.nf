@@ -78,7 +78,7 @@ process OPTIMISE_PCS{
 
 
     publishDir  path: "${params.outdir}/TensorQTL_eQTLS/${condition}",
-                mode: "copy",
+                mode: "${params.copy_mode}",
                 overwrite: "true"
 
     if (workflow.containerEngine == 'singularity' && !params.singularity_pull_docker_container) {

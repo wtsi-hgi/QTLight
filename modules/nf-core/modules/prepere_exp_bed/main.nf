@@ -4,6 +4,7 @@ process PREPERE_EXP_BED {
   tag "$condition, $nr_phenotype_pcs"
   if (workflow.containerEngine == 'singularity' && !params.singularity_pull_docker_container) {
       container "${params.eqtl_container}"
+      container "/software/hgi/containers/yascp/yascp.cog.sanger.ac.uk-public-singularity_images-eqtl_19_09_2023.img.img"
       
   } else {
       container "${params.eqtl_docker}"

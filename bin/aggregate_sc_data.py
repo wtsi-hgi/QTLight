@@ -107,18 +107,25 @@ def main():
     print('Reading in data...')
     adata = sc.read_h5ad(filename=h5ad)
     adata.obs['adata_phenotype_id'] = adata.obs[gt_id_column].astype('str')+'_'+adata.obs[sample_column].astype('str')
-    genotype_phenotype_mapping = []
-    aggregated_data=pd.DataFrame()
+
 
     for method in methods:
+        genotype_phenotype_mapping = []
+        aggregated_data=pd.DataFrame()
         if (method =='dMean'):
             adata.X = adata.layers['dMean_normalised']
         for agg_col in agg_columns:
             print(agg_col)
             print("----------")
-            for type in adata.obs[agg_col].unique():
+            try:
+                data_col = adata.obs[agg_col]
+            except:
+                print(f'Agregation column {agg_col} doesnt exist in adata')
+                continue
+            for type in data_col.unique():
                 print(type)
                 print("----------")# 
+
                 # type='CD4 CTL'
                 cell_adata = adata[adata.obs[agg_col]==type]
                 if (len(cell_adata.obs['adata_phenotype_id'].unique())>n_individ):
@@ -156,9 +163,9 @@ def main():
                         aggregated_data=pd.concat([aggregated_data,aggregated_data_pre],axis=1)
                         genotype_phenotype_mapping= genotype_phenotype_mapping+ genotype_phenotype_mapping_pre
                         # f = pd.DataFrame(individual_1_adata.X.mean(axis=0))
-    genotype_phenotype_mapping = pd.DataFrame(genotype_phenotype_mapping)
-    genotype_phenotype_mapping.to_csv('genotype_phenotype_mapping.tsv',sep='\t',index=False)
-    aggregated_data.to_csv('phenotype_file.tsv',sep='\t',index=True)
+        genotype_phenotype_mapping = pd.DataFrame(genotype_phenotype_mapping)
+        genotype_phenotype_mapping.to_csv(f'{method}___genotype_phenotype_mapping.tsv',sep='\t',index=False)
+        aggregated_data.to_csv(f'{method}___phenotype_file.tsv',sep='\t',index=True)
     print('Successfully Finished')
 
 if __name__ == '__main__':

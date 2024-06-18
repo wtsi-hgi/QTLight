@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 CWD1="$PWD"
 parentdir="$(dirname "$CWD1")"
-INPUT_FILE=$1
+INPUT_FILE="$@"
 export RUN_ID="${PWD##*/}"
 
 # export SINGULARITY_CACHEDIR='/software/hgi/containers/yascp'
