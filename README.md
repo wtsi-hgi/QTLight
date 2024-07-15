@@ -76,12 +76,12 @@ The nf-core/eqtl pipeline comes with documentation about the pipeline [usage](./
 ## Credits
 
 nf-core/eqtl was originally written by Matiss Ozols with contributions from Anna Cuomo, Marc Jan Bonder, Hannes Ponstingl, Tobi Alegbe.
-
+<!-- 
 ## Contributions and Support
 
 If you would like to contribute to this pipeline, please see the [contributing guidelines](.github/CONTRIBUTING.md).
 
-For further information or help, don't hesitate to get in touch on the [Slack `#eqtl` channel](https://nfcore.slack.com/channels/eqtl) (you can join with [this invite](https://nf-co.re/join/slack)).
+For further information or help, don't hesitate to get in touch on the [Slack `#eqtl` channel](https://nfcore.slack.com/channels/eqtl) (you can join with [this invite](https://nf-co.re/join/slack)). -->
 
 ## Citations
 
