@@ -164,8 +164,9 @@ def main():
                         genotype_phenotype_mapping= genotype_phenotype_mapping+ genotype_phenotype_mapping_pre
                         # f = pd.DataFrame(individual_1_adata.X.mean(axis=0))
         genotype_phenotype_mapping = pd.DataFrame(genotype_phenotype_mapping)
-        genotype_phenotype_mapping.to_csv(f'{method}___genotype_phenotype_mapping.tsv',sep='\t',index=False)
-        aggregated_data.to_csv(f'{method}___phenotype_file.tsv',sep='\t',index=True)
+        if(len(genotype_phenotype_mapping)!=0):
+            genotype_phenotype_mapping.to_csv(f'{method}___genotype_phenotype_mapping.tsv',sep='\t',index=False)
+            aggregated_data.to_csv(f'{method}___phenotype_file.tsv',sep='\t',index=True)
     print('Successfully Finished')
 
 if __name__ == '__main__':

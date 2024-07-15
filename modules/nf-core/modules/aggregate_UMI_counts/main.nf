@@ -40,10 +40,10 @@ process AGGREGATE_UMI_COUNTS {
     val(n_donors_min)
 
   output:
-    path("*phenotype_file.tsv", emit:phenotype_file)
-    path("*genotype_phenotype_mapping.tsv", emit:genotype_phenotype_mapping)
-    tuple val(sanitized_columns), path("*phenotype_file.tsv"),  path("*genotype_phenotype_mapping.tsv"), emit:phenotype_genotype_file
-    path('*.tsv')
+    path("*phenotype_file.tsv", emit:phenotype_file) optional true
+    path("*genotype_phenotype_mapping.tsv", emit:genotype_phenotype_mapping) optional true
+    tuple val(sanitized_columns), path("*phenotype_file.tsv"),  path("*genotype_phenotype_mapping.tsv"), emit:phenotype_genotype_file optional true
+    path('*.tsv') optional true
 
   script:
     sanitized_columns = adata.getName().replaceAll(/[^a-zA-Z0-9]/, '_').replaceAll(/\.h5ad$/, '')
