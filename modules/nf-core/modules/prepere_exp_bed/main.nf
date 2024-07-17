@@ -21,10 +21,10 @@ process PREPERE_EXP_BED {
 
   script:
     nr_phenotype_pcs = phenotype_pcs.getSimpleName()
-    if(params.sample_covariates==''){
+    if(params.covariates.extra_covariates_file==''){
       sample_covar =''
     }else{
-      sample_covar ="--sample_covariates ${params.sample_covariates}"
+      sample_covar ="--sample_covariates ${params.covariates.extra_covariates_file}"
     }
     if (params.TensorQTL.use_gt_dosage && params.TensorQTL.run) {
       pfile = "-pfile"

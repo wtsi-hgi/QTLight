@@ -30,7 +30,8 @@ process NORMALISE_and_PCA_PHENOTYPE{
         path(phenotype_file)
         path('mappings_handeling_repeats.tsv'), emit: gen_phen_mapping
     script:
-        prefix = (phenotype_file =~ /^([^_]+)___/)[0][1] ?: 'all'
+        matcher = (phenotype_file =~ /^([^_]+)___/)
+        prefix = matcher ? matcher[0][1] : 'all'
         outname = "${condition}_${prefix}"
         """  
             echo ${prefix}

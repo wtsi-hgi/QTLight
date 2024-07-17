@@ -92,10 +92,13 @@ workflow EQTL {
         input_channel.splitCsv(header: true, sep: params.input_tables_column_delimiter)
             .map{row->tuple(row.Genotype)}.distinct()
             .set{channel_input_data_table}
+        channel_input_data_table = channel_input_data_table.collect().flatten().unique()
         input_channel.splitCsv(header: true, sep: params.input_tables_column_delimiter)
-            .map{row->row.Sample_Category}.set{condition_channel}
+            .map{row->row.Sample_Category}.distinct().set{condition_channel}
         SPLIT_PHENOTYPE_DATA(genotype_phenotype_mapping_file,phenotype_file,condition_channel)
+
         phenotype_condition = SPLIT_PHENOTYPE_DATA.out.phenotye_file
+        out2 = SPLIT_PHENOTYPE_DATA.out.phenotye_file
 
     }else if (params.method=='single_cell'){
         log.info '------ Scrna analysis ------'
@@ -123,12 +126,13 @@ workflow EQTL {
             genotype_phenotype_mapping_file = AGGREGATE_UMI_COUNTS.out.genotype_phenotype_mapping
         }
 
+
         // phenotype_file= AGGREGATE_UMI_COUNTS.out.phenotype_genotype_file
         genotype_phenotype_mapping_file.splitCsv(header: true, sep: params.input_tables_column_delimiter)
             .map{row->tuple(row.Genotype)}.distinct()
             .set{channel_input_data_table2}
         channel_input_data_table=channel_input_data_table2.collect().unique()
-        // channel_input_data_table.subscribe { println "channel_input_data_table: $it" }
+       
         // channel_input_data_table.distinct().subscribe { println "channel_input_data_table dist: $it" }
         // genotype_phenotype_mapping_file.splitCsv(header: true, sep: params.input_tables_column_delimiter)
         //     .map{row->row.Sample_Category}.set{condition_channel}
@@ -137,8 +141,11 @@ workflow EQTL {
         // gt_cond_input.subscribe { println "gt_cond_input: $it" }
         // phenotype_condition = 
     }
-    
-    SUBSET_GENOTYPE(donorsvcf,channel_input_data_table)
+
+
+
+    // channel_input_data_table.subscribe { println "channel_input_data_table: $it" }
+    SUBSET_GENOTYPE(donorsvcf,channel_input_data_table.collect())
     // // // // For ext mapping there are multiple steps - 
     // // // // 1) Filter the vcf accordingly
     PREPROCESS_GENOTYPES(SUBSET_GENOTYPE.out.samplename_subsetvcf)
