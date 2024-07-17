@@ -40,7 +40,7 @@ On release, automated continuous integration tests run the pipeline on a full-si
 3. Download the pipeline and test it on a minimal dataset with a single command:
 
     ```console
-    nextflow run /path/to/cloned/QTLight -profile test_scrna,<docker/singularity/institute>
+    nextflow run /path/to/cloned/QTLight -profile test_bulk,<docker/singularity/institute>
     ```
 
 4. Prepeare the input.nf parameters file:
@@ -75,7 +75,7 @@ The nf-core/eqtl pipeline comes with documentation about the pipeline [usage](./
 
 ## Credits
 
-nf-core/eqtl was originally written by Matiss Ozols with contributions from Anna Cuomo, Marc Jan Bonder, Hannes Ponstingl, Tobi Alegbe.
+nf-core/eqtl was originally written by Matiss Ozols with significant contributions from Anna Cuomo, Marc Jan Bonder, Hannes Ponstingl, Tobi Alegbe, Bradley Harris.
 <!-- 
 ## Contributions and Support
 
