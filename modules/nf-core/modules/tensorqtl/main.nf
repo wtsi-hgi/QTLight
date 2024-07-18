@@ -1,4 +1,4 @@
-tensor_label = params.TensorQTL.utilise_gpu ? 'gpu' : "process_medium"   
+tensor_label = params.utilise_gpu ? 'gpu' : "process_medium"   
 
 process TENSORQTL {  
     label "${tensor_label}"
@@ -105,9 +105,8 @@ process OPTIMISE_PCS{
           val(condition),
           path("${outpath}/Covariates.tsv"),
           path("${outpath}/Expression_Data.sorted.bed"),
-          path("${outpath}/Cis_eqtls_qval.tsv"),
-          emit: combined_input
-        )
+          path("${outpath}/Cis_eqtls_qval.tsv")
+        ), emit: combined_input, optional: true
     script:
       sumstats_path = "${params.outdir}/TensorQTL_eQTLS/${condition}/"
       if ("${interaction_file}" != 'fake_file.fq') {
