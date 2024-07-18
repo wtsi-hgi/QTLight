@@ -9,7 +9,6 @@ rm -f *.log
 rm -f nextflow.nohup.PID.txt 
 
 # start Nextflow in background:
-export NXF_OPTS="-Xms5G -Xmx5G"
 
 CWD1="$PWD"
 parentdir="$(dirname "$CWD1")"
@@ -17,7 +16,7 @@ parentdir="$(dirname "$CWD1")"
 export RUN_ID="${PWD##*/}"
 mkdir $PWD/work || echo 'exists'
 mkdir $PWD/work/tmp || echo 'exists'
-echo $RUN_ID | nextflow run $SCRIPT_DIR/../.. $INPUT_FILE --nf_ci_loc $PWD -resume > nextflow.nohup.log 2>&1 & 
+echo $RUN_ID | nextflow run $SCRIPT_DIR/../.. -profile sanger,test_bulk $INPUT_FILE  --nf_ci_loc $PWD -resume > nextflow.nohup.log 2>&1 & 
 
 # get process PID 
 sleep 1 && export PID=$(pgrep -f "\\-\\-nf_ci_loc $RUN_DIR")

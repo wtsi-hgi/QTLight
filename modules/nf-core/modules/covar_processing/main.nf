@@ -23,7 +23,7 @@ process SUBSET_PCS{
         tuple(val(condition),path(mappings_handeling_repeats),path(normalised_phenotype),path(all__pcs),val(pc1))
 
     output:
-        tuple(val(condition),path(mappings_handeling_repeats),path(normalised_phenotype),path("${pc1}pcs.tsv"), emit: for_bed)
+        tuple val(condition),path(mappings_handeling_repeats),path(normalised_phenotype),path("${pc1}pcs.tsv"), emit: for_bed optional true
 
     script:
     // Here we split the pcs based on the input file. This is removed from normalise part to avoid normalisation multiple times if new pcs asre added.

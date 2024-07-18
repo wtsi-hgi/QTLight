@@ -35,17 +35,14 @@ On release, automated continuous integration tests run the pipeline on a full-si
 
 1. Install [`Nextflow`](https://www.nextflow.io/docs/latest/getstarted.html#installation) (`>=21.04.0`)
 
-2. Install any of [`Docker`](https://docs.docker.com/engine/installation/), [`Singularity`](https://www.sylabs.io/guides/3.0/user-guide/), [`Podman`](https://podman.io/), [`Shifter`](https://nersc.gitlab.io/development/shifter/how-to-use/) or [`Charliecloud`](https://hpc.github.io/charliecloud/) for full pipeline reproducibility _(please only use [`Conda`](https://conda.io/miniconda.html) as a last resort; see [docs](https://nf-co.re/usage/configuration#basic-configuration-profiles))_
+2. Install any of [`Docker`](https://docs.docker.com/engine/installation/), [`Singularity`](https://www.sylabs.io/guides/3.0/user-guide/)
 
 3. Download the pipeline and test it on a minimal dataset with a single command:
 
     ```console
-    nextflow run /path/to/cloned/QTLight -profile test,<docker/singularity/podman/shifter/charliecloud/conda/institute>
+    nextflow run /path/to/cloned/QTLight -profile test_bulk,<docker/singularity/institute>
     ```
 
-    > * Please check [nf-core/configs](https://github.com/nf-core/configs#documentation) to see if a custom config file to run nf-core pipelines already exists for your Institute. If so, you can simply use `-profile <institute>` in your command. This will enable either `docker` or `singularity` and set the appropriate execution settings for your local compute environment.
-    > * If you are using `singularity` then the pipeline will auto-detect this and attempt to download the Singularity images directly as opposed to performing a conversion from Docker images. If you are persistently observing issues downloading Singularity images directly due to timeout or network issues then please use the `--singularity_pull_docker_container` parameter to pull and convert the Docker image instead. Alternatively, it is highly recommended to use the [`nf-core download`](https://nf-co.re/tools/#downloading-pipelines-for-offline-use) command to pre-download all of the required containers before running the pipeline and to set the [`NXF_SINGULARITY_CACHEDIR` or `singularity.cacheDir`](https://www.nextflow.io/docs/latest/singularity.html?#singularity-docker-hub) Nextflow options to be able to store and re-use the images from a central location for future pipeline runs.
-    > * If you are using `conda`, it is highly recommended to use the [`NXF_CONDA_CACHEDIR` or `conda.cacheDir`](https://www.nextflow.io/docs/latest/conda.html) settings to store the environments in a central location for future pipeline runs.
 4. Prepeare the input.nf parameters file:
     ```console
     params{
@@ -74,17 +71,17 @@ On release, automated continuous integration tests run the pipeline on a full-si
 
 ## Documentation
 
-The nf-core/eqtl pipeline comes with documentation about the pipeline [usage](https://nf-co.re/eqtl/usage), [parameters](https://nf-co.re/eqtl/parameters) and [output](https://nf-co.re/eqtl/output).
+The nf-core/eqtl pipeline comes with documentation about the pipeline [usage](./docs/usage.md) and [output](./docs/output.md).
 
 ## Credits
 
-nf-core/eqtl was originally written by Matiss Ozols with contributions from Anna Cuomo, Marc Jan Bonder, Hannes Ponstingl, Tobi Alegbe.
-
+nf-core/QTLight was developed by Matiss Ozols, Anna Cuomo, Marc Jan Bonder, Hannes Ponstingl, Tobi Alegbe, Bradley Harris.
+<!-- 
 ## Contributions and Support
 
 If you would like to contribute to this pipeline, please see the [contributing guidelines](.github/CONTRIBUTING.md).
 
-For further information or help, don't hesitate to get in touch on the [Slack `#eqtl` channel](https://nfcore.slack.com/channels/eqtl) (you can join with [this invite](https://nf-co.re/join/slack)).
+For further information or help, don't hesitate to get in touch on the [Slack `#eqtl` channel](https://nfcore.slack.com/channels/eqtl) (you can join with [this invite](https://nf-co.re/join/slack)). -->
 
 ## Citations
 

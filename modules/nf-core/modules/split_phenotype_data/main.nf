@@ -20,7 +20,7 @@ process SPLIT_PHENOTYPE_DATA{
         path(phenotype_file)
         val(condition)
     output:
-        tuple val(condition),path("*_phenotype.tsv"), emit: phenotye_file
+        tuple val(condition),path("*_phenotype.tsv"),path(annotation_file), emit: phenotye_file
         
     script:
         

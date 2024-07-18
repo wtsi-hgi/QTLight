@@ -38,11 +38,11 @@ process REMAP_GENOTPE_ID{
     }
 
     input:
-      path(adata_emmited_file)
+      tuple val(sanitized_columns), path(phenotype_file),  path(adata_emmited_file)
       path(mapping_file)
     output:
-      path("remap_genotype_phenotype_mapping.tsv", emit:remap_genotype_phenotype_mapping)
-
+      tuple val(sanitized_columns), path(phenotype_file),  path("remap_genotype_phenotype_mapping.tsv"), emit:remap_genotype_phenotype_mapping
+      path("remap_genotype_phenotype_mapping.tsv"),emit: genotype_phenotype_mapping
     script:
       """
         replace_genotype_ids.py --mappings ${mapping_file} --genotype_phenotype_mapping ${adata_emmited_file}

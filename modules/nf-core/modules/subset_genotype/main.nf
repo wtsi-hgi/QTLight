@@ -22,12 +22,11 @@ process SUBSET_GENOTYPE {
         path("${samplename}.subset.vcf.gz"), emit: samplename_subsetvcf
 
     script:
-        file__reduced_dims = file__reduced_dims.join(",")
+        file__reduced_dims2 = file__reduced_dims.unique().join(",")
         samplename='subset'
-        sample_subset_file = donor_vcf.getSimpleName()
-        """
-            tabix -p vcf ${donor_vcf} || echo 'not typical VCF'
-            bcftools view ${donor_vcf} -s ${file__reduced_dims} --force-samples -Oz -o ${samplename}.subset.vcf.gz
-            rm ${donor_vcf}.tbi || echo 'not typical VCF'
+        // sample_subset_file = donor_vcf.getSimpleName()
+        // sample_names = file__reduced_dims.toString()
+        """ 
+            bcftools view ${donor_vcf} -s ${file__reduced_dims2} --force-samples -Oz -o ${samplename}.subset.vcf.gz
         """
 }

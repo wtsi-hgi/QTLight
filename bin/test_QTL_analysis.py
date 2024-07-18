@@ -23,6 +23,19 @@ def results_checking(results_checking_dict,error_tolerance=1e-6):
         assert(abs(results_checking_dict[f]-check_value)<error_tolerance)
 
 
+def set_seed(seed):
+    np.random.seed(seed)
+    import torch
+    torch.manual_seed(seed)
+    if torch.cuda.is_available():
+        torch.cuda.manual_seed(seed)
+        torch.cuda.manual_seed_all(seed)
+    import random
+    random.seed(seed)
+    torch.backends.cudnn.deterministic = True
+    torch.backends.cudnn.benchmark = False
+    
+
 def test_QTL_analysis():
     '''Run a set of test cases'''
     data_path = './test_data/'
@@ -130,4 +143,5 @@ def test_QTL_analysis():
 
 
 if __name__=='__main__':
+    set_seed(42)  # Setting a seed for reproducibility
     test_QTL_analysis()
