@@ -34,6 +34,12 @@ if [[ $@ == "-v" ]]; then
     command echo -e "eqtl v=1.1; \n Available at https://github.com/wtsi-hgi/eqtl \n commit bd43f9baea487aa3811129bd2e01f0d682ce3a7d"
 elif [[ $@ == "sample_input" ]]; then
     command cp -r $SCRIPT_DIR/../../../sample_input ./
+elif [[ $@ == "test_scrna" ]]; then
+    echo "queue: $QUEUE"
+    command bash $SCRIPT_DIR/../bsub_test.sh "$@"    
+elif [[ $@ == "test_bulk" ]]; then
+    echo "queue: $QUEUE"
+    command bash $SCRIPT_DIR/../bsub_test_bulk.sh "$@"   
 elif [[ $@ == "info" ]]; then
     command cat "${SCRIPT_DIR}/help.info" | sed "s/\${bold}/$(echo -e "\033[1m")/g; s/\${normal}/$(echo -e "\033[0m")/g"    
 elif [[ $@ == "-h" ]]; then
