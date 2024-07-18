@@ -99,14 +99,10 @@ process OPTIMISE_PCS{
         path("${outpath}/Cis_eqtls.tsv"), emit: optim_qtl_bin, optional: true
         path("${outpath}/Cis_eqtls_qval.tsv"), emit: optim_q_qtl_bin, optional: true
         path("${outpath}/cis_inter1.cis_qtl_top_assoc.txt.gz "), emit: optim_int_qtl_bin, optional: true
+        tuple val(condition), path("${outpath}/Covariates.tsv"), path("${outpath}/Expression_Data.sorted.bed"), path("${outpath}/Cis_eqtls_qval.tsv"), emit: combined_input, optional: true
         path(outpath)
         
-        tuple(
-          val(condition),
-          path("${outpath}/Covariates.tsv"),
-          path("${outpath}/Expression_Data.sorted.bed"),
-          path("${outpath}/Cis_eqtls_qval.tsv")
-        ), emit: combined_input, optional: true
+
     script:
       sumstats_path = "${params.outdir}/TensorQTL_eQTLS/${condition}/"
       if ("${interaction_file}" != 'fake_file.fq') {
