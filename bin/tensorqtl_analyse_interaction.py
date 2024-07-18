@@ -82,7 +82,7 @@ def main():
         help=''
     )
     parser.add_argument(
-        '-maf', '--interaction_maf',
+        '--interaction_maf',
         action='store',
         dest='inter_maf',
         required=True,
@@ -105,7 +105,7 @@ def main():
         help=''
     )
     
-  parser.add_argument(
+    parser.add_argument(
         '-maf', '--maf',
         action='store',
         dest='maf',
