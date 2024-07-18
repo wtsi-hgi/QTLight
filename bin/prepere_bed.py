@@ -65,6 +65,13 @@ def main():
     gtf_type = 'gene' #transcript|gene   -- need to add an input switch for this
     gtf_type = options.gtf_type
     BED_Formated_Data=pd.DataFrame()
+    Expression_Data = pd.read_csv(expression_file,sep="\t")
+    if(len(Expression_Data.index[0].split('.'))>1):
+        prot_version=True
+        Expression_Data.index = Expression_Data.index.str.split('.').str[0]
+    else:
+        prot_version=False
+    
     try:
         df = read_gtf(annotation_file)
         if (gtf_type=='gene'):
@@ -91,7 +98,7 @@ def main():
     Gene_Chr_Start_End_Data.drop_duplicates(inplace=True)
     Gene_Chr_Start_End_Data=Gene_Chr_Start_End_Data.set_index('feature_id')
     #Load the expression data and the mapping file
-    Expression_Data = pd.read_csv(expression_file,sep="\t")
+    
     f = list(Expression_Data.index)
     # f.append('ENSG00000177757')
     f2 = set(Gene_Chr_Start_End_Data.index).intersection(set(f))

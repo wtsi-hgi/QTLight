@@ -44,4 +44,4 @@ dependencies:
     - numpy_sugar
     - glimix-core==3.1.12
     - bgen-reader
-    - gtfparse
+    - gtfparse==1.2.1

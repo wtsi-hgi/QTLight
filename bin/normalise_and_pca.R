@@ -3,8 +3,6 @@
 library(edgeR)
 library(DESeq2)
 library(ggplot2)
-# library(dplyr)
-library(ggplot2)
 library(PCAtools)
 set.seed(2023)
 
@@ -15,12 +13,13 @@ if (length(args)==0) {
   stop("At least one argument must be supplied (input file).n", call.=FALSE)
 }
 # azimuth.celltyp.l2-gdT-dSum_phenotype.tsv remap_genotype_phenotype_mapping.tsv None single_cell TRUE NONE 0.2
-Star_path = 'azimuth.celltyp.l2-gdT-dSum_phenotype.tsv'
-Mapping_Path = 'remap_genotype_phenotype_mapping.tsv'
+Star_path = 'all_phenotype.tsv'
+Mapping_Path = 'sample_mapplings.tsv'
 filter_type = 'None'
+
 # number_phenotype_pcs = args[4]
-sc_or_bulk = 'single_cell'
-inverse_normal = as.logical('TRUE')
+sc_or_bulk = 'bulk'
+inverse_normal = as.logical('FALSE')
 stopifnot(inverse_normal %in% c(TRUE, FALSE))
 norm_method = 'NONE'
 percent_of_population_expressed = '0.2'
@@ -64,7 +63,7 @@ quantileNormaliseRows <- function(matrix,...){
 
 Star_counts_pre = read.table(file = Star_path, sep = '\t',check.names=FALSE, row.names = 1,header = TRUE)
 colnames(Star_counts_pre)[duplicated(colnames(Star_counts_pre))]=paste0('rep_',colnames(Star_counts_pre)[duplicated(colnames(Star_counts_pre))])
-percent_of_population_expressed = 0.2 #We want to only map the values that are expressed in at least 20% of donors. 
+# percent_of_population_expressed = 0.2 #We want to only map the values that are expressed in at least 20% of donors. 
 #as per https://www.medrxiv.org/content/10.1101/2021.10.09.21264604v1.full.pdf 
 # We mapped cis-eQTL within a 1 megabase (MB) window of the TSS of each gene expressed
 # in at least 5% of the nuclei (belonging to a broad cell type)
@@ -122,93 +121,85 @@ Star_counts = Star_counts_pre[,0:(ncol(Star_counts_pre)-n)]
 Star_counts=t(Star_counts)
 all(rownames(Experimental_grops) == colnames(Star_counts))
 
-y <- DGEList(counts=Star_counts, group=Star_counts_pre$Sample_Category,samples=Experimental_grops)
-# design <- model.matrix(~ Experimental_grops$oxLDL.set + Experimental_grops$Donor.line + Experimental_grops$Sample.type..Ctrl.or.oxLDL.)
-if (filter_type=='filterByExpr'){
-  # this approach is not very suitable for some scRNA datasets since they are quite sarse
-  keep <- filterByExpr(y,group=Star_counts_pre$Sample_Category)
-  y <- y[keep, keep.lib.sizes=TRUE]
-  y <- calcNormFactors(y, method = "TMM")
-  
-  if (lengths(unique(Experimental_grops$Sample_Category)) ==1){
-    y <- estimateDisp(y)
-  }else{
-    design <- model.matrix(~ Experimental_grops$Sample_Category)
-    y <- estimateDisp(y,design)
-  }
-}else if(filter_type=='HVG'){
-  # Highly variable genes (HVGs) were defined as the genes in the top two quartiles based on their squared coefficient of variation (CV^2 = variance / mean^2) calculated across all cells of each different cell-type. In this manner, we identified 21,592 HVGs for the iPSC Smart-Seq2 dataset, and 16,369 for the FPP 10X dataset.
-  # https://genomebiology.biomedcentral.com/articles/10.1186/s13059-021-02407-x#Sec12
-  rows=c()
-  cvs=c()
-  transposed_rows=y$counts
-  row_names = row.names(transposed_rows)
-  keep=c()
-  for (row in 1:nrow(transposed_rows)) {
-    r1 = transposed_rows[row,]
-    cv2 <- sd(r1)^2 / mean(r1) ^2
-    rn1 = row_names[row]
-    rows = append (rows, c(rn1))
-    cvs = append (cvs, c(cv2))
-  }
-  df <- data.frame(rows, cvs)
-  row.names(df)=df$rows
-  cvs= df[c('cvs')]
-  median_of_hvgs = median(cvs$cvs, na.rm = TRUE)
-  q3 = quantile(cvs$cvs, 0.75)
-  q1 = quantile(cvs$cvs, 0.25)
-  keep = cvs < q3 
-  y <- y[keep, keep.lib.sizes=TRUE]
-  y <- calcNormFactors(y, method = "TMM")
-  
-}else if(filter_type=='None'){
-  y=y
-  y <- calcNormFactors(y, method = "TMM")
-  
-  
-  if (lengths(unique(Experimental_grops$Sample_Category)) ==1){
-    y <- estimateDisp(y)
-  }else{
-    design <- model.matrix(~ Experimental_grops$Sample_Category)
-    y <- estimateDisp(y,design)
-  }
-}
+if (norm_method=='NONE' && filter_type=='None'){
+    normalised_counts=Star_counts
+}else{
+    y <- DGEList(counts=Star_counts, group=Star_counts_pre$Sample_Category,samples=Experimental_grops)
 
-# dge <- edgeR::DGEList(counts=dm)
-# dge <- edgeR::calcNormFactors(dge)
+    # design <- model.matrix(~ Experimental_grops$oxLDL.set + Experimental_grops$Donor.line + Experimental_grops$Sample.type..Ctrl.or.oxLDL.)
+    if (filter_type=='filterByExpr'){
+      # this approach is not very suitable for some scRNA datasets since they are quite sarse
+      keep <- filterByExpr(y,group=Star_counts_pre$Sample_Category)
+      y <- y[keep, keep.lib.sizes=TRUE]
+      y <- calcNormFactors(y, method = "TMM")
+      
+      if (lengths(unique(Experimental_grops$Sample_Category)) ==1){
+        y <- estimateDisp(y)
+      }else{
+        design <- model.matrix(~ Experimental_grops$Sample_Category)
+        y <- estimateDisp(y,design)
+      }
+    }else if(filter_type=='HVG'){
+      # Highly variable genes (HVGs) were defined as the genes in the top two quartiles based on their squared coefficient of variation (CV^2 = variance / mean^2) calculated across all cells of each different cell-type. In this manner, we identified 21,592 HVGs for the iPSC Smart-Seq2 dataset, and 16,369 for the FPP 10X dataset.
+      # https://genomebiology.biomedcentral.com/articles/10.1186/s13059-021-02407-x#Sec12
+      rows=c()
+      cvs=c()
+      transposed_rows=y$counts
+      row_names = row.names(transposed_rows)
+      keep=c()
+      for (row in 1:nrow(transposed_rows)) {
+        r1 = transposed_rows[row,]
+        cv2 <- sd(r1)^2 / mean(r1) ^2
+        rn1 = row_names[row]
+        rows = append (rows, c(rn1))
+        cvs = append (cvs, c(cv2))
+      }
+      df <- data.frame(rows, cvs)
+      row.names(df)=df$rows
+      cvs= df[c('cvs')]
+      median_of_hvgs = median(cvs$cvs, na.rm = TRUE)
+      q3 = quantile(cvs$cvs, 0.75)
+      q1 = quantile(cvs$cvs, 0.25)
+      keep = cvs < q3 
+      y <- y[keep, keep.lib.sizes=TRUE]
+      y <- calcNormFactors(y, method = "TMM")
+      
+    }else if(filter_type=='None'){
+      y=y
+      y <- calcNormFactors(y, method = "TMM")
+      
+      
+      if (lengths(unique(Experimental_grops$Sample_Category)) ==1){
+        y <- estimateDisp(y)
+      }else{
+        design <- model.matrix(~ Experimental_grops$Sample_Category)
+        y <- estimateDisp(y,design)
+      }
+    }
 
-# defaults:
-# calcNormFactors(
-#  dm,
-#  lib.size = None, method = "TMM", refColumn = NULL,
-#  logratioTrim = 0.3, sumTrim = 0.5, doWeighting = TRUE,
-#  Acutoff = -1e10
-#  )
-
-# I start to doubt about this approach - permutations sometimes fail like this.
-# log2(CPM) as output
-if ((sc_or_bulk == 'bulk') || grepl('-dSum', Star_path, fixed = TRUE)){
-  if (norm_method=='TMM'){
-    normalised_counts <- cpm(y, log=TRUE) #https://www.rdocumentation.org/packages/edgeR/versions/3.14.0/topics/cpm 
-    normalised_counts = normalised_counts[complete.cases(normalised_counts), ]
-  }else if(norm_method=='DESEQ'){
-    counts = y$counts
-    # sampleTable <- data.frame(condition = factor(rep(c("VSMC"), ncol(Experimental_grops))))
-    # TMM_normalised_counts <- cpm(y, log=FALSE)
-    # sampleTable <-data.frame(condition = factor(Experimental_grops$Sample_Category))
-    all(colnames(counts) %in% rownames(Experimental_grops))
-    all(colnames(counts) == rownames(Experimental_grops))
-    Experimental_grops$Sample_Category=as.numeric(factor(Experimental_grops$Sample_Category))
-    mode(counts) <- "integer"
-    dds <- DESeqDataSetFromMatrix(countData = counts, colData = Experimental_grops, design = ~ 1)
-    ddsF <- dds[ rowSums(counts(dds)) > ncol(dds), ]
-    vst=varianceStabilizingTransformation(ddsF)
-    normalised_counts <- as.data.frame(assay(vst))
-  }else if(norm_method=='NONE'){
-    normalised_counts <- y$counts
-  }
-} else {
-  normalised_counts <- y$counts
+    if ((sc_or_bulk == 'bulk') || grepl('-dSum', Star_path, fixed = TRUE)){
+      if (norm_method=='TMM'){
+        normalised_counts <- cpm(y, log=TRUE) #https://www.rdocumentation.org/packages/edgeR/versions/3.14.0/topics/cpm 
+        normalised_counts = normalised_counts[complete.cases(normalised_counts), ]
+      }else if(norm_method=='DESEQ'){
+        counts = y$counts
+        # sampleTable <- data.frame(condition = factor(rep(c("VSMC"), ncol(Experimental_grops))))
+        # TMM_normalised_counts <- cpm(y, log=FALSE)
+        # sampleTable <-data.frame(condition = factor(Experimental_grops$Sample_Category))
+        all(colnames(counts) %in% rownames(Experimental_grops))
+        all(colnames(counts) == rownames(Experimental_grops))
+        Experimental_grops$Sample_Category=as.numeric(factor(Experimental_grops$Sample_Category))
+        mode(counts) <- "integer"
+        dds <- DESeqDataSetFromMatrix(countData = counts, colData = Experimental_grops, design = ~ 1)
+        ddsF <- dds[ rowSums(counts(dds)) > ncol(dds), ]
+        vst=varianceStabilizingTransformation(ddsF)
+        normalised_counts <- as.data.frame(assay(vst))
+      }else if(norm_method=='NONE'){
+        normalised_counts <- y$counts
+      }
+    } else {
+      normalised_counts <- y$counts
+    }
 }
 
 # Apply inverse normal transformation to each row so traits are normally distributed
@@ -221,17 +212,7 @@ if (inverse_normal == TRUE){
 # norms = y$samples$norm.factors
 # TMM_normalised_counts_log = log(TMM_normalised_counts+1, 2) # Apply log2 transform on the TMM normalised counts.
 pcs = prcomp(normalised_counts, scale = TRUE)
-# if(ncol(normalised_counts) < max_number_phenotype_pcs){
-#   max_number_phenotype_pcs=ncol(normalised_counts)
-# }
 
-# for (npcs in number_phenotype_pcs){
-#   if (max_number_phenotype_pcs < npcs){
-#     npcs = max_number_phenotype_pcs
-#   }
-#   pcs_sliced  = pcs$rotation[,1:npcs]
-#   write.table(pcs_sliced,file=paste0(npcs,'pcs.tsv'),sep='\t')
-# }
 write.table(pcs$rotation,file=paste0('all__pcs.tsv'),sep='\t')
 write.table(normalised_counts,file=paste('normalised_phenotype.tsv',sep=''),sep='\t')
 
@@ -258,19 +239,3 @@ plotloadings(p,
              col = c('black', 'pink', 'red4'),
              drawConnectors = TRUE, labSize = 4) + coord_flip()
 dev.off()
-
-# eigencorplot(p,
-#  components = getComponents(p, 1:27),
-#  metavars = c('Donor.line','Age','Sex','Ethnicity','Pool.name','oxLDL.set','Sample.type..Ctrl.or.oxLDL.'),
-#  col = c('darkblue', 'blue2', 'black', 'red2', 'darkred'),
-#  cexCorval = 0.7,
-#  colCorval = 'white',
-#  fontCorval = 2,
-#  posLab = 'bottomleft',
-#  rotLabX = 45,
-#  posColKey = 'top',
-#  cexLabColKey = 1.5,
-#  scale = TRUE,
-#  main = 'PC1-27 clinical correlations',
-#  colFrame = 'white',
-#  plotRsquared = FALSE)

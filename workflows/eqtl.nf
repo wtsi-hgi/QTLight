@@ -62,7 +62,7 @@ include {NORMALISE_and_PCA_PHENOTYPE} from '../modules/nf-core/modules/normalise
 include {LIMIX_eqtls} from '../modules/nf-core/modules/limix/main'
 include {PREPROCESS_SAMPLE_MAPPING} from '../modules/nf-core/modules/preprocess_sample_mapping/main'
 include {NORMALISE_ANNDATA; REMAP_GENOTPE_ID} from '../modules/nf-core/modules/normalise_anndata/main'
-include {AGGREGATE_UMI_COUNTS} from '../modules/nf-core/modules/aggregate_UMI_counts/main'
+include {AGGREGATE_UMI_COUNTS; SPLIT_AGGREGATION_ADATA} from '../modules/nf-core/modules/aggregate_UMI_counts/main'
 include {CHUNK_GENOME} from '../modules/nf-core/modules/chunk_genome/main'
 include {PREPERE_EXP_BED} from '../modules/nf-core/modules/prepere_exp_bed/main'
 include {TENSORQTL_eqtls} from '../modules/nf-core/modules/tensorqtl/main'
@@ -92,33 +92,59 @@ workflow EQTL {
         input_channel.splitCsv(header: true, sep: params.input_tables_column_delimiter)
             .map{row->tuple(row.Genotype)}.distinct()
             .set{channel_input_data_table}
+        channel_input_data_table = channel_input_data_table.collect().flatten().unique()
         input_channel.splitCsv(header: true, sep: params.input_tables_column_delimiter)
-            .map{row->row.Sample_Category}.set{condition_channel}
+            .map{row->row.Sample_Category}.distinct().set{condition_channel}
+        SPLIT_PHENOTYPE_DATA(genotype_phenotype_mapping_file,phenotype_file,condition_channel)
 
+        phenotype_condition = SPLIT_PHENOTYPE_DATA.out.phenotye_file
+        out2 = SPLIT_PHENOTYPE_DATA.out.phenotye_file
 
     }else if (params.method=='single_cell'){
         log.info '------ Scrna analysis ------'
         NORMALISE_ANNDATA(params.phenotype_file)
-        AGGREGATE_UMI_COUNTS(NORMALISE_ANNDATA.out.adata,params.aggregation_columns,params.gt_id_column,params.sample_column,params.n_min_cells,params.n_min_individ)
+        SPLIT_AGGREGATION_ADATA(NORMALISE_ANNDATA.out.adata,params.aggregation_columns)
+        AGGREGATE_UMI_COUNTS(SPLIT_AGGREGATION_ADATA.out.split_phenotypes.flatten(),params.aggregation_columns,params.gt_id_column,params.sample_column,params.n_min_cells,params.n_min_individ)
+        out2 = AGGREGATE_UMI_COUNTS.out.phenotype_genotype_file.map { data ->
+                def (item, list1, list2) = data
+                def result = []
+                list1.eachWithIndex { val, idx ->
+                    result << [item, val, list2[idx]]
+                }
+                return result
+            }.flatMap { it }
+
+        out2.subscribe { println "out2 dist: $it" }
+
         if(params.genotype_phenotype_mapping_file!=''){
             // Here user has provided a genotype phenotype file where the provided gt_id_column is contaiming a mapping file instead of actual genotype
-            REMAP_GENOTPE_ID(AGGREGATE_UMI_COUNTS.out.genotype_phenotype_mapping,params.genotype_phenotype_mapping_file)
-            genotype_phenotype_mapping_file = REMAP_GENOTPE_ID.out.remap_genotype_phenotype_mapping
+            REMAP_GENOTPE_ID(out2,params.genotype_phenotype_mapping_file)
+            phenotype_condition = REMAP_GENOTPE_ID.out.remap_genotype_phenotype_mapping
+            genotype_phenotype_mapping_file = REMAP_GENOTPE_ID.out.genotype_phenotype_mapping
         }else{
+            phenotype_condition = out2
             genotype_phenotype_mapping_file = AGGREGATE_UMI_COUNTS.out.genotype_phenotype_mapping
         }
 
-        phenotype_file= AGGREGATE_UMI_COUNTS.out.phenotype_file
+
+        // phenotype_file= AGGREGATE_UMI_COUNTS.out.phenotype_genotype_file
         genotype_phenotype_mapping_file.splitCsv(header: true, sep: params.input_tables_column_delimiter)
             .map{row->tuple(row.Genotype)}.distinct()
-            .set{channel_input_data_table}
+            .set{channel_input_data_table2}
+        channel_input_data_table=channel_input_data_table2.collect().unique()
+       
+        // channel_input_data_table.distinct().subscribe { println "channel_input_data_table dist: $it" }
+        // genotype_phenotype_mapping_file.splitCsv(header: true, sep: params.input_tables_column_delimiter)
+        //     .map{row->row.Sample_Category}.set{condition_channel}
 
-        genotype_phenotype_mapping_file.splitCsv(header: true, sep: params.input_tables_column_delimiter)
-            .map{row->row.Sample_Category}.set{condition_channel}
-
+        // gt_cond_input = Channel.of(genotype_phenotype_mapping_file,phenotype_file,condition_channel)
+        // gt_cond_input.subscribe { println "gt_cond_input: $it" }
+        // phenotype_condition = 
     }
-    
-    channel_input_data_table=channel_input_data_table.unique()
+
+
+
+    // channel_input_data_table.subscribe { println "channel_input_data_table: $it" }
     SUBSET_GENOTYPE(donorsvcf,channel_input_data_table.collect())
     // // // // For ext mapping there are multiple steps - 
     // // // // 1) Filter the vcf accordingly
@@ -128,7 +154,7 @@ workflow EQTL {
     // // // 3) Generate the kinship matrix and genotype PCs
     GENOTYPE_PC_CALCULATION(PLINK_CONVERT.out.plink_path)
     
-    condition_channel = condition_channel.unique() 
+    // condition_channel = condition_channel.unique() 
 
     // 4) Phenotype file preperation including PCs, normalisation
     genome_annotation = Channel.from(params.annotation_file)
@@ -137,9 +163,9 @@ workflow EQTL {
     // MBV method from QTLTools (PMID 28186259)  
     // RASCAL
     // 
-    SPLIT_PHENOTYPE_DATA(genotype_phenotype_mapping_file,phenotype_file,condition_channel)
+    
 
-    NORMALISE_and_PCA_PHENOTYPE(SPLIT_PHENOTYPE_DATA.out.phenotye_file,genotype_phenotype_mapping_file)
+    NORMALISE_and_PCA_PHENOTYPE(phenotype_condition)
 
     Channel.of(params.covariates.nr_phenotype_pcs).splitCsv().flatten().set{pcs}
     NORMALISE_and_PCA_PHENOTYPE.out.for_bed.combine(pcs).set{test123}
