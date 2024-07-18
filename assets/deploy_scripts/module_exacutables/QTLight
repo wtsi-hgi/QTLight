@@ -31,7 +31,7 @@ fi
 
 
 if [[ $@ == "-v" ]]; then
-    command echo -e "eqtl v=1.0; \n Available at https://github.com/wtsi-hgi/eqtl \n commit bd43f9baea487aa3811129bd2e01f0d682ce3a7d"
+    command echo -e "eqtl v=1.1; \n Available at https://github.com/wtsi-hgi/eqtl \n commit bd43f9baea487aa3811129bd2e01f0d682ce3a7d"
 elif [[ $@ == "sample_input" ]]; then
     command cp -r $SCRIPT_DIR/../../../sample_input ./
 elif [[ $@ == "info" ]]; then

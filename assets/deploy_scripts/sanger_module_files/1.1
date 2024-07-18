@@ -1,0 +1,25 @@
+#%Module1.0
+set version 1.0
+set program eqtl
+
+set version [file tail [module-info version [module-info name]]]
+ 
+proc ModulesHelp { } {
+    global version
+    puts stderr "Pipeline QTLight (https://github.com/wtsi-hgi/QTLight) is a nextflow pipeline that performs QTL analysis of scRNA, bulk, ATAC, Chip and any other QTLs"
+    puts stderr ""
+    puts stderr "QTLight module has been set to run in multiple modes:"
+    puts stderr "	*eqtl -v (or QTLight -v):will describe the checkout tag used."
+    puts stderr " 	*eqtl test (or QTLight test):will run a OneK1k test dataset."
+    puts stderr " 	*eqtl sample_input (or QTLight sample_input):will create a directory sample_input in your current working directory where you will sample input files."
+}
+ 
+module-whatis   "Nextflow Pipeline  - eqtl version $version is an qtl mapping pipeline for scrna, bulk-RNAseq, Chipseq, atac, splicing, metabolomics. It uses limix and tensorqtl"
+
+module-whatis   "Name: eqtl (https://github.com/wtsi-hgi/QTLight)"
+module-whatis   "Version: 1.1"
+ 
+set install /software/hgi/pipelines/QTLight/QTLight_v1.1
+module load ISG/singularity/3.11.4
+module load HGI/common/nextflow/21.10.6
+prepend-path PATH "/software/hgi/pipelines/QTLight/QTLight_v1.1/assets/deploy_scripts/module_exacutables"
