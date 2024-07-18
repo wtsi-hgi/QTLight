@@ -98,7 +98,8 @@ def main():
         # print()
     data = pd.DataFrame(all)
     data =data.T
-    data=data.set_index('id')
+    data=data.set_index('id').sort_index()
+    
     data =data.T
     if (options.sample_covariates):
         print('yes')

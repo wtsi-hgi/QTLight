@@ -18,20 +18,22 @@ process TENSORQTL {
   input:
     tuple(val(condition),path(aggrnorm_counts_bed),path(covariates_tsv),val(nr_phenotype_pcs))
     each path(plink_files_prefix)
+    path(interaction_file)
 
   output:
     tuple val(condition), path("${outpath}"), emit: pc_qtls_path
 
   script:
   // If a file with interaction terms is provided, use the interaction script otherwise use the standard script   
-  if (params.TensorQTL.interaction_file?.trim()) {
-    tensor_qtl_script = "tensorqtl_analyse_interaction.py -inter ${params.TensorQTL.interaction_file} --interaction_maf ${params.TensorQTL.interaction_maf}"
-    inter_name = file(params.TensorQTL.interaction_file).baseName
+  if ("${interaction_file}" != 'fake_file.fq') {
+    tensor_qtl_script = "tensorqtl_analyse_interaction.py -inter ${interaction_file} --interaction_maf ${params.TensorQTL.interaction_maf}"
+    inter_name = file(interaction_file).baseName
     outpath = "${nr_phenotype_pcs}/interaction_output/${inter_name}"
   } else {
     tensor_qtl_script = "tensorqtl_analyse.py -nperm ${params.numberOfPermutations}"
     outpath = "${nr_phenotype_pcs}/base_output/base"
   }
+
   if (params.TensorQTL.use_gt_dosage) {
     dosage = "--dosage"
   }else{
@@ -89,6 +91,7 @@ process OPTIMISE_PCS{
 
     input:
         tuple(val(condition),path(eqtl_dir))
+        path(interaction_file)
         
     output:
         path("${outpath}/optimise_nPCs-FDR${alpha_text}.pdf"), emit: optimise_nPCs_plot
@@ -107,8 +110,8 @@ process OPTIMISE_PCS{
         )
     script:
       sumstats_path = "${params.outdir}/TensorQTL_eQTLS/${condition}/"
-        if (params.TensorQTL.interaction_file?.trim()) {
-          inter_name = file(params.TensorQTL.interaction_file).baseName
+      if ("${interaction_file}" != 'fake_file.fq') {
+          inter_name = file(interaction_file).baseName
           outpath_end = "interaction_output__${inter_name}"
       } else {
           inter_name = "NA"
@@ -240,9 +243,16 @@ workflow TENSORQTL_eqtls{
         
     main:
   
+      if(params.TensorQTL.interaction_file !=''){
+          int_file = params.TensorQTL.interaction_file
+      }else{
+          int_file = "$projectDir/assets/fake_file.fq"
+      }
+
       TENSORQTL(
           condition_bed,
-          plink_genotype
+          plink_genotype,
+          int_file
       )
 
       if (params.TensorQTL.optimise_pcs){
@@ -254,7 +264,7 @@ workflow TENSORQTL_eqtls{
           // Create symlinks to the output files
           PREP_OPTIMISE_PCS(prep_optim_pc_channel)
           // Run the optimisation to get the eQTL output with the most eGenes
-          OPTIMISE_PCS(PREP_OPTIMISE_PCS.out)
+          OPTIMISE_PCS(PREP_OPTIMISE_PCS.out,int_file)
           
           if(params.TensorQTL.trans_by_cis){
             log.info 'Running trans-by-cis analysis on optimum nPCs'

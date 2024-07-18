@@ -4,6 +4,7 @@ SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
 bold=$(tput bold)
 normal=$(tput sgr0)
 
+
 if [[ "$QUEUE" == '' ]];
     then
         export QUEUE='long'
@@ -12,7 +13,7 @@ if [[ "$QUEUE" == '' ]];
 fi
 
 
-
+echo "queue: $QUEUE"
 if [[ $1 == "-v" || $1 == "-info" ||  $1 == "info" || $1 == "-h" ]]; then
     _=''
 else
@@ -28,7 +29,6 @@ else
             export NXF_SINGULARITY_CACHEDIR=$varname
     fi
 fi
-
 
 if [[ $@ == "-v" ]]; then
     command echo -e "eqtl v=1.1; \n Available at https://github.com/wtsi-hgi/eqtl \n commit bd43f9baea487aa3811129bd2e01f0d682ce3a7d"
