@@ -66,6 +66,7 @@ include {AGGREGATE_UMI_COUNTS; SPLIT_AGGREGATION_ADATA} from '../modules/nf-core
 include {CHUNK_GENOME} from '../modules/nf-core/modules/chunk_genome/main'
 include {PREPERE_EXP_BED} from '../modules/nf-core/modules/prepere_exp_bed/main'
 include {TENSORQTL_eqtls} from '../modules/nf-core/modules/tensorqtl/main'
+include {SAIGE_qtls} from '../modules/nf-core/modules/saige/main'
 include {SUBSET_PCS} from '../modules/nf-core/modules/covar_processing/main'
 // include {OPTIMISE_PCS} from '../modules/nf-core/modules/optimise_pcs/main'
 /*
@@ -126,20 +127,10 @@ workflow EQTL {
             genotype_phenotype_mapping_file = AGGREGATE_UMI_COUNTS.out.genotype_phenotype_mapping
         }
 
-
-        // phenotype_file= AGGREGATE_UMI_COUNTS.out.phenotype_genotype_file
         genotype_phenotype_mapping_file.splitCsv(header: true, sep: params.input_tables_column_delimiter)
             .map{row->tuple(row.Genotype)}.distinct()
             .set{channel_input_data_table2}
         channel_input_data_table=channel_input_data_table2.collect().unique()
-       
-        // channel_input_data_table.distinct().subscribe { println "channel_input_data_table dist: $it" }
-        // genotype_phenotype_mapping_file.splitCsv(header: true, sep: params.input_tables_column_delimiter)
-        //     .map{row->row.Sample_Category}.set{condition_channel}
-
-        // gt_cond_input = Channel.of(genotype_phenotype_mapping_file,phenotype_file,condition_channel)
-        // gt_cond_input.subscribe { println "gt_cond_input: $it" }
-        // phenotype_condition = 
     }
 
 
@@ -172,10 +163,8 @@ workflow EQTL {
 
     SUBSET_PCS(test123)
 
-    // PREPERE_COVARIATES_FILE(GENOTYPE_PC_CALCULATION.out.gtpca_plink,)
-
+    // LIMIX QTL mapping method
     if (params.LIMIX.run){
-        
         filtered_pheno_channel =NORMALISE_and_PCA_PHENOTYPE.out.filtered_phenotype.map { tuple ->  [tuple[2],[[tuple[0],tuple[1]]]].combinations()}.flatten().collate(3)
         CHUNK_GENOME(genome_annotation,filtered_pheno_channel)
 
@@ -183,16 +172,17 @@ workflow EQTL {
         PREPROCESS_SAMPLE_MAPPING(NORMALISE_and_PCA_PHENOTYPE.out.gen_phen_mapping)
 
         LIMIX_eqtls(
-        CHUNK_GENOME.out.limix_condition_chunking,
-        PLINK_CONVERT.out.plink_path,
-        KINSHIP_CALCULATION.out.kinship_matrix,
-        PREPROCESS_SAMPLE_MAPPING.out.genotype_phenotype,
-        CHUNK_GENOME.out.filtered_chunking_file
+            CHUNK_GENOME.out.limix_condition_chunking,
+            PLINK_CONVERT.out.plink_path,
+            KINSHIP_CALCULATION.out.kinship_matrix,
+            PREPROCESS_SAMPLE_MAPPING.out.genotype_phenotype,
+            CHUNK_GENOME.out.filtered_chunking_file
         )
     }
 
-    if (params.TensorQTL.run){
 
+    // TensorQTL QTL mapping method
+    if (params.TensorQTL.run){
         for_bed_channel = SUBSET_PCS.out.for_bed.map { tuple ->  [tuple[3],[[tuple[0],tuple[1],tuple[2]]]].combinations()}.flatten().collate(4)
         PREPERE_EXP_BED(for_bed_channel,params.annotation_file,GENOTYPE_PC_CALCULATION.out.gtpca_plink)
 
@@ -200,9 +190,14 @@ workflow EQTL {
             PREPERE_EXP_BED.out.exp_bed,
             PLINK_CONVERT.out.plink_path,
         )
-
     }
 
+    // SAIGE SCRNA QTL mapping method
+    if (params.method=='single_cell'){
+        if (params.SAIGE.run){
+            SAIGE_qtls(GENOTYPE_PC_CALCULATION.out.gtpca_plink)
+        }
+    }
 
     // Then run a LIMIX and/or TensorQTL - here have to combine the inputs.
     

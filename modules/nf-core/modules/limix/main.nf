@@ -175,7 +175,6 @@ workflow LIMIX_eqtls{
         // chunking_ranges.combine(condition).set{merged_range_condition}
         // merged_range_condition.view()
         LIMIX(chunking_channel)
-
         // // each path(genotypeFile)
         // // each path(annotationFile)
         // // tuple(val(chunking_range),val(condition),path(phenotypeFile),path(covariateFile))
@@ -183,10 +182,8 @@ workflow LIMIX_eqtls{
         // // each path(individual2sample_filename)
         COLLECT_RESULTS(LIMIX.out.qtl_data.collect(),condition)
 
-        
         AGGREGATE_QTL_RESULTS(COLLECT_RESULTS.out.condition_all_qtls)
         
-
         MULTIPLE_TESTING_CORRECTION(AGGREGATE_QTL_RESULTS.out.limix_qtl_path)
         
         // Next we wait till all of these have finished and then combine all the results together.
