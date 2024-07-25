@@ -66,6 +66,7 @@ include {AGGREGATE_UMI_COUNTS; SPLIT_AGGREGATION_ADATA} from '../modules/nf-core
 include {CHUNK_GENOME} from '../modules/nf-core/modules/chunk_genome/main'
 include {PREPERE_EXP_BED} from '../modules/nf-core/modules/prepere_exp_bed/main'
 include {TENSORQTL_eqtls} from '../modules/nf-core/modules/tensorqtl/main'
+include {H5AD_TO_SAIGE_FORMAT} from '../modules/nf-core/modules/saige/main'
 include {SAIGE_qtls} from '../modules/nf-core/modules/saige/main'
 include {SUBSET_PCS} from '../modules/nf-core/modules/covar_processing/main'
 // include {OPTIMISE_PCS} from '../modules/nf-core/modules/optimise_pcs/main'
@@ -115,7 +116,7 @@ workflow EQTL {
                 return result
             }.flatMap { it }
 
-        out2.subscribe { println "out2 dist: $it" }
+        // out2.subscribe { println "out2 dist: $it" }
 
         if(params.genotype_phenotype_mapping_file!=''){
             // Here user has provided a genotype phenotype file where the provided gt_id_column is contaiming a mapping file instead of actual genotype
@@ -195,7 +196,8 @@ workflow EQTL {
     // SAIGE SCRNA QTL mapping method
     if (params.method=='single_cell'){
         if (params.SAIGE.run){
-            SAIGE_qtls(GENOTYPE_PC_CALCULATION.out.gtpca_plink)
+
+            SAIGE_qtls(GENOTYPE_PC_CALCULATION.out.gtpca_plink,SPLIT_AGGREGATION_ADATA.out.split_phenotypes)
         }
     }
 

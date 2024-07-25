@@ -1,115 +1,3 @@
-process RUNSAIGE {
-    label 'process_low'
-
-    // Specify the number of forks (10k)
-    maxForks 1000
-
-    if (workflow.containerEngine == 'singularity' && !params.singularity_pull_docker_container) {
-        container "${params.saige_container}"
-    } else {
-        container "${params.saige_docker}"
-    }    
-    // Input files for the array job
-    input:
-        levelOption from PREPADATACATEGORY.out
-        phenotype__file
-        aggregate_on
-        general_file_dir
-        n_geno_pcs
-        covariates
-        covariates_cell
-        genotype_id
-        sample_id
-        annotation__file
-        condition_col
-        condition
-        cis_only
-        cis_window
-        knee
-        gene from path("$general_file_dir/$aggregate_on/$levelOption/test_genes.txt")
-
-    // Output files
-    output:
-        path("${params.outdir}/${general_file_dir}/$aggregate_on/$levelOption/chr*_nPC_$n_geno_pcs.txt")
-
-    // Define the Bash script to run for each array job
-    script:
-    """
-        # Execute with the bash executable in an array (one job per gene within level)
-        bash bin/RUNSAIGE_1_2.sh 
-            -c levelOption 
-            -p $phenotype__file 
-            -a $aggregate_on 
-            -d $general_file_dir 
-            -w $n_geno_pcs 
-            -e $covariates 
-            -k $covariates_cell 
-            -i $genotype_id 
-            -s $sample_id 
-            -m $annotation__file 
-            -o $condition_col 
-            -t $condition 
-            -x $cis_only 
-            -y $cis_window 
-            -k $knee 
-            -g gene
-    """
-}
-
-
-process H5AD_TO_SAIGE_FORMAT {
-    label 'process_low'
-
-    // Specify the number of forks (10k)
-    maxForks 1000
-
-    if (workflow.containerEngine == 'singularity' && !params.singularity_pull_docker_container) {
-        container "${params.eqtl_container}"
-    } else {
-        container "${params.eqtl_docker}"
-    }    
-
-
-    input:
-        path(h5ad)  
-        path(bridge)  
-        val(aggregation_columns)
-        path(genotype_pcs)
-    // output:
-    //     path("output"),emit:output
-
-    // Define the Bash script to run for each array job
-    script:
-    """
-        bridge='${bridge}'
-        nperc=${params.percent_of_population_expressed}
-        condition_col="NULL" #Specify 'NULL' if want to include all cells
-        covariates="total_counts"
-        scale_covariates=false
-        expression_pca="true"
-        aggregate_on="${aggregation_columns}"
-        level="B"
-
-        mkdir output_agg
-        prep_adata_saige.py \
-            --phenotype__file ${h5ad} \
-            --bridge \$bridge \
-            --aggregate_on \$aggregate_on \
-            --genotype_pc__file ${genotype_pcs} \
-            --genotype_id ${params.gt_id_column} \
-            --sample_id ${params.sample_column} \
-            --general_file_dir ./output_agg \
-            --nperc \$nperc \
-            --min ${params.n_min_cells} \
-            --condition_col \$condition_col \
-            --condition \$condition_col \
-            --covariates \$covariates \
-            --scale_covariates \$scale_covariates \
-            --expression_pca \$expression_pca \
-            --level \$level
-    """
-}
-
 
 process SAIGE_S1 {
     label 'process_low'
@@ -124,35 +12,50 @@ process SAIGE_S1 {
     }    
 
 
+    input:
+        tuple val(name),path(genes_list),path(pheno_file),path(cov),path(plink_bim), path(plink_bed), path(plink_fam)
+        
     output:
-        path("output"),emit:output
+        tuple val(name),path(genes_list),path("output"),emit:output
 
     // Define the Bash script to run for each array job
     script:
     """
         # Execute with the bash executable in an array (one job per gene within level)
+        #// Genome wide for this we send a list of genes in chunks 
         mkdir output
-        step1_fitNULLGLMM_qtl.R \
-            --useSparseGRMtoFitNULL=FALSE  \
-            --useGRMtoFitNULL=FALSE \
-            --phenoFile=/lustre/scratch123/hgi/teams/hgi/mo11/tmp_projects/saige/v1/qtl/extdata/input/seed_1_100_nindep_100_ncell_100_lambda_2_tauIntraSample_0.5_Poisson.txt	\
-            --phenoCol=gene_1       \
-            --covarColList=X1,X2,pf1,pf2    \
-            --sampleCovarColList=X1,X2      \
-            --sampleIDColinphenoFile=IND_ID \
-            --traitType=count \
-            --outputPrefix=./output/nindep_100_ncell_100_lambda_2_tauIntraSample_0.5_gene_1 \
-            --skipVarianceRatioEstimation=FALSE  \
-            --isRemoveZerosinPheno=FALSE \
-            --isCovariateOffset=FALSE  \
-            --isCovariateTransform=TRUE  \
-            --skipModelFitting=FALSE  \
-            --tol=0.00001   \
-            --plinkFile=/lustre/scratch123/hgi/teams/hgi/mo11/tmp_projects/saige/v1/qtl/extdata/input/n.indep_100_n.cell_1_01.step1       \
-            --IsOverwriteVarianceRatioFile=TRUE
+        cat "${genes_list}" | while IFS= read -r i
+        do
+            step1_fitNULLGLMM_qtl.R \
+                --useSparseGRMtoFitNULL=FALSE  \
+                --useGRMtoFitNULL=FALSE \
+                --phenoFile=${pheno_file}	\
+                --phenoCol=\$i       \
+                --covarColList=\$(head -n 1 ${cov})    \
+                --sampleCovarColList=\$(sed -n '2p' ${cov})      \
+                --sampleIDColinphenoFile=IND_ID \
+                --traitType=count \
+                --outputPrefix=./output/nindep_100_ncell_100_lambda_2_tauIntraSample_0.5_\$i  \
+                --skipVarianceRatioEstimation=FALSE  \
+                --isRemoveZerosinPheno=FALSE \
+                --isCovariateOffset=FALSE  \
+                --isCovariateTransform=TRUE  \
+                --skipModelFitting=FALSE  \
+                --tol=0.00001   \
+                --famFile ${plink_fam} \
+                --bimFile ${plink_bim} \
+                --bedFile ${plink_bed} \
+                --IsOverwriteVarianceRatioFile=TRUE
+        done
+
+        cat "${genes_list}" | while IFS= read -r i
+        do
+            echo \$i >> ./output/gene_string.tsv
+            step1prefix=./output/nindep_100_ncell_100_lambda_2_tauIntraSample_0.5_\$i
+            echo -e "\${i} \${step1prefix}.rda \${step1prefix}.varianceRatio.txt" >> ./output/step1_output_formultigenes.txt
+        done
     """
 }
-
 
 process SAIGE_S2 {
     label 'process_low'
@@ -167,35 +70,71 @@ process SAIGE_S2 {
     }    
 
     input:
-        path(output)   
-
+        tuple val(name),path(genes_list),path(output)
+        tuple path(plink_bim), path(plink_bed), path(plink_fam)
 
     output:
-        path("output"),emit:output
+        tuple val(name),path(genes_list),path(output),emit:output
+        tuple val(name),path("${output}/nindep_100_ncell_100_lambda_2_tauIntraSample_0.5_cis*"),emit:for_aggregation
 
-    // Define the Bash script to run for each array job
     script:
     """
-        export regionFile=gene_1_cis_region.txt
-        echo -e "2\t300001\t610001" > \${regionFile}
-        step1prefix=${output}/nindep_100_ncell_100_lambda_2_tauIntraSample_0.5_gene_1
-        step2prefix=${output}/nindep_100_ncell_100_lambda_2_tauIntraSample_0.5_gene_1_cis
+        
+        step1prefix=${output}/nindep_100_ncell_100_lambda_2_tauIntraSample_0.5           
+        step2prefix=${output}/nindep_100_ncell_100_lambda_2_tauIntraSample_0.5_cis
 
         step2_tests_qtl.R       \
-                --bedFile=/lustre/scratch123/hgi/teams/hgi/mo11/tmp_projects/saige/v1/qtl/extdata/input/n.indep_100_n.cell_1.bed      \
-                --bimFile=/lustre/scratch123/hgi/teams/hgi/mo11/tmp_projects/saige/v1/qtl/extdata/input/n.indep_100_n.cell_1.bim      \
-                --famFile=/lustre/scratch123/hgi/teams/hgi/mo11/tmp_projects/saige/v1/qtl/extdata/input/n.indep_100_n.cell_1.fam      \
+                --bedFile=${plink_bed}      \
+                --bimFile=${plink_bim}      \
+                --famFile=${plink_fam}      \
                 --SAIGEOutputFile=\${step2prefix}     \
                 --chrom=2       \
-                --minMAF=0 \
+                --minMAF=0.05 \
                 --minMAC=20 \
                 --LOCO=FALSE    \
-                --GMMATmodelFile=\${step1prefix}.rda     \
+                --GMMATmodel_varianceRatio_multiTraits_File=${output}/step1_output_formultigenes.txt     \
                 --SPAcutoff=2 \
-                --varianceRatioFile=\${step1prefix}.varianceRatio.txt    \
-                --rangestoIncludeFile=\${regionFile}     \
                 --markers_per_chunk=10000
-        
+
+    """
+}
+
+process SAIGE_QVAL_COR {
+    label 'process_low'
+
+    // Specify the number of forks (10k)
+    maxForks 1000
+
+    if (workflow.containerEngine == 'singularity' && !params.singularity_pull_docker_container) {
+        container "${params.eqtl_container}"
+    } else {
+        container "${params.eqtl_docker}"
+    }    
+
+    input:
+        tuple val(name),path(genes_list),path(output)
+
+    output:
+        tuple val(name),path(genes_list),path(output),emit:output
+        path('for_conditioning.csv'), emit: for_conditioning optional true
+
+    script:
+    """
+        step1prefix=${output}/nindep_100_ncell_100_lambda_2_tauIntraSample_0.5           
+        step2prefix=${output}/nindep_100_ncell_100_lambda_2_tauIntraSample_0.5_cis
+                
+        cat "${output}/gene_string.tsv" | while IFS= read -r gene
+        do
+            qvalue_correction.R -f \${step2prefix}_\${gene} -c "13" -n "qvalues" -w "TRUE"
+            mv \${step2prefix}_\${gene}_minimum_q.txt ${output}/cis_\${gene}_minimum_q.txt
+
+            top_q=\$(awk -F'\t' 'NR==2 {print \$18}' ${output}/cis_\${gene}_minimum_q.txt)
+            threshold=0.5
+            if (( \$(echo "\$top_q <= \$threshold" | bc -l) )); then
+                echo "Performing conditional analysis: q-value for first pass > \$threshold"
+                echo \${gene},${output}/nindep_100_ncell_100_lambda_2_tauIntraSample_0.5_\${gene}.rda,nindep_100_ncell_100_lambda_2_tauIntraSample_0.5_\${gene}.varianceRatio.txt >> for_conditioning.csv
+            fi            
+        done
     """
 }
 
@@ -213,15 +152,50 @@ process SAIGE_S3 {
     }    
 
     input:
-        path(output)   
-
+        tuple val(name),path(genes_list),path(output)
+    output:
+        tuple val(name),path("${output}/*_minimum_q.txt"),path("${output}/*_cis_genePval"), emit: q_out
     // Define the Bash script to run for each array job
+    // nindep_100_ncell_100_lambda_2_tauIntraSample_0.5_gene_1_cis_gene_1
     script:
     """
-        step3_gene_pvalue_qtl.R \
-        --assocFile=${output}/nindep_100_ncell_100_lambda_2_tauIntraSample_0.5_gene_1_cis        \
-        --geneName=gene_1       \
-        --genePval_outputFile=${output}/nindep_100_ncell_100_lambda_2_tauIntraSample_0.5_gene_1_cis_genePval
+        cat "${output}/gene_string.tsv" | while IFS= read -r gene
+        do
+            step3_gene_pvalue_qtl.R \
+            --assocFile=${output}/nindep_100_ncell_100_lambda_2_tauIntraSample_0.5_cis_\${gene}        \
+            --geneName=\${gene}       \
+            --genePval_outputFile=${output}/nindep_100_ncell_100_lambda_2_tauIntraSample_0.5_\${gene}_cis_genePval
+        done
+    """
+}
+
+process CONDITIONAL_QTL {
+    label 'process_low'
+
+    // Finds top variant per gene and calculates up to 5 conditionally independent signals by including additional variant effects in the model
+
+    maxForks 1000
+
+    if (workflow.containerEngine == 'singularity' && !params.singularity_pull_docker_container) {
+        container "${params.saige_container}"
+    } else {
+        container "${params.saige_docker}"
+    }    
+
+    input:
+        tuple val(name),path(genes_list),path(output)
+    output:
+        tuple val(name),path("${output}/*_minimum_q.txt"),path("${output}/*_cis_genePval"), emit: q_out
+
+    script:
+    """
+        cat "${output}/gene_string.tsv" | while IFS= read -r gene
+        do
+            step3_gene_pvalue_qtl.R \
+            --assocFile=${output}/nindep_100_ncell_100_lambda_2_tauIntraSample_0.5_cis_\${gene}        \
+            --geneName=\${gene}       \
+            --genePval_outputFile=${output}/nindep_100_ncell_100_lambda_2_tauIntraSample_0.5_\${gene}_cis_genePval
+        done
     """
 }
 
@@ -241,31 +215,160 @@ process AGGREGATE_QTL_RESULTS{
                 overwrite: "true"
 
     input:
-        path(all_qtl_results)
-        
-        
-    output:
-        path("${all_qtl_results}_qtls"), emit: limix_qtl_path
-        // path("${all_qtl_results}_all_mpr/qtl_results_all.txt"), emit: qtl_results_all_all_mpr
-        // path("${all_qtl_results}_all_mpr/top_qtl_results_all.txt"), emit: top_qtl_results_all_all_mpr
-        // path("${all_qtl_results}_qtls")
+        tuple val(group),path(qtl_q_results),path(cis_genePval)
+
     script:
         
         """
-            export NUMBA_CACHE_DIR=/tmp
-            export MPLCONFIGDIR=/tmp
-            mkdir ${all_qtl_results}_all
-            
-            minimal_postprocess.py -id ${all_qtl_results} -od ${all_qtl_results}_all -sfo -tfb 
-            minimal_postprocess.py -id ${all_qtl_results} -od ${all_qtl_results}_all -sfo -mrp 0.05 
+            prepend_gene.py --pattern 'cis_*_minimum_q.txt' --column 'gene' --outfile 'minimum_q_all_genes.tsv'
+            qvalue_correction.R -f minimum_q_all_genes.tsv -c "18" -n "qvalues_across_genes" -w "FALSE"
 
-            cp -Lr ${all_qtl_results}_all ${all_qtl_results}_qtls
+            head -n 1 \$(find . -name "*_cis_genePval" | head -n 1)  >> ACAT_all.tsv
+            find . -name "*_cis_genePval" -print0 | xargs -0 -I {} sh -c 'tail -n +2 "\$1"' sh {} >> ACAT_all.tsv
+
         """
+}
+
+process AGGREGATE_QTL_ALLVARS{
+    tag { condition }
+    scratch false      // use tmp directory
+    label 'process_low'
+    if (workflow.containerEngine == 'singularity' && !params.singularity_pull_docker_container) {
+        container "${params.eqtl_container}"
+    } else {
+        container "${params.eqtl_docker}"
+    }    
+    
+
+    publishDir  path: "${params.outdir}/Limix_eQTLS",
+                mode: "${params.copy_mode}",
+                overwrite: "true"
+
+    input:
+        tuple val(group),path(qtl_q_results)
+
+    script:
+        
+        """
+            prepend_gene_large.py --pattern 'cis_*' --column 'gene' --outfile 'all_vars_genes.tsv'
+        """
+}
+
+
+process H5AD_TO_SAIGE_FORMAT {
+    label 'process_low'
+
+    // Specify the number of forks (10k)
+    maxForks 1000
+
+    if (workflow.containerEngine == 'singularity' && !params.singularity_pull_docker_container) {
+        container "${params.eqtl_container}"
+    } else {
+        container "${params.eqtl_docker}"
+    }    
+
+
+    input:
+        each path(h5ad)  
+        path(bridge)  
+        val(aggregation_columns)
+        path(genotype_pcs)
+
+    output:
+        tuple val(sanitized_columns), path("output_agg/*/*/saige_filt_expr_input.tsv"),path("output_agg/*/*/covariates.txt"),emit:output_pheno optional true
+        tuple val(sanitized_columns),path("output_agg/*/*/test_genes.txt"),emit:gene_chunk optional true
+
+    // Define the Bash script to run for each array job
+    script:
+    sanitized_columns = h5ad.getName().replaceAll(/[^a-zA-Z0-9]/, '_').replaceAll(/\.h5ad$/, '')
+    """
+        echo ${sanitized_columns}
+        bridge='${bridge}'
+        nperc=${params.percent_of_population_expressed}
+        condition_col="NULL" #Specify 'NULL' if want to include all cells
+        covariates="total_counts"
+        scale_covariates=false
+        expression_pca="true"
+        aggregate_on="${aggregation_columns}"
+
+        mkdir output_agg
+        prep_adata_saige.py \
+            --phenotype__file ${h5ad} \
+            --bridge \$bridge \
+            --aggregate_on \$aggregate_on \
+            --genotype_pc__file ${genotype_pcs} \
+            --genotype_id ${params.gt_id_column} \
+            --sample_id ${params.sample_column} \
+            --general_file_dir ./output_agg \
+            --nperc \$nperc \
+            --min ${params.n_min_cells} \
+            --condition_col \$condition_col \
+            --condition \$condition_col \
+            --covariates \$covariates \
+            --scale_covariates \$scale_covariates \
+            --expression_pca \$expression_pca
+    """
+}
+
+
+process TEST {
+    label 'process_low'
+
+    // Specify the number of forks (10k)
+    maxForks 1000
+
+    if (workflow.containerEngine == 'singularity' && !params.singularity_pull_docker_container) {
+        container "${params.saige_container}"
+    } else {
+        container "${params.saige_docker}"
+    }    
+
+    input:
+        tuple val(sanitized_columns), path(saige_filt_expr_input),path(test_genes) 
+       
+    // Define the Bash script to run for each array job
+    // nindep_100_ncell_100_lambda_2_tauIntraSample_0.5_gene_1_cis_gene_1
+    script:
+    """
+        echo ${sanitized_columns}
+        echo ${test_genes}
+    """
+}
+
+
+process CHUNK_GENES {
+    label 'process_low'
+
+    // Specify the number of forks (10k)
+    maxForks 1000
+
+    if (workflow.containerEngine == 'singularity' && !params.singularity_pull_docker_container) {
+        container "${params.saige_container}"
+    } else {
+        container "${params.saige_docker}"
+    }    
+
+    input:
+        tuple val(sanitized_columns),path(test_genes) 
+        val(chunk_size)
+    output:
+        tuple val(sanitized_columns), path("chunk_${sanitized_columns}_*"),emit:output_genes
+        
+    // Define the Bash script to run for each array job
+    // nindep_100_ncell_100_lambda_2_tauIntraSample_0.5_gene_1_cis_gene_1
+    script:
+    """
+        echo ${sanitized_columns}
+        echo ${test_genes}
+        split -l ${chunk_size} ${test_genes} chunk_${sanitized_columns}_
+    """
 }
 
 workflow SAIGE_qtls{
     take:
         genotype_pcs
+        phenotype_file
+
     //     limix_condition_chunking
     //     plink_genotype
     //     kinship_file
@@ -275,9 +378,34 @@ workflow SAIGE_qtls{
     main:
         log.info('------- Running SAIGE QTLs ------- ')
 
-        H5AD_TO_SAIGE_FORMAT(params.phenotype_file,params.bridge,param.aggregation_columns,genotype_pcs)
-        SAIGE_S1()
-        SAIGE_S2(SAIGE_S1.out.output)
-        SAIGE_S3(SAIGE_S2.out.output)
+        H5AD_TO_SAIGE_FORMAT(phenotype_file.flatten(),params.genotype_phenotype_mapping_file,params.aggregation_columns,genotype_pcs)
+        
+        genes = Channel.of(['t1','/lustre/scratch123/hgi/teams/hgi/mo11/tmp_projects/saige/v1/qtl/extdata/input/genes.txt'])
+        pheno = Channel.of(['t1','/lustre/scratch123/hgi/teams/hgi/mo11/tmp_projects/saige/v1/qtl/extdata/input/seed_1_100_nindep_100_ncell_100_lambda_2_tauIntraSample_0.5_Poisson.txt','/lustre/scratch123/hgi/teams/hgi/mo11/tmp_projects/saige/v1/qtl/extdata/input/covariates.txt'])
+        bim_bed_fam = Channel.of(["/lustre/scratch123/hgi/teams/hgi/mo11/tmp_projects/saige/v1/qtl/extdata/input/n.indep_100_n.cell_1.bim","/lustre/scratch123/hgi/teams/hgi/mo11/tmp_projects/saige/v1/qtl/extdata/input/n.indep_100_n.cell_1.bed","/lustre/scratch123/hgi/teams/hgi/mo11/tmp_projects/saige/v1/qtl/extdata/input/n.indep_100_n.cell_1.fam"])
+
+        // CHUNK_GENES(H5AD_TO_SAIGE_FORMAT.out.gene_chunk,params.chunkSize)
+        CHUNK_GENES(genes,params.chunkSize)
+        result = CHUNK_GENES.out.output_genes.flatMap { item ->
+            def (first, second) = item
+            return second.collect { [first, it] }
+        }
+
+        // result.combine(H5AD_TO_SAIGE_FORMAT.out.output_pheno, by: 0).set{pheno_chunk}
+        result.combine(pheno, by: 0).set{pheno_chunk}
+        TEST(pheno_chunk)
+        pheno_chunk.subscribe { println "pheno_chunk dist: $it" }
+        combined_channel = pheno_chunk.combine(bim_bed_fam)        
+        combined_channel2 = pheno_chunk.cross(bim_bed_fam)
+        combined_channel.subscribe { println "combined_channel dist: $it" }
+        combined_channel.subscribe { println "combined_channel2 dist: $it" }
+        SAIGE_S1(combined_channel)
+        SAIGE_S2(SAIGE_S1.out.output,bim_bed_fam)
+        SAIGE_QVAL_COR(SAIGE_S2.out.output)
+        SAIGE_S3(SAIGE_QVAL_COR.out.output)
+        AGGREGATE_QTL_RESULTS(SAIGE_S3.out.q_out)
+        AGGREGATE_QTL_ALLVARS(SAIGE_S2.out.for_aggregation)
+
+        // CONDITIONAL_QTL()
 
 }

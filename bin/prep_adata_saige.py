@@ -181,13 +181,13 @@ def parse_options():
             help=''
         )
     
-    parser.add_argument(
-            '-l', '--level',
-            action='store',
-            dest='level',
-            required=True,
-            help=''
-        )
+    # parser.add_argument(
+    #         '-l', '--level',
+    #         action='store',
+    #         dest='level',
+    #         required=True,
+    #         help=''
+    #     )
     
     return parser.parse_args()
 
@@ -211,8 +211,8 @@ def main():
     expression_pca = inherited_options.expression_pca
     scale_covariates = inherited_options.scale_covariates
     bridge = inherited_options.bridge #'/lustre/scratch123/hgi/teams/hgi/mo11/tmp_projects/saige/v1/work/cc/5a5daedc5c9805a6fd355f479de666/gt_mapping_test.tsv'
-    level = inherited_options.level
-    print(f"~~~~~~~~~~~~Working on: {level}~~~~~~~~~~~~~~~~")
+    # level = inherited_options.level
+    
 
     # Load in the adata object
     print("Loading object")
@@ -221,10 +221,13 @@ def main():
     # Load the genotype PCs
     print("Loading genotype PCs")
     geno_pcs = pd.read_csv(genotype_pc_file, sep = "\t")
-    geno_pcs = geno_pcs.set_index("#IID")
+    try:
+        geno_pcs = geno_pcs.set_index("#IID")
+    except:
+        geno_pcs = geno_pcs.set_index("IID")
     geno_pcs = geno_pcs.iloc[:,1:]
     geno_pcs.reset_index(inplace=True)
-    geno_pcs.rename(columns={"#IID": genotype_id}, inplace=True)
+    geno_pcs.rename(columns={"#IID": genotype_id,"IID": genotype_id}, inplace=True)
 
     # Subset for the cells we want here (based on the condition column and value specified)
     if condition_col != "NULL":
@@ -234,7 +237,8 @@ def main():
     # Replace the ages of those missing [SPECIFIC TO OUR DATA/SAMPLES]
     # adata.obs.loc[adata.obs['sanger_sample_id'].isin(['OTARscRNA9294497', 'OTARscRNA9294498']), 'age_imputed'] = 56.5
     covs_use=covariates.split(',')
-
+    level = list(set(adata.obs[aggregate_on]))[0]
+    print(f"~~~~~~~~~~~~Working on: {level}~~~~~~~~~~~~~~~~")
     # Define savedir
     if condition_col != "NULL":
         savedir=f"{general_file_dir}/{aggregate_on}/{level}/{condition_col}/{condition}"
@@ -256,8 +260,10 @@ def main():
         ob1 = pd.DataFrame(temp.obs[genotype_id])
         ob1 = ob1.reset_index().set_index(genotype_id,drop=False)
         ob1[genotype_id]=br1['Genotype']
-        ob1 = ob1.set_index('index')
-        temp.obs[genotype_id]=ob1[genotype_id]
+        ob2 = ob1.set_index('index')
+        temp.obs[genotype_id]=ob2[genotype_id]
+        # temp.obs.index = ob1[genotype_id]
+        # 
         
     temp = temp[temp.obs[genotype_id].isin(geno_pcs[genotype_id])]
     
@@ -269,7 +275,7 @@ def main():
     counts = counts.loc[:, counts.sum() > 0]
     counts[genotype_id] = temp.obs[genotype_id].values.astype(str)
     counts.index = temp.obs.index
-    
+    counts.index.names = ['IID']
     # Subset samples if doing so
     if min_cells != "NULL":
         print(f"Working on min cells/sample of {min_cells}")
@@ -284,13 +290,21 @@ def main():
     keep_genes = np.where(count_per_column > min_samples)[0]
     counts = counts.iloc[:,keep_genes]
     print(f"Final shape is:{counts.shape}") 
-    
+    sh = list(counts.shape)
+    if (any(np.array(sh)<2)):
+        print(f"Final shape is not acceptable, will not test this phenotype: {counts.shape}") 
+        sys.exit()
     # Preprocess the covariates (scale continuous, dummy for categorical)
     print("Extracting and sorting covariates")
     to_add = temp.obs[covs_use]
     # Preprocess the covariates (scale continuous, dummy for categorical)
     to_add = preprocess_covariates(to_add, scale_covariates)
     # Bind this onto the counts
+    
+    with open(f"{savedir}/test_genes.txt", 'w') as file:
+        for item in counts.columns.values:
+            file.write(f"{item}\n")
+            
     counts = counts.merge(to_add, left_index=True, right_index=True)
     # Add the donor ID (genotyping ID so that we match the genotypes)
     counts[genotype_id] = temp.obs[genotype_id]
@@ -299,10 +313,11 @@ def main():
     index_use = counts.index
     counts = counts.merge(geno_pcs, on=genotype_id, how='left')
     counts.set_index(index_use, inplace=True)
-    
+
     # If a covariate has ':' in it's name, this will throw errors in SAIGE, replace this with '_'
     counts.columns=counts.columns.str.replace(':', '_')
-    
+    covariates_string = covariates+','+','.join(geno_pcs.drop(genotype_id,axis=1).columns.values)
+    sample_covariates = ','.join(geno_pcs.drop(genotype_id,axis=1).columns.values)
     # Compute and add the expression PCs
     if expression_pca == "true":
         print("Computing expression PCs")
@@ -324,13 +339,12 @@ def main():
         loadings.index = temp.obs.index
         loadings.rename(columns=lambda x: f'xPC{x+1}', inplace=True)
         counts = counts.merge(loadings, left_index=True, right_index=True)
+        covariates_string = covariates_string+','+','.join(loadings.columns.values)
         
     # Save this as a dataframe in a directory specific to this resolution - make this if not already
     print("Saving")
     # Save list of gene names to test
-    with open(f"{savedir}/test_genes.txt", 'w') as file:
-        for item in counts.columns.values:
-            file.write(f"{item}\n")
+
             
             
     # Save counts + covariates
@@ -340,7 +354,12 @@ def main():
     gene_savdir=f"{savedir}/per_gene_input_files"
     if os.path.exists(gene_savdir) == False:
         os.makedirs(gene_savdir, exist_ok=True)
+    counts = counts.set_index(genotype_id)
+    
     counts.to_csv(f"{savedir}/saige_filt_expr_input.tsv", sep = "\t", index=True)
+    with open(f"{savedir}/covariates.txt", 'w') as file:
+            file.write(f"{covariates_string}\n")  
+            file.write(f"{sample_covariates}")  
     # Save per gene
     # for gene_name in counts.columns.values:
     #     selected_columns = [col for col in counts.columns if col == gene_name or not col.startswith('ENSG')]

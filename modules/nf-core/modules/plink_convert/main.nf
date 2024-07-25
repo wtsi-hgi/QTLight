@@ -17,6 +17,8 @@ process PLINK_CONVERT{
         path(file__vcf)
     output:
         path("plink_genotypes"), emit: plink_path
+        tuple path("plink_genotypes/plink_genotypes.bim"),path("plink_genotypes/plink_genotypes.bed"),path("plink_genotypes/plink_genotypes.fam"), emit: bim_bed_fam
+
     script:
 
     if(params.TensorQTL.use_gt_dosage==true && params.TensorQTL.run==true){
