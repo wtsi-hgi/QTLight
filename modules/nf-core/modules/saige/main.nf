@@ -1,3 +1,47 @@
+process CONDITIONAL_QTL {
+    label 'process_tiny'
+
+    // Finds top variant per gene and calculates up to 5 conditionally independent signals by including additional variant effects in the model
+
+    maxForks 1000
+
+    if (workflow.containerEngine == 'singularity' && !params.singularity_pull_docker_container) {
+        container "${params.saige_container}"
+    } else {
+        container "${params.saige_docker}"
+    }    
+
+    input:
+        tuple val(name),path(genes_list),path(output)
+    output:
+        tuple val(name),path("${output}/*_minimum_q.txt"),path("${output}/*_cis_genePval"), emit: q_out
+
+    script:
+    """
+        echo "~~~~~~~~~~~~~~~~PERFORMING THE SECOND ROUND OF EQTL ANALYSIS~~~~~~~~~~~~~~~~~"
+        step2_tests_qtl.R \
+                --bedFile=${general_file_dir}/genotypes/plink_genotypes_chr${gene_chr}.bed      \
+                --bimFile=${general_file_dir}/genotypes/plink_genotypes_chr${gene_chr}.bim      \
+                --famFile=${general_file_dir}/genotypes/plink_genotypes_chr${gene_chr}.fam      \
+                --SAIGEOutputFile=${cond_dir}/${gene}__npc${n_expr_pcs}_cis_round2.txt    \
+                --chrom=${gene_chr}       \
+                --minMAF=0.05 \
+                --minMAC=20 \
+                --LOCO=FALSE    \
+                --is_imputed_data=TRUE \
+                --GMMATmodelFile=${step1prefix}.rda     \
+                --SPAcutoff=2 \
+                --varianceRatioFile=${step1prefix}.varianceRatio.txt    \
+                --rangestoIncludeFile=${step2prefix}_region_file.txt     \
+                --markers_per_chunk=10000 \
+                --condition=$topvariant
+        qvalue_correction.R -f ${cond_dir}/${gene}__npc${n_expr_pcs}_cis_round2.txt -c "20" -n "c-${topvariant}.qvalues" -w "TRUE"
+
+        # Now perform an additional 3 rounds if we keep finding conditional 
+
+    """
+}
+
 
 process SAIGE_S1 {
     label 'process_low'
@@ -33,7 +77,7 @@ process SAIGE_S1 {
                 --phenoCol=\$i       \
                 --covarColList=\$(head -n 1 ${cov})    \
                 --sampleCovarColList=\$(sed -n '2p' ${cov})      \
-                --sampleIDColinphenoFile=IND_ID \
+                --sampleIDColinphenoFile=${params.gt_id_column} \
                 --traitType=count \
                 --outputPrefix=./output/nindep_100_ncell_100_lambda_2_tauIntraSample_0.5_\$i  \
                 --skipVarianceRatioEstimation=FALSE  \
@@ -151,7 +195,7 @@ process SAIGE_QVAL_COR {
 
 
 process SAIGE_S3 {
-    label 'process_low'
+    label 'process_tiny'
 
     // Specify the number of forks (10k)
     maxForks 1000
@@ -181,41 +225,11 @@ process SAIGE_S3 {
     """
 }
 
-process CONDITIONAL_QTL {
-    label 'process_low'
-
-    // Finds top variant per gene and calculates up to 5 conditionally independent signals by including additional variant effects in the model
-
-    maxForks 1000
-
-    if (workflow.containerEngine == 'singularity' && !params.singularity_pull_docker_container) {
-        container "${params.saige_container}"
-    } else {
-        container "${params.saige_docker}"
-    }    
-
-    input:
-        tuple val(name),path(genes_list),path(output)
-    output:
-        tuple val(name),path("${output}/*_minimum_q.txt"),path("${output}/*_cis_genePval"), emit: q_out
-
-
-    script:
-    """
-        cat "${output}/gene_string.tsv" | while IFS= read -r gene || [ -n "\$gene" ]
-        do
-            step3_gene_pvalue_qtl.R \
-            --assocFile=${output}/nindep_100_ncell_100_lambda_2_tauIntraSample_0.5_cis_\${gene}        \
-            --geneName=\${gene}       \
-            --genePval_outputFile=${output}/nindep_100_ncell_100_lambda_2_tauIntraSample_0.5_\${gene}_cis_genePval
-        done
-    """
-}
 
 process AGGREGATE_ACAT_RESULTS{
     tag { condition }
     scratch false      // use tmp directory
-    label 'process_low'
+    label 'process_tiny'
     if (workflow.containerEngine == 'singularity' && !params.singularity_pull_docker_container) {
         container "${params.eqtl_container}"
     } else {
@@ -223,13 +237,14 @@ process AGGREGATE_ACAT_RESULTS{
     }    
     
 
-    publishDir  path: "${params.outdir}/Limix_eQTLS",
+    publishDir  path: "${params.outdir}/Saige_eQTLS/${group}",
                 mode: "${params.copy_mode}",
                 overwrite: "true"
 
     input:
         tuple val(group),path(cis_genePval)
-
+    output:
+        tuple val(group),path("ACAT_all.tsv"), emit: acat_all
     script:
         
         """
@@ -250,12 +265,15 @@ process AGGREGATE_QTL_RESULTS{
     }    
     
 
-    publishDir  path: "${params.outdir}/Limix_eQTLS",
+    publishDir  path: "${params.outdir}/Saige_eQTLS/${group}",
                 mode: "${params.copy_mode}",
                 overwrite: "true"
 
+
     input:
         tuple val(group),path(qtl_q_results)
+    output:
+        tuple val(group),path("minimum_q_all_genes.tsv"), emit: all
 
     script:
         
@@ -276,12 +294,14 @@ process AGGREGATE_QTL_ALLVARS{
     }    
     
 
-    publishDir  path: "${params.outdir}/Limix_eQTLS",
+    publishDir  path: "${params.outdir}/Saige_eQTLS/${group}",
                 mode: "${params.copy_mode}",
                 overwrite: "true"
 
     input:
         tuple val(group),path(qtl_q_results)
+    output:
+        tuple val(group),path("all_vars_genes.tsv"), emit: all
 
     script:
         
@@ -404,40 +424,36 @@ workflow SAIGE_qtls{
     take:
         genotype_pcs
         phenotype_file
-
-    //     limix_condition_chunking
-    //     plink_genotype
-    //     kinship_file
-    //     genotype_phenotype_mapping_file
-    //     condition
+        bim_bed_fam
 
     main:
         log.info('------- Running SAIGE QTLs ------- ')
 
         H5AD_TO_SAIGE_FORMAT(phenotype_file.flatten(),params.genotype_phenotype_mapping_file,params.aggregation_columns,genotype_pcs)
-        
-        genes = Channel.of(['t1','/lustre/scratch123/hgi/teams/hgi/mo11/tmp_projects/saige/v1/qtl/extdata/input/genes.txt'])
-        pheno = Channel.of(['t1','/lustre/scratch123/hgi/teams/hgi/mo11/tmp_projects/saige/v1/qtl/extdata/input/seed_1_100_nindep_100_ncell_100_lambda_2_tauIntraSample_0.5_Poisson.txt','/lustre/scratch123/hgi/teams/hgi/mo11/tmp_projects/saige/v1/qtl/extdata/input/covariates.txt'])
-        bim_bed_fam = Channel.of(["/lustre/scratch123/hgi/teams/hgi/mo11/tmp_projects/saige/v1/qtl/extdata/input/n.indep_100_n.cell_1.bim","/lustre/scratch123/hgi/teams/hgi/mo11/tmp_projects/saige/v1/qtl/extdata/input/n.indep_100_n.cell_1.bed","/lustre/scratch123/hgi/teams/hgi/mo11/tmp_projects/saige/v1/qtl/extdata/input/n.indep_100_n.cell_1.fam"])
+        pheno = H5AD_TO_SAIGE_FORMAT.out.output_pheno.take(1)
 
-        // CHUNK_GENES(H5AD_TO_SAIGE_FORMAT.out.gene_chunk,params.chunkSize)
+        // We also need to define the chromosomes to test. 
+        // If we go for a cis mode then we have to also define the ranges.
+        // genes = Channel.of(['t1','/lustre/scratch123/hgi/teams/hgi/mo11/tmp_projects/saige/v1/qtl/extdata/input/genes.txt'])
+        // pheno = Channel.of(['t1','/lustre/scratch123/hgi/teams/hgi/mo11/tmp_projects/saige/v1/qtl/extdata/input/seed_1_100_nindep_100_ncell_100_lambda_2_tauIntraSample_0.5_Poisson.txt','/lustre/scratch123/hgi/teams/hgi/mo11/tmp_projects/saige/v1/qtl/extdata/input/covariates.txt'])
+        // bim_bed_fam = Channel.of(["/lustre/scratch123/hgi/teams/hgi/mo11/tmp_projects/saige/v1/qtl/extdata/input/n.indep_100_n.cell_1.bim","/lustre/scratch123/hgi/teams/hgi/mo11/tmp_projects/saige/v1/qtl/extdata/input/n.indep_100_n.cell_1.bed","/lustre/scratch123/hgi/teams/hgi/mo11/tmp_projects/saige/v1/qtl/extdata/input/n.indep_100_n.cell_1.fam"])
+
+        genes = H5AD_TO_SAIGE_FORMAT.out.gene_chunk
         CHUNK_GENES(genes,params.chunkSize)
         result = CHUNK_GENES.out.output_genes.flatMap { item ->
             def (first, second) = item
             return second.collect { [first, it] }
         }
 
-        // result.combine(H5AD_TO_SAIGE_FORMAT.out.output_pheno, by: 0).set{pheno_chunk}
         result.combine(pheno, by: 0).set{pheno_chunk}
-        TEST(pheno_chunk)
-        // pheno_chunk.subscribe { println "pheno_chunk dist: $it" }
-        combined_channel = pheno_chunk.combine(bim_bed_fam)        
-        combined_channel2 = pheno_chunk.cross(bim_bed_fam)
-        // combined_channel.subscribe { println "combined_channel dist: $it" }
-        // combined_channel.subscribe { println "combined_channel2 dist: $it" }
-        SAIGE_S1(combined_channel)
+        SAIGE_S1(pheno_chunk.combine(bim_bed_fam))
         SAIGE_S2(SAIGE_S1.out.output.combine(bim_bed_fam))
+        SAIGE_QVAL_COR(SAIGE_S2.out.output)
+        SAIGE_S3(SAIGE_QVAL_COR.out.output)
 
+
+        SAIGE_QVAL_COR.out.for_conditioning.subscribe { println "SAIGE_QVAL_COR dist: $it" }
+        // ########## Collecting Chunk outputs.  ###############
         SAIGE_S2_for_aggregation = SAIGE_S2.out.for_aggregation.flatMap { item ->
             def (first, second) = item
             if (!(second instanceof Collection)) {
@@ -445,11 +461,6 @@ workflow SAIGE_qtls{
             }
             return second.collect { [first, it] }
         }
-
-
-
-        SAIGE_QVAL_COR(SAIGE_S2.out.output)
-        SAIGE_S3(SAIGE_QVAL_COR.out.output)
 
         SAIGE_S3_for_aggregation = SAIGE_S3.out.q_out.flatMap { item ->
             def (first, second) = item
@@ -467,9 +478,7 @@ workflow SAIGE_qtls{
             return second.collect { [first, it] }
         }
 
-        SAIGE_S3_for_aggregation.subscribe { println "pre SAIGE_S2_for_aggregation dist: $it" }
-        SAIGE_S3_for_aggregation.groupTuple(by: 0).subscribe { println "SAIGE_S2_for_aggregation dist: $it" }
-        
+        // ########## Aggregating and emiting the results.  ###############
         AGGREGATE_QTL_RESULTS(SAIGE_S3_for_aggregation.groupTuple(by: 0))
         AGGREGATE_QTL_ALLVARS(SAIGE_S2_for_aggregation.groupTuple(by: 0))
         AGGREGATE_ACAT_RESULTS(SAIGE_S3_for_aggregation_ACAT.groupTuple(by: 0))

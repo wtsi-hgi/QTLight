@@ -143,6 +143,7 @@ workflow EQTL {
     PREPROCESS_GENOTYPES(SUBSET_GENOTYPE.out.samplename_subsetvcf)
     // // // // // 2) Generate the PLINK file
     PLINK_CONVERT(PREPROCESS_GENOTYPES.out.filtered_vcf)
+    bim_bed_fam = PLINK_CONVERT.out.bim_bed_fam
     // // // 3) Generate the kinship matrix and genotype PCs
     GENOTYPE_PC_CALCULATION(PLINK_CONVERT.out.plink_path)
     
@@ -197,7 +198,7 @@ workflow EQTL {
     if (params.method=='single_cell'){
         if (params.SAIGE.run){
 
-            SAIGE_qtls(GENOTYPE_PC_CALCULATION.out.gtpca_plink,SPLIT_AGGREGATION_ADATA.out.split_phenotypes)
+            SAIGE_qtls(GENOTYPE_PC_CALCULATION.out.gtpca_plink,SPLIT_AGGREGATION_ADATA.out.split_phenotypes,bim_bed_fam)
         }
     }
 
