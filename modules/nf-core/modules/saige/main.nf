@@ -24,7 +24,7 @@ process SAIGE_S1 {
         # Execute with the bash executable in an array (one job per gene within level)
         #// Genome wide for this we send a list of genes in chunks 
         mkdir output
-        cat "${genes_list}" | while IFS= read -r i
+        cat "${genes_list}" | while IFS= read -r i || [ -n "\$i" ]
         do
             step1_fitNULLGLMM_qtl.R \
                 --useSparseGRMtoFitNULL=FALSE  \
@@ -48,7 +48,7 @@ process SAIGE_S1 {
                 --IsOverwriteVarianceRatioFile=TRUE
         done
 
-        cat "${genes_list}" | while IFS= read -r i
+        cat "${genes_list}" | while IFS= read -r i || [ -n "\$i" ]
         do
             echo \$i >> ./output/gene_string.tsv
             step1prefix=./output/nindep_100_ncell_100_lambda_2_tauIntraSample_0.5_\$i
@@ -70,12 +70,11 @@ process SAIGE_S2 {
     }    
 
     input:
-        tuple val(name),path(genes_list),path(output)
-        tuple path(plink_bim), path(plink_bed), path(plink_fam)
+        tuple val(name),path(genes_list),path(output),path(plink_bim), path(plink_bed), path(plink_fam)
 
     output:
         tuple val(name),path(genes_list),path(output),emit:output
-        tuple val(name),path("${output}/nindep_100_ncell_100_lambda_2_tauIntraSample_0.5_cis*"),emit:for_aggregation
+        tuple val(name),path("${output}/nindep_100_ncell_100_lambda_2_tauIntraSample_0.5_cis_*"),emit:for_aggregation
 
     script:
     """
@@ -95,6 +94,18 @@ process SAIGE_S2 {
                 --GMMATmodel_varianceRatio_multiTraits_File=${output}/step1_output_formultigenes.txt     \
                 --SPAcutoff=2 \
                 --markers_per_chunk=10000
+
+
+        line_count=\$(wc -l < output/step1_output_formultigenes.txt)
+        if [ "\$line_count" -eq 1 ]; then
+            echo "File has exactly one line"
+            var=\$(cat output/step1_output_formultigenes.txt | awk '{print \$1}')
+            echo \$var
+            mv output/nindep_100_ncell_100_lambda_2_tauIntraSample_0.5_cis output/nindep_100_ncell_100_lambda_2_tauIntraSample_0.5_cis_\$var
+            mv output/nindep_100_ncell_100_lambda_2_tauIntraSample_0.5_cis.index output/nindep_100_ncell_100_lambda_2_tauIntraSample_0.5_cis_\$var.index
+        else
+            echo "File does not have exactly one line"
+        fi
 
     """
 }
@@ -123,7 +134,7 @@ process SAIGE_QVAL_COR {
         step1prefix=${output}/nindep_100_ncell_100_lambda_2_tauIntraSample_0.5           
         step2prefix=${output}/nindep_100_ncell_100_lambda_2_tauIntraSample_0.5_cis
                 
-        cat "${output}/gene_string.tsv" | while IFS= read -r gene
+        cat "${output}/gene_string.tsv" | while IFS= read -r gene || [ -n "\$gene" ]
         do
             qvalue_correction.R -f \${step2prefix}_\${gene} -c "13" -n "qvalues" -w "TRUE"
             mv \${step2prefix}_\${gene}_minimum_q.txt ${output}/cis_\${gene}_minimum_q.txt
@@ -154,12 +165,13 @@ process SAIGE_S3 {
     input:
         tuple val(name),path(genes_list),path(output)
     output:
-        tuple val(name),path("${output}/*_minimum_q.txt"),path("${output}/*_cis_genePval"), emit: q_out
+        tuple val(name),path("${output}/*_minimum_q.txt"), emit: q_out
+        tuple val(name),path("${output}/*_cis_genePval"), emit: q_out_2
     // Define the Bash script to run for each array job
     // nindep_100_ncell_100_lambda_2_tauIntraSample_0.5_gene_1_cis_gene_1
     script:
     """
-        cat "${output}/gene_string.tsv" | while IFS= read -r gene
+        cat "${output}/gene_string.tsv" | while IFS= read -r gene || [ -n "\$gene" ]
         do
             step3_gene_pvalue_qtl.R \
             --assocFile=${output}/nindep_100_ncell_100_lambda_2_tauIntraSample_0.5_cis_\${gene}        \
@@ -187,9 +199,10 @@ process CONDITIONAL_QTL {
     output:
         tuple val(name),path("${output}/*_minimum_q.txt"),path("${output}/*_cis_genePval"), emit: q_out
 
+
     script:
     """
-        cat "${output}/gene_string.tsv" | while IFS= read -r gene
+        cat "${output}/gene_string.tsv" | while IFS= read -r gene || [ -n "\$gene" ]
         do
             step3_gene_pvalue_qtl.R \
             --assocFile=${output}/nindep_100_ncell_100_lambda_2_tauIntraSample_0.5_cis_\${gene}        \
@@ -198,6 +211,33 @@ process CONDITIONAL_QTL {
         done
     """
 }
+
+process AGGREGATE_ACAT_RESULTS{
+    tag { condition }
+    scratch false      // use tmp directory
+    label 'process_low'
+    if (workflow.containerEngine == 'singularity' && !params.singularity_pull_docker_container) {
+        container "${params.eqtl_container}"
+    } else {
+        container "${params.eqtl_docker}"
+    }    
+    
+
+    publishDir  path: "${params.outdir}/Limix_eQTLS",
+                mode: "${params.copy_mode}",
+                overwrite: "true"
+
+    input:
+        tuple val(group),path(cis_genePval)
+
+    script:
+        
+        """
+            head -n 1 \$(find . -name "*_cis_genePval" | head -n 1)  >> ACAT_all.tsv
+            find . -name "*_cis_genePval" -print0 | xargs -0 -I {} sh -c 'tail -n +2 "\$1"' sh {} >> ACAT_all.tsv
+        """
+}
+
 
 process AGGREGATE_QTL_RESULTS{
     tag { condition }
@@ -215,17 +255,13 @@ process AGGREGATE_QTL_RESULTS{
                 overwrite: "true"
 
     input:
-        tuple val(group),path(qtl_q_results),path(cis_genePval)
+        tuple val(group),path(qtl_q_results)
 
     script:
         
         """
             prepend_gene.py --pattern 'cis_*_minimum_q.txt' --column 'gene' --outfile 'minimum_q_all_genes.tsv'
             qvalue_correction.R -f minimum_q_all_genes.tsv -c "18" -n "qvalues_across_genes" -w "FALSE"
-
-            head -n 1 \$(find . -name "*_cis_genePval" | head -n 1)  >> ACAT_all.tsv
-            find . -name "*_cis_genePval" -print0 | xargs -0 -I {} sh -c 'tail -n +2 "\$1"' sh {} >> ACAT_all.tsv
-
         """
 }
 
@@ -394,18 +430,49 @@ workflow SAIGE_qtls{
         // result.combine(H5AD_TO_SAIGE_FORMAT.out.output_pheno, by: 0).set{pheno_chunk}
         result.combine(pheno, by: 0).set{pheno_chunk}
         TEST(pheno_chunk)
-        pheno_chunk.subscribe { println "pheno_chunk dist: $it" }
+        // pheno_chunk.subscribe { println "pheno_chunk dist: $it" }
         combined_channel = pheno_chunk.combine(bim_bed_fam)        
         combined_channel2 = pheno_chunk.cross(bim_bed_fam)
-        combined_channel.subscribe { println "combined_channel dist: $it" }
-        combined_channel.subscribe { println "combined_channel2 dist: $it" }
+        // combined_channel.subscribe { println "combined_channel dist: $it" }
+        // combined_channel.subscribe { println "combined_channel2 dist: $it" }
         SAIGE_S1(combined_channel)
-        SAIGE_S2(SAIGE_S1.out.output,bim_bed_fam)
+        SAIGE_S2(SAIGE_S1.out.output.combine(bim_bed_fam))
+
+        SAIGE_S2_for_aggregation = SAIGE_S2.out.for_aggregation.flatMap { item ->
+            def (first, second) = item
+            if (!(second instanceof Collection)) {
+                second = [second] // Wrap single value in a list
+            }
+            return second.collect { [first, it] }
+        }
+
+
+
         SAIGE_QVAL_COR(SAIGE_S2.out.output)
         SAIGE_S3(SAIGE_QVAL_COR.out.output)
-        AGGREGATE_QTL_RESULTS(SAIGE_S3.out.q_out)
-        AGGREGATE_QTL_ALLVARS(SAIGE_S2.out.for_aggregation)
 
+        SAIGE_S3_for_aggregation = SAIGE_S3.out.q_out.flatMap { item ->
+            def (first, second) = item
+            if (!(second instanceof Collection)) {
+                second = [second] // Wrap single value in a list
+            }
+            return second.collect { [first, it] }   
+        }
+
+        SAIGE_S3_for_aggregation_ACAT = SAIGE_S3.out.q_out_2.flatMap { item ->
+            def (first, second) = item
+            if (!(second instanceof Collection)) {
+                second = [second] // Wrap single value in a list
+            }
+            return second.collect { [first, it] }
+        }
+
+        SAIGE_S3_for_aggregation.subscribe { println "pre SAIGE_S2_for_aggregation dist: $it" }
+        SAIGE_S3_for_aggregation.groupTuple(by: 0).subscribe { println "SAIGE_S2_for_aggregation dist: $it" }
+        
+        AGGREGATE_QTL_RESULTS(SAIGE_S3_for_aggregation.groupTuple(by: 0))
+        AGGREGATE_QTL_ALLVARS(SAIGE_S2_for_aggregation.groupTuple(by: 0))
+        AGGREGATE_ACAT_RESULTS(SAIGE_S3_for_aggregation_ACAT.groupTuple(by: 0))
         // CONDITIONAL_QTL()
 
 }
