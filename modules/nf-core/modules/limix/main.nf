@@ -115,17 +115,17 @@ process LIMIX{
     }
 
     input:
-        tuple(val(chunking_range),val(condition),path(phenotypeFile),path(covariateFile),path(annotationFile),path(genotypeFile),path(kinship_path),path(individual2sample_filename))
+        tuple(val(chunking_range),val(condition),path(phenotypeFile),path(covariateFile),path(annotationFile),path(individual2sample_filename),path(genotypeFile),path(kinship_path))
         
     output:
-        tuple(path("${condition}_snp_metadata*"),path("${condition}_qtl_results_*"),path("${condition}_feature_metadata_*") , emit: qtl_data)
+        tuple path("${condition}_snp_metadata*"),path("${condition}_qtl_results_*"),path("${condition}_feature_metadata_*") , emit: qtl_data optional true
     script:
         numberOfPermutations = params.numberOfPermutations
         minorAlleleFrequency = params.maf
-        hwe = params.hwe
-        callRate = 0.95
+        hwe = params.LIMIX.hwe
+        callRate = params.LIMIX.callRate
         windowSize = params.windowSize 
-        blockSize = 1500
+        blockSize = params.LIMIX.blockSize
 
         outputFolder='./'
         chunking_range="${chunking_range}"
@@ -135,10 +135,12 @@ process LIMIX{
         """
             export NUMBA_CACHE_DIR=/tmp
             export MPLCONFIGDIR=/tmp 
-            run_limix_QTL_analysis.py --plink ${genotypeFile}/plink_genotypes -af ${annotationFile} -pf ${phenotypeFile} -cf ${covariateFile} -od ${outputFolder} -smf ${individual2sample_filename} -rf ${kinship_path} -gr ${chunking_range} -np ${numberOfPermutations} -maf ${minorAlleleFrequency} -hwe ${hwe} -cr ${callRate} -c -gm standardize -w ${windowSize} --block_size ${blockSize}
-            ln -s snp_metadata_${chunking_range2}.txt ${condition}_snp_metadata_${chunking_range2}.txt
-            ln -s qtl_results_${chunking_range2}.h5 ${condition}_qtl_results_${chunking_range2}.h5
-            ln -s feature_metadata_${chunking_range2}.txt ${condition}_feature_metadata_${chunking_range2}.txt
+            cut -f 1,2 -d \$'\\t' ${individual2sample_filename} > data_no_sample_category.txt
+            run_limix_QTL_analysis.py --plink ${genotypeFile}/plink_genotypes -af ${annotationFile} -pf ${phenotypeFile} -cf ${covariateFile} -od ${outputFolder} -smf data_no_sample_category.txt -rf ${kinship_path} -gr ${chunking_range} -np ${numberOfPermutations} -maf ${minorAlleleFrequency} -hwe ${hwe} -cr ${callRate} -c -gm standardize -w ${windowSize} --block_size ${blockSize}
+            
+            mv snp_metadata_${chunking_range2}.txt ${condition}_snp_metadata_${chunking_range2}.txt
+            mv qtl_results_${chunking_range2}.h5 ${condition}_qtl_results_${chunking_range2}.h5
+            mv feature_metadata_${chunking_range2}.txt ${condition}_feature_metadata_${chunking_range2}.txt
         """
     
 }
@@ -148,15 +150,14 @@ workflow LIMIX_eqtls{
         limix_condition_chunking
         plink_genotype
         kinship_file
-        genotype_phenotype_mapping_file
         condition
 
     main:
 
-        limix_condition_chunking.splitCsv(header: true, sep: "\t").map{row ->  tuple(row.Range,row.condition,row.phenotypeFile,row.covars,row.anotation_file)}.set{chunking_channel}
+        limix_condition_chunking.splitCsv(header: true, sep: "\t").map{row ->  tuple(row.Range,row.condition,row.phenotypeFile,row.covars,row.anotation_file,row.genotype_phenotype_file)}.set{chunking_channel}
         chunking_channel =chunking_channel.combine(plink_genotype)
         chunking_channel =chunking_channel.combine(kinship_file)
-        chunking_channel =chunking_channel.combine(genotype_phenotype_mapping_file)
+        
 
         LIMIX(chunking_channel)
 

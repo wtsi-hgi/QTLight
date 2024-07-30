@@ -117,14 +117,16 @@ process SAIGE_S2 {
         tuple val(name),path(genes_list),path(output),path(plink_bim), path(plink_bed), path(plink_fam),val(chr)
 
     output:
-        tuple val("${name}___${chr}"),path(genes_list),path(output),emit:output
-        tuple val("${name}___${chr}"),path("${output}/nindep_100_ncell_100_lambda_2_tauIntraSample_0.5_cis_*"),emit:for_aggregation
+        tuple val("${name}___${chr}"),path(genes_list),path("output_${name}___${chr}"),emit:output
+        tuple val("${name}___${chr}"),path("output_${name}___${chr}/nindep_100_ncell_100_lambda_2_tauIntraSample_0.5_cis_*"),emit:for_aggregation
 
     script:
+    
     """
         
         step1prefix=${output}/nindep_100_ncell_100_lambda_2_tauIntraSample_0.5           
-        step2prefix=${output}/nindep_100_ncell_100_lambda_2_tauIntraSample_0.5_cis
+        step2prefix=output_${name}___${chr}/nindep_100_ncell_100_lambda_2_tauIntraSample_0.5_cis
+        mkdir output_${name}___${chr}
 
         step2_tests_qtl.R       \
                 --bedFile=${plink_bed}      \
@@ -175,10 +177,10 @@ process SAIGE_QVAL_COR {
 
     script:
     """
-        step1prefix=${output}/nindep_100_ncell_100_lambda_2_tauIntraSample_0.5           
-        step2prefix=${output}/nindep_100_ncell_100_lambda_2_tauIntraSample_0.5_cis
+        
+        step2prefix=output_${name}/nindep_100_ncell_100_lambda_2_tauIntraSample_0.5_cis
                 
-        cat "${output}/gene_string.tsv" | while IFS= read -r gene || [ -n "\$gene" ]
+        cat "${genes_list}" | while IFS= read -r gene || [ -n "\$gene" ]
         do
             qvalue_correction.R -f \${step2prefix}_\${gene} -c "13" -n "qvalues" -w "TRUE"
             mv \${step2prefix}_\${gene}_minimum_q.txt ${output}/cis_\${gene}_minimum_q.txt
@@ -215,7 +217,7 @@ process SAIGE_S3 {
     // nindep_100_ncell_100_lambda_2_tauIntraSample_0.5_gene_1_cis_gene_1
     script:
     """
-        cat "${output}/gene_string.tsv" | while IFS= read -r gene || [ -n "\$gene" ]
+        cat "${genes_list}" | while IFS= read -r gene || [ -n "\$gene" ]
         do
             step3_gene_pvalue_qtl.R \
             --assocFile=${output}/nindep_100_ncell_100_lambda_2_tauIntraSample_0.5_cis_\${gene}        \
