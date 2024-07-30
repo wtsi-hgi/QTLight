@@ -12,30 +12,30 @@ process CONDITIONAL_QTL {
     }    
 
     input:
-        tuple val(name),path(genes_list),path(output)
-    output:
-        tuple val(name),path("${output}/*_minimum_q.txt"),path("${output}/*_cis_genePval"), emit: q_out
-
+        tuple val(name),path(for_conditioning)
+    // output:
+    //     tuple val(name),path("${output}/*_minimum_q.txt"),path("${output}/*_cis_genePval"), emit: q_out
+        // echo step2_tests_qtl.R \
+        //         --bedFile=${general_file_dir}/genotypes/plink_genotypes_chr${gene_chr}.bed      \
+        //         --bimFile=${general_file_dir}/genotypes/plink_genotypes_chr${gene_chr}.bim      \
+        //         --famFile=${general_file_dir}/genotypes/plink_genotypes_chr${gene_chr}.fam      \
+        //         --SAIGEOutputFile=${cond_dir}/${gene}__npc${n_expr_pcs}_cis_round2.txt    \
+        //         --chrom=${gene_chr}       \
+        //         --minMAF=0.05 \
+        //         --minMAC=20 \
+        //         --LOCO=FALSE    \
+        //         --is_imputed_data=TRUE \
+        //         --GMMATmodelFile=${step1prefix}.rda     \
+        //         --SPAcutoff=2 \
+        //         --varianceRatioFile=${step1prefix}.varianceRatio.txt    \
+        //         --rangestoIncludeFile=${step2prefix}_region_file.txt     \
+        //         --markers_per_chunk=10000 \
+        //         --condition=$topvariant
+        // echo qvalue_correction.R -f ${cond_dir}/${gene}__npc${n_expr_pcs}_cis_round2.txt -c "20" -n "c-${topvariant}.qvalues" -w "TRUE"
     script:
     """
         echo "~~~~~~~~~~~~~~~~PERFORMING THE SECOND ROUND OF EQTL ANALYSIS~~~~~~~~~~~~~~~~~"
-        step2_tests_qtl.R \
-                --bedFile=${general_file_dir}/genotypes/plink_genotypes_chr${gene_chr}.bed      \
-                --bimFile=${general_file_dir}/genotypes/plink_genotypes_chr${gene_chr}.bim      \
-                --famFile=${general_file_dir}/genotypes/plink_genotypes_chr${gene_chr}.fam      \
-                --SAIGEOutputFile=${cond_dir}/${gene}__npc${n_expr_pcs}_cis_round2.txt    \
-                --chrom=${gene_chr}       \
-                --minMAF=0.05 \
-                --minMAC=20 \
-                --LOCO=FALSE    \
-                --is_imputed_data=TRUE \
-                --GMMATmodelFile=${step1prefix}.rda     \
-                --SPAcutoff=2 \
-                --varianceRatioFile=${step1prefix}.varianceRatio.txt    \
-                --rangestoIncludeFile=${step2prefix}_region_file.txt     \
-                --markers_per_chunk=10000 \
-                --condition=$topvariant
-        qvalue_correction.R -f ${cond_dir}/${gene}__npc${n_expr_pcs}_cis_round2.txt -c "20" -n "c-${topvariant}.qvalues" -w "TRUE"
+
 
         # Now perform an additional 3 rounds if we keep finding conditional 
 
@@ -114,11 +114,11 @@ process SAIGE_S2 {
     }    
 
     input:
-        tuple val(name),path(genes_list),path(output),path(plink_bim), path(plink_bed), path(plink_fam)
+        tuple val(name),path(genes_list),path(output),path(plink_bim), path(plink_bed), path(plink_fam),val(chr)
 
     output:
-        tuple val(name),path(genes_list),path(output),emit:output
-        tuple val(name),path("${output}/nindep_100_ncell_100_lambda_2_tauIntraSample_0.5_cis_*"),emit:for_aggregation
+        tuple val("${name}___${chr}"),path(genes_list),path(output),emit:output
+        tuple val("${name}___${chr}"),path("${output}/nindep_100_ncell_100_lambda_2_tauIntraSample_0.5_cis_*"),emit:for_aggregation
 
     script:
     """
@@ -131,13 +131,13 @@ process SAIGE_S2 {
                 --bimFile=${plink_bim}      \
                 --famFile=${plink_fam}      \
                 --SAIGEOutputFile=\${step2prefix}     \
-                --chrom=2       \
-                --minMAF=0.05 \
-                --minMAC=20 \
+                --chrom=${chr}       \
+                --minMAF=${params.SAIGE.minMAF} \
+                --minMAC=${params.SAIGE.minMAC} \
                 --LOCO=FALSE    \
                 --GMMATmodel_varianceRatio_multiTraits_File=${output}/step1_output_formultigenes.txt     \
-                --SPAcutoff=2 \
-                --markers_per_chunk=10000
+                --SPAcutoff=${params.SAIGE.SPAcutoff} \
+                --markers_per_chunk=${params.SAIGE.markers_per_chunk}
 
 
         line_count=\$(wc -l < output/step1_output_formultigenes.txt)
@@ -171,7 +171,7 @@ process SAIGE_QVAL_COR {
 
     output:
         tuple val(name),path(genes_list),path(output),emit:output
-        path('for_conditioning.csv'), emit: for_conditioning optional true
+        tuple val(name),path('for_conditioning.csv'), emit: for_conditioning optional true
 
     script:
     """
@@ -184,7 +184,7 @@ process SAIGE_QVAL_COR {
             mv \${step2prefix}_\${gene}_minimum_q.txt ${output}/cis_\${gene}_minimum_q.txt
 
             top_q=\$(awk -F'\t' 'NR==2 {print \$18}' ${output}/cis_\${gene}_minimum_q.txt)
-            threshold=0.5
+            threshold=0.05
             if (( \$(echo "\$top_q <= \$threshold" | bc -l) )); then
                 echo "Performing conditional analysis: q-value for first pass > \$threshold"
                 echo \${gene},${output}/nindep_100_ncell_100_lambda_2_tauIntraSample_0.5_\${gene}.rda,nindep_100_ncell_100_lambda_2_tauIntraSample_0.5_\${gene}.varianceRatio.txt >> for_conditioning.csv
@@ -430,7 +430,7 @@ workflow SAIGE_qtls{
         log.info('------- Running SAIGE QTLs ------- ')
 
         H5AD_TO_SAIGE_FORMAT(phenotype_file.flatten(),params.genotype_phenotype_mapping_file,params.aggregation_columns,genotype_pcs)
-        pheno = H5AD_TO_SAIGE_FORMAT.out.output_pheno
+        pheno = H5AD_TO_SAIGE_FORMAT.out.output_pheno.take(2)
 
         // We also need to define the chromosomes to test. 
         // If we go for a cis mode then we have to also define the ranges.
@@ -447,7 +447,9 @@ workflow SAIGE_qtls{
 
         result.combine(pheno, by: 0).set{pheno_chunk}
         SAIGE_S1(pheno_chunk.combine(bim_bed_fam))
-        SAIGE_S2(SAIGE_S1.out.output.combine(bim_bed_fam))
+        Channel.fromList(params.SAIGE.chromosomes_to_test)
+                .set{chromosomes_to_test}
+        SAIGE_S2(SAIGE_S1.out.output.combine(bim_bed_fam).combine(chromosomes_to_test))
         SAIGE_QVAL_COR(SAIGE_S2.out.output)
         SAIGE_S3(SAIGE_QVAL_COR.out.output)
 
@@ -482,6 +484,6 @@ workflow SAIGE_qtls{
         AGGREGATE_QTL_RESULTS(SAIGE_S3_for_aggregation.groupTuple(by: 0))
         AGGREGATE_QTL_ALLVARS(SAIGE_S2_for_aggregation.groupTuple(by: 0))
         AGGREGATE_ACAT_RESULTS(SAIGE_S3_for_aggregation_ACAT.groupTuple(by: 0))
-        // CONDITIONAL_QTL()
+        CONDITIONAL_QTL(SAIGE_QVAL_COR.out.for_conditioning)
 
 }
