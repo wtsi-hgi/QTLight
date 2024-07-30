@@ -173,6 +173,12 @@ workflow EQTL {
         KINSHIP_CALCULATION(PLINK_CONVERT.out.plink_path)
         PREPROCESS_SAMPLE_MAPPING(NORMALISE_and_PCA_PHENOTYPE.out.gen_phen_mapping)
 
+        CHUNK_GENOME.out.limix_condition_chunking.subscribe { println "out2 dist: $it" }
+        PLINK_CONVERT.out.plink_path.subscribe { println "out3 dist: $it" }
+        KINSHIP_CALCULATION.out.kinship_matrix.subscribe { println "out4 dist: $it" }
+        PREPROCESS_SAMPLE_MAPPING.out.genotype_phenotype.subscribe { println "out5 dist: $it" }
+        CHUNK_GENOME.out.filtered_chunking_file.subscribe { println "out6 dist: $it" }
+
         LIMIX_eqtls(
             CHUNK_GENOME.out.limix_condition_chunking,
             PLINK_CONVERT.out.plink_path,

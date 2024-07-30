@@ -30,6 +30,12 @@ process PLINK_CONVERT{
         """
             mkdir plink_genotypes
             plink2 --vcf ${file__vcf} ${pgen_or_bed} ${params.plink2_filters} --hwe ${params.hwe} --out plink_genotypes/plink_genotypes
+            # Sort the .bim file by chromosome and position
+            sort -k1,1n -k4,4n plink_genotypes/plink_genotypes.bim > plink_genotypes/plink_genotypes_sorted.bim
+
+            # Replace the original .bim file with the sorted one
+            mv plink_genotypes/plink_genotypes_sorted.bim plink_genotypes/plink_genotypes.bim
+
         """
     
 }

@@ -198,17 +198,16 @@ def main():
     inherited_options = parse_options()
     phenotype__file = inherited_options.phenotype__file
     aggregate_on = inherited_options.aggregate_on
-    aggregate_on='Azimuth:predicted.celltype.l1'
     genotype_pc_file = inherited_options.genotype_pc__file
     genotype_id = inherited_options.genotype_id
     sample_id = inherited_options.sample_id
     general_file_dir = inherited_options.general_file_dir
-    nperc = float(inherited_options.nperc)*10
+    nperc = float(inherited_options.nperc)*100
     min_cells = int(inherited_options.min)
     condition_col = inherited_options.condition_col
     condition = inherited_options.condition
     covariates = inherited_options.covariates
-    expression_pca = inherited_options.expression_pca
+    expression_pca = int(inherited_options.expression_pca)
     scale_covariates = inherited_options.scale_covariates
     bridge = inherited_options.bridge #'/lustre/scratch123/hgi/teams/hgi/mo11/tmp_projects/saige/v1/work/cc/5a5daedc5c9805a6fd355f479de666/gt_mapping_test.tsv'
     # level = inherited_options.level
@@ -319,7 +318,7 @@ def main():
     covariates_string = covariates+','+','.join(geno_pcs.drop(genotype_id,axis=1).columns.values)
     sample_covariates = ','.join(geno_pcs.drop(genotype_id,axis=1).columns.values)
     # Compute and add the expression PCs
-    if expression_pca == "true":
+    if expression_pca >0:
         print("Computing expression PCs")
         sc.pp.normalize_total(temp, target_sum=1e4)
         sc.pp.log1p(temp)
@@ -335,7 +334,7 @@ def main():
         np.savetxt(f"{savedir}/knee.txt", [knee_point], delimiter=',', fmt='%s')
         # Append the PC matrix onto the count data (up to 20)
         loadings = pd.DataFrame(temp.obsm['X_pca'])
-        loadings = loadings.iloc[:,0:20]
+        loadings = loadings.iloc[:,0:expression_pca]
         loadings.index = temp.obs.index
         loadings.rename(columns=lambda x: f'xPC{x+1}', inplace=True)
         counts = counts.merge(loadings, left_index=True, right_index=True)

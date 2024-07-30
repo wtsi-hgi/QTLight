@@ -343,8 +343,8 @@ process H5AD_TO_SAIGE_FORMAT {
         nperc=${params.percent_of_population_expressed}
         condition_col="NULL" #Specify 'NULL' if want to include all cells
         covariates="total_counts"
-        scale_covariates=false
-        expression_pca="true"
+        scale_covariates=true
+        expression_pca=${params.SAIGE.nr_expression_pcs}
         aggregate_on="${aggregation_columns}"
 
         mkdir output_agg
@@ -430,7 +430,7 @@ workflow SAIGE_qtls{
         log.info('------- Running SAIGE QTLs ------- ')
 
         H5AD_TO_SAIGE_FORMAT(phenotype_file.flatten(),params.genotype_phenotype_mapping_file,params.aggregation_columns,genotype_pcs)
-        pheno = H5AD_TO_SAIGE_FORMAT.out.output_pheno.take(1)
+        pheno = H5AD_TO_SAIGE_FORMAT.out.output_pheno
 
         // We also need to define the chromosomes to test. 
         // If we go for a cis mode then we have to also define the ranges.
