@@ -82,7 +82,7 @@ process SAIGE_S1 {
                 --outputPrefix=./output/nindep_100_ncell_100_lambda_2_tauIntraSample_0.5_\$i  \
                 --skipVarianceRatioEstimation=FALSE  \
                 --isRemoveZerosinPheno=FALSE \
-                --isCovariateOffset=FALSE  \
+                --isCovariateOffset=TRUE  \
                 --isCovariateTransform=TRUE  \
                 --skipModelFitting=FALSE  \
                 --tol=0.00001   \
@@ -213,7 +213,7 @@ process SAIGE_QVAL_COR {
 
             top_q=\$(awk -F'\t' 'NR==2 {print \$18}' ${output}/cis_\${gene}_minimum_q.txt)
             threshold=0.05
-            if (( \$(echo "\$top_q <= \$threshold" | bc -l) )); then
+            if awk "BEGIN {exit !(\$top_q <= \$threshold)}"; then
                 echo "Performing conditional analysis: q-value for first pass > \$threshold"
                 echo \${gene},${output}/nindep_100_ncell_100_lambda_2_tauIntraSample_0.5_\${gene}.rda,nindep_100_ncell_100_lambda_2_tauIntraSample_0.5_\${gene}.varianceRatio.txt >> for_conditioning.csv
             fi            
