@@ -106,6 +106,15 @@ def main():
         default=0.05,
         help=''
     )
+    
+    parser.add_argument(
+        '-pt', '--pval_threshold',
+        action='store',
+        dest='pval_threshold',
+        required=False,
+        default=0.01,
+        help=''
+    )
 
     parser.add_argument(
         '-cq', '--cis_qval_results',
@@ -155,7 +164,7 @@ def main():
     print(f"cis_qval_results: {cis_qval_results}")
     alpha = float(options.alpha)
     print(f"alpha: {str(alpha)}")
-
+    pval_threshold=float(options.pval_threshold)
     # Read in the phenotype file (for this test)
     # phenotype_df_pre = pd.read_csv(phenotype_file, sep = "\t")
     phenotype_df, phenotype_pos_df = tensorqtl.read_phenotype_bed(phenotype_file)
@@ -195,7 +204,7 @@ def main():
             print("Running trans analysis")
             trans_df_all = trans.map_trans(genotype_df, phenotype_df.loc[phenotype_pos_df['chr']!='chrY'],
                                 covariates_df = covariates_df, batch_size=10000,
-                                return_sparse=True, pval_threshold=0.01, maf_threshold=0.05)
+                                return_sparse=True, pval_threshold=pval_threshold, maf_threshold=maf)
 
             # Filter the trans for distance (1Mb)
             trans_df = trans.filter_cis(trans_df_all, phenotype_pos_df, variant_df, window=window)
