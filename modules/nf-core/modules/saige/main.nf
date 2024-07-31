@@ -128,30 +128,56 @@ process SAIGE_S2 {
         step2prefix=output_${name}___${chr}/nindep_100_ncell_100_lambda_2_tauIntraSample_0.5_cis
         mkdir output_${name}___${chr}
 
-        step2_tests_qtl.R       \
-                --bedFile=${plink_bed}      \
-                --bimFile=${plink_bim}      \
-                --famFile=${plink_fam}      \
-                --SAIGEOutputFile=\${step2prefix}     \
-                --chrom=${chr}       \
-                --minMAF=${params.SAIGE.minMAF} \
-                --minMAC=${params.SAIGE.minMAC} \
-                --LOCO=FALSE    \
-                --GMMATmodel_varianceRatio_multiTraits_File=${output}/step1_output_formultigenes.txt     \
-                --SPAcutoff=${params.SAIGE.SPAcutoff} \
-                --markers_per_chunk=${params.SAIGE.markers_per_chunk}
+        run_step2_tests_qtl() {
+            step2_tests_qtl.R       \
+                    --bedFile=${plink_bed}      \
+                    --bimFile=${plink_bim}      \
+                    --famFile=${plink_fam}      \
+                    --SAIGEOutputFile=\${step2prefix}     \
+                    --chrom=${chr}       \
+                    --minMAF=${params.SAIGE.minMAF} \
+                    --minMAC=${params.SAIGE.minMAC} \
+                    --LOCO=FALSE    \
+                    --GMMATmodel_varianceRatio_multiTraits_File=${output}/step1_output_formultigenes.txt     \
+                    --SPAcutoff=${params.SAIGE.SPAcutoff} \
+                    --markers_per_chunk=${params.SAIGE.markers_per_chunk}
+            line_count=\$(wc -l < output/step1_output_formultigenes.txt)
+            if [ "\$line_count" -eq 1 ]; then
+                echo "File has exactly one line"
+                var=\$(cat output/step1_output_formultigenes.txt | awk '{print \$1}')
+                echo \$var
+                mv output_${name}___${chr}/nindep_100_ncell_100_lambda_2_tauIntraSample_0.5_cis output_${name}___${chr}/nindep_100_ncell_100_lambda_2_tauIntraSample_0.5_cis_\$var
+                mv output_${name}___${chr}/nindep_100_ncell_100_lambda_2_tauIntraSample_0.5_cis.index output_${name}___${chr}/nindep_100_ncell_100_lambda_2_tauIntraSample_0.5_cis_\$var.index
+            else
+                echo "File does not have exactly one line"
+            fi
+        }
 
+        run_step2_tests_qtl
+        
+        cat "${genes_list}" | while IFS= read -r gene || [ -n "\$gene" ]
+        do
+            f1="output_${name}___${chr}/nindep_100_ncell_100_lambda_2_tauIntraSample_0.5_cis_\$gene"
+            first_line=\$(head -n 1 "\$f1")
+            # Check if the first line contains both V1 and V2
+            if [[ \$first_line == *"V1"* && \$first_line == *"V2"* ]]; then
+                echo "The first line contains both V1 and V2."
+                run_step2_tests_qtl
+            else
+                d="\$first_line : The first line does not contain both V1 and V2."
+            fi
+            line_count=\$(wc -l < \$f1)
+            if [ "\$line_count" -eq 1 ]; then
+                run_step2_tests_qtl
+                echo "The file has more <= 1 line."
+            elif [ "\$line_count" -lt 1 ]; then
+                run_step2_tests_qtl
+                echo "The file has more <= 1 line."
+            else
+                d="The file has more than 1 line."
+            fi
+        done
 
-        line_count=\$(wc -l < output/step1_output_formultigenes.txt)
-        if [ "\$line_count" -eq 1 ]; then
-            echo "File has exactly one line"
-            var=\$(cat output/step1_output_formultigenes.txt | awk '{print \$1}')
-            echo \$var
-            mv output/nindep_100_ncell_100_lambda_2_tauIntraSample_0.5_cis output/nindep_100_ncell_100_lambda_2_tauIntraSample_0.5_cis_\$var
-            mv output/nindep_100_ncell_100_lambda_2_tauIntraSample_0.5_cis.index output/nindep_100_ncell_100_lambda_2_tauIntraSample_0.5_cis_\$var.index
-        else
-            echo "File does not have exactly one line"
-        fi
 
     """
 }
