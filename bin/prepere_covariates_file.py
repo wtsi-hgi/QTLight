@@ -65,14 +65,16 @@ def main():
     pfile=options.pfile
     covariates_df = pd.read_csv(genotype_pcs, sep='\t', index_col=0)
 
-    if pfile:
-        covariates_df.index.names = ['Genotype']
-    else:
-        covariates_df=covariates_df.rename(columns={'IID':'Genotype'})
-        try:
-          covariates_df=covariates_df.set_index('Genotype')
-        except:
-          print('col already set')
+    # if pfile:
+    #     covariates_df.index.names = ['Genotype']
+    # else:
+    covariates_df=covariates_df.rename(columns={'IID':'Genotype'})
+    covariates_df=covariates_df.rename(columns={'#IID':'Genotype'})
+    
+    try:
+        covariates_df=covariates_df.set_index('Genotype')
+    except:
+        print('col already set')
 
     phenotype_pcs=options.phenotype_pcs
     phenotype_pcs= pd.read_csv(phenotype_pcs, sep='\t', index_col=0)

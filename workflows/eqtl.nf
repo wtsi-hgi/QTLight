@@ -167,23 +167,17 @@ workflow EQTL {
 
     // LIMIX QTL mapping method
     if (params.LIMIX.run){
-        filtered_pheno_channel =NORMALISE_and_PCA_PHENOTYPE.out.filtered_phenotype.map { tuple ->  [tuple[2],[[tuple[0],tuple[1]]]].combinations()}.flatten().collate(3)
+        filtered_pheno_channel =SUBSET_PCS.out.for_bed.map { tuple ->  [tuple[3],[[tuple[0],tuple[1],tuple[2]]]].combinations()}.flatten().collate(4)
         CHUNK_GENOME(genome_annotation,filtered_pheno_channel)
-
         KINSHIP_CALCULATION(PLINK_CONVERT.out.plink_path)
-        PREPROCESS_SAMPLE_MAPPING(NORMALISE_and_PCA_PHENOTYPE.out.gen_phen_mapping)
-
-        CHUNK_GENOME.out.limix_condition_chunking.subscribe { println "out2 dist: $it" }
-        PLINK_CONVERT.out.plink_path.subscribe { println "out3 dist: $it" }
-        KINSHIP_CALCULATION.out.kinship_matrix.subscribe { println "out4 dist: $it" }
-        PREPROCESS_SAMPLE_MAPPING.out.genotype_phenotype.subscribe { println "out5 dist: $it" }
-        CHUNK_GENOME.out.filtered_chunking_file.subscribe { println "out6 dist: $it" }
-
+        limix_cunks_for_each_cond = CHUNK_GENOME.out.limix_condition_chunking.take(2)
+        // limix pipeline is curently not correctly chunked. 
+        // Genes should be batched and the regions that they need to be tested on also chunked. 
+        // Curently we are testing all the genes for all the possible gene cis windoes.
         LIMIX_eqtls(
-            CHUNK_GENOME.out.limix_condition_chunking,
+            limix_cunks_for_each_cond,
             PLINK_CONVERT.out.plink_path,
             KINSHIP_CALCULATION.out.kinship_matrix,
-            PREPROCESS_SAMPLE_MAPPING.out.genotype_phenotype,
             CHUNK_GENOME.out.filtered_chunking_file
         )
     }
@@ -192,7 +186,7 @@ workflow EQTL {
     // TensorQTL QTL mapping method
     if (params.TensorQTL.run){
         for_bed_channel = SUBSET_PCS.out.for_bed.map { tuple ->  [tuple[3],[[tuple[0],tuple[1],tuple[2]]]].combinations()}.flatten().collate(4)
-        PREPERE_EXP_BED(for_bed_channel,params.annotation_file,GENOTYPE_PC_CALCULATION.out.gtpca_plink)
+        PREPERE_EXP_BED(for_bed_channel,genome_annotation,GENOTYPE_PC_CALCULATION.out.gtpca_plink)
 
         TENSORQTL_eqtls(
             PREPERE_EXP_BED.out.exp_bed,
@@ -222,6 +216,11 @@ workflow EQTL {
 */
 
 workflow.onComplete {
+
+    log.info "Pipeline completed at: $workflow.complete"
+    log.info "Command line: $workflow.commandLine"
+    log.info "Execution status: ${ workflow.success ? 'OK' : 'failed' }"
+
     if (params.email || params.email_on_fail) {
         NfcoreTemplate.email(workflow, params, summary_params, projectDir, log, multiqc_report)
     }

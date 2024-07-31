@@ -58,6 +58,14 @@ def main():
     )    
 
     parser.add_argument(
+        '-gp', '--genotype_phenotype_file',
+        action='store',
+        dest='genotype_phenotype_file',
+        required=True,
+        help='Genotype phenotype mapping file.'
+    )    
+    
+    parser.add_argument(
         '-cs', '--chunk_size',
         action='store',
         dest='chunk_size',
@@ -125,6 +133,7 @@ def main():
     data_to_export2['condition']=options.condition
     data_to_export2['phenotypeFile']=f"{os.getcwd()}/{options.phenotype_file}"
     data_to_export2['covars']=f"{os.getcwd()}/{options.covar_file}"
+    data_to_export2['genotype_phenotype_file']=f"{os.getcwd()}/{options.genotype_phenotype_file}"
     data_to_export2['anotation_file']=f"{os.getcwd()}/annotation_file_processed.tsv"
     
     data_to_export2.to_csv('limix_chunking.tsv',sep='\t',index=None)

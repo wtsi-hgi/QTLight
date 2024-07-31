@@ -23,13 +23,16 @@ process PLINK_CONVERT{
 
     if(params.TensorQTL.use_gt_dosage==true && params.TensorQTL.run==true){
       pgen_or_bed = "'dosage=DS' --make-pgen"
+      command2="plink2 --vcf ${file__vcf} ${pgen_or_bed} ${params.plink2_filters} --hwe ${params.hwe} --out plink_genotypes/plink_genotypes"
     }else{
       pgen_or_bed = "--make-bed"
+      command2=""
     }
 
         """
             mkdir plink_genotypes
-            plink2 --vcf ${file__vcf} ${pgen_or_bed} ${params.plink2_filters} --hwe ${params.hwe} --out plink_genotypes/plink_genotypes
+            ${command2}
+            plink2 --vcf ${file__vcf} --make-bed ${params.plink2_filters} --hwe ${params.hwe} --out plink_genotypes/plink_genotypes
             # Sort the .bim file by chromosome and position
             sort -k1,1n -k4,4n plink_genotypes/plink_genotypes.bim > plink_genotypes/plink_genotypes_sorted.bim
 
