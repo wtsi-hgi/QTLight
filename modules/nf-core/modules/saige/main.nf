@@ -242,13 +242,18 @@ process SAIGE_S3 {
     // Define the Bash script to run for each array job
     // nindep_100_ncell_100_lambda_2_tauIntraSample_0.5_gene_1_cis_gene_1
     script:
+
+    parts = name.split('___')
+    chr = parts[-1]
+
     """
+        
         cat "${genes_list}" | while IFS= read -r gene || [ -n "\$gene" ]
         do
             step3_gene_pvalue_qtl.R \
             --assocFile=${output}/nindep_100_ncell_100_lambda_2_tauIntraSample_0.5_cis_\${gene}        \
             --geneName=\${gene}       \
-            --genePval_outputFile=${output}/nindep_100_ncell_100_lambda_2_tauIntraSample_0.5_\${gene}_cis_genePval
+            --genePval_outputFile=${output}/nindep_100_ncell_100_lambda_chr${chr}_tauIntraSample_0.5_\${gene}_cis_genePval
         done
     """
 }
@@ -322,7 +327,7 @@ process AGGREGATE_QTL_ALLVARS{
     }    
     
 
-    publishDir  path: "${params.outdir}/Saige_eQTLS/${group}",
+    publishDir  path: "${params.outdir}/Saige_eQTLS/${exp}",
                 mode: "${params.copy_mode}",
                 overwrite: "true"
 
@@ -332,7 +337,9 @@ process AGGREGATE_QTL_ALLVARS{
         tuple val(group),path("all_vars_genes.tsv"), emit: all
 
     script:
-        
+        parts = group.split('___')
+        chr = parts[-1]
+        exp = parts[0]
         """
             prepend_gene_large.py --pattern 'cis_*' --column 'gene' --outfile 'all_vars_genes.tsv'
         """
@@ -482,7 +489,7 @@ workflow SAIGE_qtls{
         SAIGE_S3(SAIGE_QVAL_COR.out.output)
 
 
-        SAIGE_QVAL_COR.out.for_conditioning.subscribe { println "SAIGE_QVAL_COR dist: $it" }
+        // SAIGE_QVAL_COR.out.for_conditioning.subscribe { println "SAIGE_QVAL_COR dist: $it" }
         // ########## Collecting Chunk outputs.  ###############
         SAIGE_S2_for_aggregation = SAIGE_S2.out.for_aggregation.flatMap { item ->
             def (first, second) = item
@@ -507,7 +514,14 @@ workflow SAIGE_qtls{
             }
             return second.collect { [first, it] }
         }
-
+        SAIGE_S3_for_aggregation_ACAT = SAIGE_S3_for_aggregation_ACAT.map{row->tuple("${row[0]}".replaceFirst(/___.*/,""),
+                                                    file(row[1])
+                                                    )}
+                                            
+        SAIGE_S3_for_aggregation = SAIGE_S3_for_aggregation.map{row->tuple("${row[0]}".replaceFirst(/___.*/,""),
+                                                    file(row[1])
+                                                    )}
+                                            
         // ########## Aggregating and emiting the results.  ###############
         AGGREGATE_QTL_RESULTS(SAIGE_S3_for_aggregation.groupTuple(by: 0))
         AGGREGATE_QTL_ALLVARS(SAIGE_S2_for_aggregation.groupTuple(by: 0))
