@@ -200,18 +200,22 @@ process SAIGE_QVAL_COR {
     output:
         tuple val(name),path(genes_list),path(output),emit:output
         tuple val(name),path('for_conditioning.csv'), emit: for_conditioning optional true
-
+        tuple val(name),path("output3/*_minimum_q.txt"), emit: q_out
     script:
+
+        parts = name.split('___')
+        chr = parts[-1]
+        exp = parts[0]
     """
         
         step2prefix=output_${name}/nindep_100_ncell_100_lambda_2_tauIntraSample_0.5_cis
-                
+        mkdir output3 
         cat "${genes_list}" | while IFS= read -r gene || [ -n "\$gene" ]
         do
             qvalue_correction.R -f \${step2prefix}_\${gene} -c "13" -n "qvalues" -w "TRUE"
-            mv \${step2prefix}_\${gene}_minimum_q.txt ${output}/cis_\${gene}_minimum_q.txt
+            mv \${step2prefix}_\${gene}_minimum_q.txt output3/cis_\${gene}_${chr}_minimum_q.txt
 
-            top_q=\$(awk -F'\t' 'NR==2 {print \$18}' ${output}/cis_\${gene}_minimum_q.txt)
+            top_q=\$(awk -F'\t' 'NR==2 {print \$18}' output3/cis_\${gene}_${chr}_minimum_q.txt)
             threshold=0.05
             if awk "BEGIN {exit !(\$top_q <= \$threshold)}"; then
                 echo "Performing conditional analysis: q-value for first pass > \$threshold"
@@ -237,8 +241,7 @@ process SAIGE_S3 {
     input:
         tuple val(name),path(genes_list),path(output)
     output:
-        tuple val(name),path("${output}/*_minimum_q.txt"), emit: q_out
-        tuple val(name),path("${output}/*_cis_genePval"), emit: q_out_2
+        tuple val(name),path("output_2/*_cis_genePval"), emit: q_out_2
     // Define the Bash script to run for each array job
     // nindep_100_ncell_100_lambda_2_tauIntraSample_0.5_gene_1_cis_gene_1
     script:
@@ -247,13 +250,13 @@ process SAIGE_S3 {
     chr = parts[-1]
 
     """
-        
+        mkdir output_2
         cat "${genes_list}" | while IFS= read -r gene || [ -n "\$gene" ]
         do
             step3_gene_pvalue_qtl.R \
             --assocFile=${output}/nindep_100_ncell_100_lambda_2_tauIntraSample_0.5_cis_\${gene}        \
             --geneName=\${gene}       \
-            --genePval_outputFile=${output}/nindep_100_ncell_100_lambda_chr${chr}_tauIntraSample_0.5_\${gene}_cis_genePval
+            --genePval_outputFile=output_2/nindep_100_ncell_100_lambda_chr${chr}_tauIntraSample_0.5_\${gene}_cis_genePval
         done
     """
 }
@@ -340,8 +343,9 @@ process AGGREGATE_QTL_ALLVARS{
         parts = group.split('___')
         chr = parts[-1]
         exp = parts[0]
+
         """
-            prepend_gene_large.py --pattern 'cis_*' --column 'gene' --outfile 'all_vars_genes.tsv'
+            prepend_gene_large.py --pattern 'cis_*' --column 'gene' --outfile 'chr${chr}__all_vars_genes.tsv'
         """
 }
 
@@ -499,7 +503,7 @@ workflow SAIGE_qtls{
             return second.collect { [first, it] }
         }
 
-        SAIGE_S3_for_aggregation = SAIGE_S3.out.q_out.flatMap { item ->
+        SAIGE_S3_for_aggregation = SAIGE_QVAL_COR.out.q_out.flatMap { item ->
             def (first, second) = item
             if (!(second instanceof Collection)) {
                 second = [second] // Wrap single value in a list
@@ -516,12 +520,12 @@ workflow SAIGE_qtls{
         }
         SAIGE_S3_for_aggregation_ACAT = SAIGE_S3_for_aggregation_ACAT.map{row->tuple("${row[0]}".replaceFirst(/___.*/,""),
                                                     file(row[1])
-                                                    )}
-                                            
+                                                    )}  
+
         SAIGE_S3_for_aggregation = SAIGE_S3_for_aggregation.map{row->tuple("${row[0]}".replaceFirst(/___.*/,""),
                                                     file(row[1])
-                                                    )}
-                                            
+                                                    )}  
+        // SAIGE_S3_for_aggregation_ACAT.subscribe { println "SAIGSAIGE_S3_for_aggregation_ACATE_QVAL_COR dist: $it" }
         // ########## Aggregating and emiting the results.  ###############
         AGGREGATE_QTL_RESULTS(SAIGE_S3_for_aggregation.groupTuple(by: 0))
         AGGREGATE_QTL_ALLVARS(SAIGE_S2_for_aggregation.groupTuple(by: 0))
