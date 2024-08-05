@@ -41,7 +41,7 @@ process TENSORQTL {
   }
     """ 
       bedtools sort -i ${aggrnorm_counts_bed} -header > Expression_Data.sorted.bed
-      
+      sed -i 's/^chr//' Expression_Data.sorted.bed
       ${tensor_qtl_script} --plink_prefix_path ${plink_files_prefix}/plink_genotypes --expression_bed Expression_Data.sorted.bed --covariates_file ${covariates_tsv} -window ${params.windowSize} ${dosage} --outdir ${outpath}
       cd ${outpath} && ln ../../../${covariates_tsv} ./ && ln ../../../Expression_Data.sorted.bed
     """
@@ -159,8 +159,7 @@ process TRANS_BY_CIS {
       }else{
         dosage = ""
       }
-      // Define alpha value
-      alpha = "0.05"
+
       """
       tensor_analyse_trans_by_cis.py \
         --covariates_file ${covariates} \
@@ -168,10 +167,11 @@ process TRANS_BY_CIS {
         --plink_prefix_path ${plink_files_prefix}/plink_genotypes \
         --outdir "./" \
         --dosage ${dosage} \
-        --maf "0.05" \
+        --maf ${params.maf} \
         --cis_qval_results ${cis_eqtls_qval} \
-        --alpha ${alpha} \
+        --alpha ${params.TensorQTL.alpha} \
         --window ${params.windowSize}
+        
       """
 
       
@@ -225,7 +225,8 @@ process TRANS_OF_CIS {
         --maf "0.05" \
         --cis_qval_results ${cis_eqtls_qval} \
         --alpha ${alpha} \
-        --window ${params.windowSize}
+        --window ${params.windowSize} \
+        --pval_threshold ${params.TensorQTL.trans_by_cis_pval_threshold}
       """
       //cp trans-by-cis_bonf_fdr.tsv ${outpath}
       //"""

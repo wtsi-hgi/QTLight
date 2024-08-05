@@ -216,6 +216,11 @@ workflow EQTL {
 */
 
 workflow.onComplete {
+
+    log.info "Pipeline completed at: $workflow.complete"
+    log.info "Command line: $workflow.commandLine"
+    log.info "Execution status: ${ workflow.success ? 'OK' : 'failed' }"
+
     if (params.email || params.email_on_fail) {
         NfcoreTemplate.email(workflow, params, summary_params, projectDir, log, multiqc_report)
     }
