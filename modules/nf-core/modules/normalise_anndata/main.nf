@@ -28,7 +28,7 @@ process NORMALISE_ANNDATA {
 process REMAP_GENOTPE_ID{
     publishDir  path: "${params.outdir}/normalise_anndata",mode: "${params.copy_mode}",
                 overwrite: "true"
-    label 'process_medium_memory'
+    label 'process_low'
 
     if (workflow.containerEngine == 'singularity' && !params.singularity_pull_docker_container) {
         container "${params.eqtl_container}"
