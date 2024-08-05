@@ -17,24 +17,30 @@ process PLINK_CONVERT{
         path(file__vcf)
     output:
         path("plink_genotypes"), emit: plink_path
-        tuple path("plink_genotypes/plink_genotypes.bim"),path("plink_genotypes/plink_genotypes.bed"),path("plink_genotypes/plink_genotypes.fam"), emit: bim_bed_fam
+        tuple path("plink_genotypes2/plink_genotypes.bim"),path("plink_genotypes2/plink_genotypes.bed"),path("plink_genotypes2/plink_genotypes.fam"), emit: bim_bed_fam
 
     script:
 
-    if(params.TensorQTL.use_gt_dosage==true && params.TensorQTL.run==true){
-      pgen_or_bed = "'dosage=DS' --make-pgen"
-    }else{
-      pgen_or_bed = "--make-bed"
-    }
+        if(params.TensorQTL.use_gt_dosage==true && params.TensorQTL.run==true){
+        pgen = "plink2 --vcf ${file__vcf} 'dosage=DS' --make-pgen ${params.plink2_filters} --hwe ${params.hwe} --out plink_genotypes/plink_genotypes"
+        }else{
+        pgen = ""
+        }
+
+
+
+    
 
         """
             mkdir plink_genotypes
-            plink2 --vcf ${file__vcf} ${pgen_or_bed} ${params.plink2_filters} --hwe ${params.hwe} --out plink_genotypes/plink_genotypes
+            mkdir plink_genotypes2
+            ${pgen}
+            plink2 --vcf ${file__vcf} --make-bed ${params.plink2_filters} --hwe ${params.hwe} --out plink_genotypes2/plink_genotypes
             # Sort the .bim file by chromosome and position
-            sort -k1,1n -k4,4n plink_genotypes/plink_genotypes.bim > plink_genotypes/plink_genotypes_sorted.bim
+            sort -k1,1n -k4,4n plink_genotypes2/plink_genotypes.bim > plink_genotypes2/plink_genotypes_sorted.bim
 
             # Replace the original .bim file with the sorted one
-            mv plink_genotypes/plink_genotypes_sorted.bim plink_genotypes/plink_genotypes.bim
+            mv plink_genotypes2/plink_genotypes_sorted.bim plink_genotypes2/plink_genotypes.bim
 
         """
     

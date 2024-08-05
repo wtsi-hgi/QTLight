@@ -61,6 +61,7 @@ process SAIGE_S1 {
         
     output:
         tuple val(name),path(genes_list),path("output"),emit:output
+        path("genes_droped_from_s1_due_to_error.tsv"), emit: dropped optional true
 
     // Define the Bash script to run for each array job
     script:
@@ -70,6 +71,7 @@ process SAIGE_S1 {
         mkdir output
         cat "${genes_list}" | while IFS= read -r i || [ -n "\$i" ]
         do
+           {  # try
             step1_fitNULLGLMM_qtl.R \
                 --useSparseGRMtoFitNULL=FALSE  \
                 --useGRMtoFitNULL=FALSE \
@@ -89,7 +91,12 @@ process SAIGE_S1 {
                 --famFile ${plink_fam} \
                 --bimFile ${plink_bim} \
                 --bedFile ${plink_bed} \
-                --IsOverwriteVarianceRatioFile=TRUE
+                --IsOverwriteVarianceRatioFile=TRUE 
+            } || {
+                # catch
+                sed -i '/\$i/d' ${genes_list}
+                echo \$i >> \$i_genes_droped_from_s1_due_to_error.tsv
+            }
         done
 
         cat "${genes_list}" | while IFS= read -r i || [ -n "\$i" ]
