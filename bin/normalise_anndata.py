@@ -11,7 +11,7 @@ import numpy as np
 # from pysctransform import vst, get_hvg_residuals, SCTransform
 np.random.seed(42)
 import argparse
-
+import scipy as sp
 
 def main():
     """Run CLI."""
@@ -48,7 +48,7 @@ def main():
     method = options.method
     
 
-    available_methods = ['cp10k', 'scT']
+    available_methods = ['cp10k', 'scT','NONE']
     if method not in list(adata.layers.keys()) + available_methods:
         raise ValueError("Method not in adata.layers or available_methods.")
 

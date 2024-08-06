@@ -11,5 +11,5 @@ SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
 
 sample="$RUN_ID"
 echo -e "\n Submitting eqtl (https://github.com/wtsi-hgi/eqtl) with input file $INPUT_FILE"
-bsub -R'select[mem>30000] rusage[mem=30000]' -J $sample -n 1 -M 30000 -o $sample.o -e $sample.e -q normal bash $SCRIPT_DIR/../../assets/deploy_scripts/nohup_start_nextflow_lsf.sh $INPUT_FILE
+bsub -R'select[mem>30000] rusage[mem=30000]' -J $sample -n 1 -M 30000 -o $sample.o -e $sample.e -q $QUEUE bash $SCRIPT_DIR/../../assets/deploy_scripts/nohup_start_nextflow_lsf.sh $INPUT_FILE
 echo "Submitted job can be killed with: bkill -J $sample"
