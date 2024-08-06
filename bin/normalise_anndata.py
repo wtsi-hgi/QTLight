@@ -13,6 +13,16 @@ np.random.seed(42)
 import argparse
 import scipy as sp
 
+def PF(X):
+    cd=np.asarray(X.sum(1)).ravel()
+    avg_cd=cd.mean()
+    
+    return sp.sparse.diags(avg_cd/cd).dot(X)
+
+def log1p(X):
+    return X.log1p()
+    
+
 def main():
     """Run CLI."""
     parser = argparse.ArgumentParser(
@@ -48,7 +58,7 @@ def main():
     method = options.method
     
 
-    available_methods = ['cp10k', 'scT','NONE']
+    available_methods = ['cp10k', 'scT','NONE','pf_log1p_pf']
     if method not in list(adata.layers.keys()) + available_methods:
         raise ValueError("Method not in adata.layers or available_methods.")
 
@@ -69,14 +79,9 @@ def main():
                                                         target_sum=1e4,
                                                         exclude_highly_expressed=False,
                                                         inplace=False)['X'])
-    
-    # if method == 'pearson':
-    #     # Uses the Pearson residuals to normalise the data similar to scTransform
-    #     # but working implementation in python
-    #     adata.layers['dMean_normalised']= sc.pp.log1p(sc.pp.normalize_total(adata,
-    #                                                     target_sum=1e4,
-    #                                                     exclude_highly_expressed=False,
-    #                                                     inplace=False)['X'])
+    if method == 'pf_log1p_pf':
+        adata.layers['dMean_normalised'] = PF(log1p(PF(adata.X)))
+
 
     
     # if method == 'scT':

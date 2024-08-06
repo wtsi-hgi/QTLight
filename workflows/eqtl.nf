@@ -104,8 +104,21 @@ workflow EQTL {
 
     }else if (params.method=='single_cell'){
         log.info '------ Scrna analysis ------'
-        NORMALISE_ANNDATA(params.phenotype_file)
-        SPLIT_AGGREGATION_ADATA(NORMALISE_ANNDATA.out.adata,params.aggregation_columns)
+        pheno = params.phenotype_file
+        if (params.normalise_before_or_after_aggregation=='before'){
+            // here we normalise the adata all together per splits
+            NORMALISE_ANNDATA(params.phenotype_file)
+            pheno = NORMALISE_ANNDATA.out.adata
+        }
+        
+        SPLIT_AGGREGATION_ADATA(pheno,params.aggregation_columns)
+        splits_h5ad = SPLIT_AGGREGATION_ADATA.out.split_phenotypes.flatten()
+        if (params.normalise_before_or_after_aggregation=='after'){
+            // here we normalise the adata per splits
+            NORMALISE_ANNDATA(SPLIT_AGGREGATION_ADATA.out.split_phenotypes.flatten())
+            splits_h5ad = NORMALISE_ANNDATA.out.adata
+        }
+
         AGGREGATE_UMI_COUNTS(SPLIT_AGGREGATION_ADATA.out.split_phenotypes.flatten(),params.aggregation_columns,params.gt_id_column,params.sample_column,params.n_min_cells,params.n_min_individ)
         out2 = AGGREGATE_UMI_COUNTS.out.phenotype_genotype_file.map { data ->
                 def (item, list1, list2) = data
