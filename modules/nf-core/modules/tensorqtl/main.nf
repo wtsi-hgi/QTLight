@@ -64,7 +64,7 @@ process PREP_OPTIMISE_PCS {
     cd ${condition}_symlink
     for path in ${paths_str}; do
          unique_name=\$(echo \$path | awk -F/ '{print \$(NF-2)"__"\$(NF-1)"__"\$NF}')
-        ln -s \$path \$unique_name
+        ln -s \$path \$unique_name || echo 'already liked'
     done
     """
 }

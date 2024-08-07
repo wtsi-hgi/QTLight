@@ -128,6 +128,11 @@ process SAIGE_S2 {
         tuple val("${name}___${chr}"),path("output_${name}___${chr}/nindep_100_ncell_100_lambda_2_tauIntraSample_0.5_cis_*"),emit:for_aggregation
 
     script:
+        if (params.SAIGE.cis_trans_mode=='cis'){
+            mode="--rangestoIncludeFile=\${step2prefix}_region_file.txt"
+        }else{
+            mode=""
+        }
     
     """
         
@@ -147,7 +152,7 @@ process SAIGE_S2 {
                     --LOCO=FALSE    \
                     --GMMATmodel_varianceRatio_multiTraits_File=${output}/step1_output_formultigenes.txt     \
                     --SPAcutoff=${params.SAIGE.SPAcutoff} \
-                    --markers_per_chunk=${params.SAIGE.markers_per_chunk}
+                    --markers_per_chunk=${params.SAIGE.markers_per_chunk} ${mode}
             line_count=\$(wc -l < output/step1_output_formultigenes.txt)
             if [ "\$line_count" -eq 1 ]; then
                 echo "File has exactly one line"
@@ -185,6 +190,86 @@ process SAIGE_S2 {
             fi
         done
 
+
+    """
+}
+
+process SAIGE_S2_CIS {
+    label 'process_low'
+
+    // Specify the number of forks (10k)
+    maxForks 1000
+
+    if (workflow.containerEngine == 'singularity' && !params.singularity_pull_docker_container) {
+        container "${params.saige_container}"
+    } else {
+        container "${params.saige_docker}"
+    }    
+
+    input:
+        tuple val(name),path(genes_list),path(output),path(genome_regions),path(plink_bim), path(plink_bed), path(plink_fam),val(chr)
+
+    output:
+        tuple val("${name}___${chr}"),path("genes_list2.tsv"),path("output_${name}___${chr}"),emit:output optional true
+        tuple val("${name}___${chr}"),path("output_${name}___${chr}/nindep_100_ncell_100_lambda_2_tauIntraSample_0.5_cis_*"),emit:for_aggregation  optional true
+
+    script:
+        if (params.SAIGE.cis_trans_mode=='cis'){
+            mode="--rangestoIncludeFile=regions_cis.tsv"
+        }else{
+            mode=""
+        }
+    
+    """
+        run_step2_tests_qtl() {
+            { 
+                step2_tests_qtl.R       \
+                    --bedFile=${plink_bed}      \
+                    --bimFile=${plink_bim}      \
+                    --famFile=${plink_fam}      \
+                    --SAIGEOutputFile=output_${name}___${chr}/nindep_100_ncell_100_lambda_2_tauIntraSample_0.5_cis_\${variable}    \
+                    --chrom=${chr}       \
+                    --minMAF=${params.SAIGE.minMAF} \
+                    --minMAC=${params.SAIGE.minMAC} \
+                    --LOCO=FALSE    \
+                    --varianceRatioFile=\${step1prefix}_\${variable}.varianceRatio.txt    \
+                    --GMMATmodelFile=\${step1prefix}_\${variable}.rda    \
+                    --SPAcutoff=${params.SAIGE.SPAcutoff} \
+                    --markers_per_chunk=${params.SAIGE.markers_per_chunk} ${mode} 
+                echo "\${variable}" >> genes_list2.tsv
+                    
+            } || { 
+                echo 'Failed since no markers present in range'
+                rm output_${name}___${chr}/nindep_100_ncell_100_lambda_2_tauIntraSample_0.5_cis_\${variable}
+            }
+        }
+
+
+        if awk '\$2 == ${chr} {found=${chr}; exit} END {exit !found}' ${genome_regions}; then
+            echo "The chromosome '${chr}' is found in the second column."
+
+            step1prefix=${output}/nindep_100_ncell_100_lambda_2_tauIntraSample_0.5           
+            step2prefix=output_${name}___${chr}/nindep_100_ncell_100_lambda_2_tauIntraSample_0.5_cis
+            mkdir output_${name}___${chr}
+            
+            cat "${genome_regions}" | while IFS= read -r gene || [ -n "\$gene" ]
+            do
+                echo "\$gene" | cut -f2- >> regions_cis.tsv
+                variable=\$(echo "\$gene" | cut -f1)
+                echo \${variable}
+                chr1=\$(echo "\$gene" | cut -f2)
+                
+                if [ "\$chr1" -eq ${chr} ]; then
+                    run_step2_tests_qtl
+                else
+                    echo 'Not on the correct chromosome'
+                    #sed -i '/\$variable/d' ${genes_list}
+                fi
+                rm regions_cis.tsv
+            done
+        else
+            echo "The chromosome '${chr}' is not found in the testing range, and hence ignored."
+        fi
 
     """
 }
@@ -466,11 +551,39 @@ process CHUNK_GENES {
     """
 }
 
+process DETERMINE_TSS_AND_TEST_REGIONS {
+    label 'process_low'
+
+    // Specify the number of forks (10k)
+    maxForks 1000
+
+    if (workflow.containerEngine == 'singularity' && !params.singularity_pull_docker_container) {
+        container "${params.eqtl_container}"
+    } else {
+        container "${params.eqtl_docker}"
+    }    
+
+    input:
+        tuple val(name),path(genes_list),path(output)
+        each path(annotation_file)
+
+    output:
+        tuple val(name),path(genes_list),path(output),path('gene_regions_to_test.tsv'),emit:output_genes
+        
+    // We want to test in a ceirtain window of the gene TSS +/-, to do this we need to propeare SAIGE regions files. 
+    script:
+    """
+        echo 'Lets prepeare the regions file'
+        prepeare_Saige_regions_for_cis.py --annotation_file ${annotation_file} --genes ${genes_list} --gtf_type ${params.gtf_type} --window ${params.windowSize}
+    """
+}
+
 workflow SAIGE_qtls{
     take:
         genotype_pcs
         phenotype_file
         bim_bed_fam
+        genome_annotation
 
     main:
         log.info('------- Running SAIGE QTLs ------- ')
@@ -492,17 +605,36 @@ workflow SAIGE_qtls{
         }
 
         result.combine(pheno, by: 0).set{pheno_chunk}
-        SAIGE_S1(pheno_chunk.combine(bim_bed_fam))
+
+        
         Channel.fromList(params.SAIGE.chromosomes_to_test)
-                .set{chromosomes_to_test}
-        SAIGE_S2(SAIGE_S1.out.output.combine(bim_bed_fam).combine(chromosomes_to_test))
-        SAIGE_QVAL_COR(SAIGE_S2.out.output)
+                .set{chromosomes_to_test}        
+
+        SAIGE_S1(pheno_chunk.combine(bim_bed_fam))
+
+
+        if(params.SAIGE.cis_trans_mode=='trans'){
+            SAIGE_S2(SAIGE_S1.out.output.combine(bim_bed_fam).combine(chromosomes_to_test))
+            output_s2 = SAIGE_S2.out.output
+            agg_output = SAIGE_S2.out.for_aggregation
+
+        }else if(params.SAIGE.cis_trans_mode=='cis'){
+            DETERMINE_TSS_AND_TEST_REGIONS(SAIGE_S1.out.output,genome_annotation)
+            for_cis_input = DETERMINE_TSS_AND_TEST_REGIONS.out.output_genes
+            SAIGE_S2_CIS(for_cis_input.combine(bim_bed_fam).combine(chromosomes_to_test))
+            output_s2 = SAIGE_S2_CIS.out.output
+            agg_output = SAIGE_S2_CIS.out.for_aggregation
+        }
+
+        // HERE WE either run the cis or trans qtl mapping. For cis we loop through each of the chunks whereas in trans we can run all together.
+         
+        SAIGE_QVAL_COR(output_s2)
         SAIGE_S3(SAIGE_QVAL_COR.out.output)
 
 
         // SAIGE_QVAL_COR.out.for_conditioning.subscribe { println "SAIGE_QVAL_COR dist: $it" }
         // ########## Collecting Chunk outputs.  ###############
-        SAIGE_S2_for_aggregation = SAIGE_S2.out.for_aggregation.flatMap { item ->
+        SAIGE_S2_for_aggregation = agg_output.flatMap { item ->
             def (first, second) = item
             if (!(second instanceof Collection)) {
                 second = [second] // Wrap single value in a list
