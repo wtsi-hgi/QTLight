@@ -113,7 +113,10 @@ def main():
         genotype_phenotype_mapping = []
         aggregated_data=pd.DataFrame()
         if (method =='dMean'):
-            adata.X = adata.layers['dMean_normalised']
+            try:
+                adata.X = adata.layers['dMean_normalised']
+            except:
+                print('probably already normalised since no layer added')
         for agg_col in agg_columns:
             print(agg_col)
             print("----------")

@@ -19,8 +19,14 @@ process NORMALISE_ANNDATA {
       path("normAnnData.h5ad", emit:adata)
     script:
       outdir = params.outdir
+      if ("${params.dMean_norm_method}"=='NONE'){
+        comand="ln -s ${adata} normAnnData.h5ad"
+      }else{
+        comand="normalise_anndata.py -h5ad ${adata} --method ${params.dMean_norm_method}"
+      }
+
       """
-        normalise_anndata.py -h5ad ${adata} --method ${params.dMean_norm_method}
+        ${comand}
       """
 }
 

@@ -61,7 +61,7 @@ process SAIGE_S1 {
         
     output:
         tuple val(name),path(genes_list),path("output"),emit:output
-        path("genes_droped_from_s1_due_to_error.tsv"), emit: dropped optional true
+        path("*genes_droped_from_s1_due_to_error.tsv"), emit: dropped optional true
 
     // Define the Bash script to run for each array job
     script:
@@ -95,7 +95,7 @@ process SAIGE_S1 {
             } || {
                 # catch
                 sed -i '/\$i/d' ${genes_list}
-                echo \$i >> \$i_genes_droped_from_s1_due_to_error.tsv
+                echo \$i >> \${i}_genes_droped_from_s1_due_to_error.tsv
             }
         done
 
@@ -344,7 +344,7 @@ process AGGREGATE_QTL_ALLVARS{
     input:
         tuple val(group),path(qtl_q_results)
     output:
-        tuple val(group),path("all_vars_genes.tsv"), emit: all
+        tuple val(group),path("chr${chr}__all_vars_genes.tsv"), emit: all
 
     script:
         parts = group.split('___')
