@@ -37,7 +37,7 @@ if (is.null(args$file) || is.null(args$column) || is.null(args$new_q_val_column)
 }
 
 # Assign arguments to variables
-file='/lustre/scratch123/hgi/teams/hgi/mo11/tmp_projects/saige/v1/work/30/199530fc5b09b3c8c2f6647777fbf7/output_Azimuth_predicted_celltype_l1__CD8_T__split_h5ad___1/nindep_100_ncell_100_lambda_2_tauIntraSample_0.5_cis_ENSG00000196369'
+file='/lustre/scratch123/hgi/teams/hgi/mo11/tmp_projects/saige/v1/work/66/6e28d628324ab5ddb2378689d8b838/output_Azimuth_predicted_celltype_l1__CD8_T__split_h5ad___1/nindep_100_ncell_100_lambda_2_tauIntraSample_0.5_cis_ENSG00000117862'
 column='13'
 new_column='qval'
 within=TRUE
@@ -63,13 +63,13 @@ if(is.na(as.numeric(res[,as.numeric(column)][1]))){
 p_values = as.numeric(res[,as.numeric(column)])
 
 # Generate q-value object
-qobj = qvalue(p = p_values, pi0.method = "bootstrap")
-
+# qobj = qvalue(p = p_values, pi0.method = "bootstrap")
+qobj =p.adjust(p_values, method = c("BH"),n = length(p_values))
 # Add q-values
-res[,new_column] = qobj$qvalues
+res[,new_column] = qobj
 
 # Add local fdr
-res$lfdr = qobj$lfdr
+# res$lfdr = qobj$lfdr
 
 # Replace the original file with the current one
 write.table(res, file, col.names=T, quote=F, sep = "\t",row.names=F)
