@@ -236,8 +236,14 @@ process SAIGE_S2_CIS {
                     --GMMATmodelFile=\${step1prefix}_\${variable}.rda    \
                     --SPAcutoff=${params.SAIGE.SPAcutoff} \
                     --markers_per_chunk=${params.SAIGE.markers_per_chunk} ${mode} 
-                echo "\${variable}" >> genes_list2.tsv
-                    
+                line_count=\$(wc -l < output_${name}___${chr}/nindep_100_ncell_100_lambda_2_tauIntraSample_0.5_cis_\${variable})        
+                if [ "\$line_count" -eq 1 ]; then
+                    echo "File has exactly one line"
+                    rm output_${name}___${chr}/nindep_100_ncell_100_lambda_2_tauIntraSample_0.5_cis_\${variable}
+                else
+                    echo "\${variable}" >> genes_list2.tsv
+                fi
+                
             } || { 
                 echo 'Failed since no markers present in range'
                 rm output_${name}___${chr}/nindep_100_ncell_100_lambda_2_tauIntraSample_0.5_cis_\${variable}
