@@ -99,7 +99,7 @@ def main():
     #     adata.layers['dMean_normalised'] = vst_out["corrected_counts"].T
 
     print('Saving normalised AnnData...')
-    adata.write('normAnnData.h5ad')
+    adata.write(f'nAD_{h5ad}')
 
 
 if __name__ == '__main__':

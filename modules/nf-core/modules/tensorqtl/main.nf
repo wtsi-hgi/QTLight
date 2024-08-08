@@ -254,7 +254,8 @@ workflow TENSORQTL_eqtls{
       if (params.TensorQTL.optimise_pcs){
           // TENSORQTL.out.pc_qtls_path.view()
           // Make sure all input files are available before running the optimisation
-          TENSORQTL.out.pc_qtls_path.collect()
+          
+          TENSORQTL.out.pc_qtls_path.collect().subscribe { println "TENSORQTL dist: $it" }
           // Fix the format of the output from TENSORQTL
           prep_optim_pc_channel = TENSORQTL.out.pc_qtls_path.groupTuple().map { key, values -> [key, values.flatten()] }
           // Create symlinks to the output files
