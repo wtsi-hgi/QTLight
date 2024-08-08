@@ -16,13 +16,13 @@ process PREPROCESS_GENOTYPES{
     input:
         path(file__vcf)
     output:
-        path("filtered_vcf2.vcf.gz") , emit: filtered_vcf
+        path("iltered_vcf.vcf.gz") , emit: filtered_vcf
     script:
         """
             bcftools index ${file__vcf}
-            bcftools view --known ${params.bcftools_filters} --min-af ${params.maf}:minor ${file__vcf} -Oz -o filtered_vcf.vcf.gz
-            bcftools sort filtered_vcf.vcf.gz -Oz -o filtered_vcf2.vcf.gz
-            rm filtered_vcf.vcf.gz
+            bcftools view --known ${params.bcftools_filters} ${file__vcf} -Oz -o filtered_vcf.vcf.gz
+            #bcftools sort filtered_vcf.vcf.gz -Oz -o filtered_vcf2.vcf.gz
+            #rm filtered_vcf.vcf.gz
         """
     
 }

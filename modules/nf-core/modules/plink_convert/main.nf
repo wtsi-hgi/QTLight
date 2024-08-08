@@ -25,9 +25,9 @@ process PLINK_CONVERT{
         } else {
             ext1 = "--bcf"
         }
-        
+
         if(params.TensorQTL.use_gt_dosage==true && params.TensorQTL.run==true){
-        pgen = "plink2 ${ext1} ${file__vcf} 'dosage=DS' --make-pgen ${params.plink2_filters} --hwe ${params.hwe} --out plink_genotypes/plink_genotypes"
+        pgen = "plink2 ${ext1} ${file__vcf} 'dosage=DS' --max-alleles 2 --make-pgen ${params.plink2_filters} --hwe ${params.hwe} --out plink_genotypes/plink_genotypes"
         }else{
         pgen = ""
         }
