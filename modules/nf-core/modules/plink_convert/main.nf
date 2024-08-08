@@ -23,7 +23,7 @@ process PLINK_CONVERT{
         tuple path("plink_genotypes_bed/plink_genotypes.bim"),path("plink_genotypes_bed/plink_genotypes.bed"),path("plink_genotypes_bed/plink_genotypes.fam"), emit: bim_bed_fam
 
     script:
-        if (file__vcf.contains(".vcf.gz")) {
+        if ("${file__vcf}".contains(".vcf")) {
             ext1 = "--vcf"
         } else {
             ext1 = "--bcf"

@@ -13,6 +13,10 @@ process PREPROCESS_GENOTYPES{
         container "${params.eqtl_docker}"
     }
 
+    publishDir  path: "${params.outdir}/genotypes",
+                mode: "${params.copy_mode}",
+                overwrite: "true"       
+                
     input:
         path(file__vcf)
     output:
