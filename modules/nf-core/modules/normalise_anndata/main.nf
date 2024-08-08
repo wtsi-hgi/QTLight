@@ -1,7 +1,7 @@
 
 
 process NORMALISE_ANNDATA {
-    publishDir  path: "${outdir}/normalise_anndata",mode: "${params.copy_mode}",
+    publishDir  path: "${params.outdir}/normalise_anndata/${sanitized_columns}",mode: "${params.copy_mode}",
                 overwrite: "true"
     label 'process_medium_memory'
 
@@ -16,11 +16,12 @@ process NORMALISE_ANNDATA {
       path(adata)
 
     output:
-      path("normAnnData.h5ad", emit:adata)
+      path("nAD_*.h5ad", emit:adata)
     script:
-      outdir = params.outdir
+      sanitized_columns = adata.getName().replaceAll(/[^a-zA-Z0-9]/, '_').replaceAll(/\.h5ad$/, '')
+      
       if ("${params.dMean_norm_method}"=='NONE'){
-        comand="ln -s ${adata} normAnnData.h5ad"
+        comand="ln -s ${adata} nAD_${adata}"
       }else{
         comand="normalise_anndata.py -h5ad ${adata} --method ${params.dMean_norm_method}"
       }
