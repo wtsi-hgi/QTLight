@@ -16,7 +16,7 @@ process PREPROCESS_GENOTYPES{
     input:
         path(file__vcf)
     output:
-        path("iltered_vcf.vcf.gz") , emit: filtered_vcf
+        path("filtered_vcf.vcf.gz") , emit: filtered_vcf
     script:
         """
             bcftools index ${file__vcf}

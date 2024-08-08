@@ -7,7 +7,7 @@ process NORMALISE_and_PCA_PHENOTYPE{
     scratch false      // use tmp directory
     label 'process_medium'
 
-    publishDir  path: "${params.outdir}/norm_data/${condition}",
+    publishDir  path: "${params.outdir}/norm_data/${condition}_${prefix}",
                 mode: "${params.copy_mode}",
                 overwrite: "true"
 
