@@ -20,7 +20,12 @@ process PLINK_CONVERT{
         tuple path("plink_genotypes2/plink_genotypes.bim"),path("plink_genotypes2/plink_genotypes.bed"),path("plink_genotypes2/plink_genotypes.fam"), emit: bim_bed_fam
 
     script:
-
+        if (file__vcf.contains(".vcf.gz")) {
+            ext1 = "--vcf"
+        } else {
+            ext1 = "--bcf"
+        }
+        
         if(params.TensorQTL.use_gt_dosage==true && params.TensorQTL.run==true){
         pgen = "plink2 ${ext1} ${file__vcf} 'dosage=DS' --make-pgen ${params.plink2_filters} --hwe ${params.hwe} --out plink_genotypes/plink_genotypes"
         }else{
@@ -28,11 +33,7 @@ process PLINK_CONVERT{
         }
 
 
-        if (file__vcf.contains(".vcf.gz")) {
-            ext1 = "--vcf"
-        } else {
-            ext1 = "--bcf"
-        }
+
     
 
         """

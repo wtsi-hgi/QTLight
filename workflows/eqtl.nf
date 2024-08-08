@@ -161,9 +161,14 @@ workflow EQTL {
     
     // // // // For ext mapping there are multiple steps - 
     // // // // 1) Filter the vcf accordingly
-    PREPROCESS_GENOTYPES(subset_genotypes)
+    if (params.apply_bcftools_filters){
+        PREPROCESS_GENOTYPES(subset_genotypes)
+        plink_convert_input=PREPROCESS_GENOTYPES.out.filtered_vcf
+    }else{
+        plink_convert_input=subset_genotypes  
+    }
     // // // // // 2) Generate the PLINK file
-    PLINK_CONVERT(PREPROCESS_GENOTYPES.out.filtered_vcf)
+    PLINK_CONVERT(plink_convert_input)
     bim_bed_fam = PLINK_CONVERT.out.bim_bed_fam
     // // // 3) Generate the kinship matrix and genotype PCs
     GENOTYPE_PC_CALCULATION(PLINK_CONVERT.out.plink_path)
