@@ -597,12 +597,6 @@ workflow SAIGE_qtls{
         H5AD_TO_SAIGE_FORMAT(phenotype_file.flatten(),params.genotype_phenotype_mapping_file,params.aggregation_columns,genotype_pcs)
         pheno = H5AD_TO_SAIGE_FORMAT.out.output_pheno.take(2)
 
-        // We also need to define the chromosomes to test. 
-        // If we go for a cis mode then we have to also define the ranges.
-        // genes = Channel.of(['t1','/lustre/scratch123/hgi/teams/hgi/mo11/tmp_projects/saige/v1/qtl/extdata/input/genes.txt'])
-        // pheno = Channel.of(['t1','/lustre/scratch123/hgi/teams/hgi/mo11/tmp_projects/saige/v1/qtl/extdata/input/seed_1_100_nindep_100_ncell_100_lambda_2_tauIntraSample_0.5_Poisson.txt','/lustre/scratch123/hgi/teams/hgi/mo11/tmp_projects/saige/v1/qtl/extdata/input/covariates.txt'])
-        // bim_bed_fam = Channel.of(["/lustre/scratch123/hgi/teams/hgi/mo11/tmp_projects/saige/v1/qtl/extdata/input/n.indep_100_n.cell_1.bim","/lustre/scratch123/hgi/teams/hgi/mo11/tmp_projects/saige/v1/qtl/extdata/input/n.indep_100_n.cell_1.bed","/lustre/scratch123/hgi/teams/hgi/mo11/tmp_projects/saige/v1/qtl/extdata/input/n.indep_100_n.cell_1.fam"])
-
         genes = H5AD_TO_SAIGE_FORMAT.out.gene_chunk
         CHUNK_GENES(genes,params.chunkSize)
         result = CHUNK_GENES.out.output_genes.flatMap { item ->
