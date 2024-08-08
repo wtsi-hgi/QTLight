@@ -152,12 +152,16 @@ workflow EQTL {
     }
 
 
-
-    // channel_input_data_table.subscribe { println "channel_input_data_table: $it" }
-    SUBSET_GENOTYPE(donorsvcf,channel_input_data_table.collect())
+    if (params.subset_genotypes_to_available){
+        SUBSET_GENOTYPE(donorsvcf,channel_input_data_table.collect())
+        subset_genotypes = SUBSET_GENOTYPE.out.samplename_subsetvcf
+    }else{
+        subset_genotypes = donorsvcf
+    }
+    
     // // // // For ext mapping there are multiple steps - 
     // // // // 1) Filter the vcf accordingly
-    PREPROCESS_GENOTYPES(SUBSET_GENOTYPE.out.samplename_subsetvcf)
+    PREPROCESS_GENOTYPES(subset_genotypes)
     // // // // // 2) Generate the PLINK file
     PLINK_CONVERT(PREPROCESS_GENOTYPES.out.filtered_vcf)
     bim_bed_fam = PLINK_CONVERT.out.bim_bed_fam
