@@ -22,7 +22,7 @@ process PLINK_CONVERT{
     script:
 
         if(params.TensorQTL.use_gt_dosage==true && params.TensorQTL.run==true){
-        pgen = "plink2 --vcf ${file__vcf} 'dosage=DS' --make-pgen --sort-vars ${params.plink2_filters} --hwe ${params.hwe} --out plink_genotypes/plink_genotypes"
+        pgen = "plink2 --vcf ${file__vcf} 'dosage=DS' --make-pgen ${params.plink2_filters} --hwe ${params.hwe} --out plink_genotypes/plink_genotypes"
         }else{
         pgen = ""
         }
