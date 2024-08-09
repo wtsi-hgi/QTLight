@@ -53,7 +53,7 @@ multiqc_options.args += params.multiqc_title ? Utils.joinModuleArgs(["--title \"
 //
 // include { FASTQC  } from '../modules/nf-core/modules/fastqc/main'  addParams( options: modules['fastqc'] )
 include {PREPROCESS_GENOTYPES} from '../modules/nf-core/modules/preprocess_genotypes/main' 
-include {PLINK_CONVERT} from '../modules/nf-core/modules/plink_convert/main' 
+include {PLINK_CONVERT;PGEN_CONVERT} from '../modules/nf-core/modules/plink_convert/main' 
 include {SUBSET_GENOTYPE} from '../modules/nf-core/modules/subset_genotype/main' 
 include {KINSHIP_CALCULATION} from '../modules/nf-core/modules/kinship_calculation/main' 
 include {GENOTYPE_PC_CALCULATION} from '../modules/nf-core/modules/genotype_pc_calculation/main' 
@@ -82,7 +82,7 @@ def multiqc_report = []
 workflow EQTL {
 
     log.info 'Lets run eQTL mapping'
-    donorsvcf = Channel.from(params.input_vcf)
+    
     // if single cell data then have to prepere pseudo bulk dataset.
     if (params.method=='bulk'){
         log.info '------ Bulk analysis ------'
@@ -151,27 +151,68 @@ workflow EQTL {
         channel_input_data_table=channel_input_data_table2.collect().unique()
     }
 
+    // If we have pgen file but not bed file
+    // If we have both pgen and bed file
 
-    if (params.subset_genotypes_to_available){
-        SUBSET_GENOTYPE(donorsvcf,channel_input_data_table.collect())
-        subset_genotypes = SUBSET_GENOTYPE.out.samplename_subsetvcf
+    if(params.genotypes.preprocessed_bed_file!=''){
+        // USE BED FILE
+        plink_path = Channel.from(params.genotypes.preprocessed_bed_file)
+        Channel.fromPath("${params.genotypes.preprocessed_bed_file}/*.bed", followLinks: true)
+            .set { bed_files }
+
+        Channel.fromPath("${params.genotypes.preprocessed_bed_file}/*.bim", followLinks: true)
+            .set { bim_files }
+
+        Channel.fromPath("${params.genotypes.preprocessed_bed_file}/*.fam", followLinks: true)
+            .set { fam_files }
+        bim_bed_fam = bim_files
+                    .combine(bed_files)
+                    .combine(fam_files)
+
+    }else if(params.genotypes.preprocessed_pgen_file!=''){
+        // USE PGEN FILE
+        plink_convert_input=Channel.from(genotypes.preprocessed_pgen_file)
+        PLINK_CONVERT(plink_convert_input)
+        plink_path = PLINK_CONVERT.out.plink_path
+        bim_bed_fam = PLINK_CONVERT.out.bim_bed_fam
     }else{
-        subset_genotypes = donorsvcf
+        // USE VCF FILE
+        donorsvcf = Channel.from(params.input_vcf)
+        if (params.genotypes.subset_genotypes_to_available){
+            // Subset genotypes to available in expression data
+            SUBSET_GENOTYPE(donorsvcf,channel_input_data_table.collect())
+            subset_genotypes = SUBSET_GENOTYPE.out.samplename_subsetvcf
+        }else{
+            subset_genotypes = donorsvcf
+        }
+
+        if (params.genotypes.apply_bcftools_filters){
+            // preprocess vcf files to be in the right format for plink
+            PREPROCESS_GENOTYPES(subset_genotypes)
+            plink_convert_input=PREPROCESS_GENOTYPES.out.filtered_vcf
+        }else{
+            plink_convert_input=subset_genotypes  
+        }
+        // 2) Generate the PLINK file
+        PLINK_CONVERT(plink_convert_input)
+        plink_path = PLINK_CONVERT.out.plink_path
+        bim_bed_fam = PLINK_CONVERT.out.bim_bed_fam
     }
+
+    if(params.genotypes.preprocessed_pgen_file==''){
+        if(params.genotypes.use_gt_dosage){
+            // Here we are using dosage for anaysis. 
+            PGEN_CONVERT(plink_path)
+            plink_path = PGEN_CONVERT.out.plink_path
+        }else{
+            // here we dont use dosage for analysis
+            plink_path = plink_path
+        }
+    }
+
     
-    // // // // For ext mapping there are multiple steps - 
-    // // // // 1) Filter the vcf accordingly
-    if (params.apply_bcftools_filters){
-        PREPROCESS_GENOTYPES(subset_genotypes)
-        plink_convert_input=PREPROCESS_GENOTYPES.out.filtered_vcf
-    }else{
-        plink_convert_input=subset_genotypes  
-    }
-    // // // // // 2) Generate the PLINK file
-    PLINK_CONVERT(plink_convert_input)
-    bim_bed_fam = PLINK_CONVERT.out.bim_bed_fam
     // // // 3) Generate the kinship matrix and genotype PCs
-    GENOTYPE_PC_CALCULATION(PLINK_CONVERT.out.plink_path)
+    GENOTYPE_PC_CALCULATION(plink_path)
     
     // condition_channel = condition_channel.unique() 
 
@@ -181,7 +222,6 @@ workflow EQTL {
     
     // MBV method from QTLTools (PMID 28186259)  
     // RASCAL
-    // 
     
 
     NORMALISE_and_PCA_PHENOTYPE(phenotype_condition)
@@ -195,14 +235,14 @@ workflow EQTL {
     if (params.LIMIX.run){
         filtered_pheno_channel =SUBSET_PCS.out.for_bed.map { tuple ->  [tuple[3],[[tuple[0],tuple[1],tuple[2]]]].combinations()}.flatten().collate(4)
         CHUNK_GENOME(genome_annotation,filtered_pheno_channel)
-        KINSHIP_CALCULATION(PLINK_CONVERT.out.plink_path)
+        KINSHIP_CALCULATION(plink_path)
         limix_cunks_for_each_cond = CHUNK_GENOME.out.limix_condition_chunking.take(2)
         // limix pipeline is curently not correctly chunked. 
         // Genes should be batched and the regions that they need to be tested on also chunked. 
         // Curently we are testing all the genes for all the possible gene cis windoes.
         LIMIX_eqtls(
             limix_cunks_for_each_cond,
-            PLINK_CONVERT.out.plink_path,
+            plink_path,
             KINSHIP_CALCULATION.out.kinship_matrix,
             CHUNK_GENOME.out.filtered_chunking_file
         )
@@ -216,7 +256,7 @@ workflow EQTL {
 
         TENSORQTL_eqtls(
             PREPERE_EXP_BED.out.exp_bed,
-            PLINK_CONVERT.out.plink_path,
+            plink_path,
         )
     }
 

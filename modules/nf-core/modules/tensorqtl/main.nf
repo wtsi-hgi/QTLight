@@ -34,7 +34,7 @@ process TENSORQTL {
     outpath = "${nr_phenotype_pcs}/base_output/base"
   }
 
-  if (params.TensorQTL.use_gt_dosage) {
+  if (params.genotypes.use_gt_dosage) {
     dosage = "--dosage"
   }else{
     dosage = ""
@@ -154,7 +154,7 @@ process TRANS_BY_CIS {
 
     script:
       // Use dosage?
-      if (params.TensorQTL.use_gt_dosage) {
+      if (params.genotypes.use_gt_dosage) {
         dosage = "--dosage"
       }else{
         dosage = ""
@@ -207,7 +207,7 @@ process TRANS_OF_CIS {
 
     script:
       // Use dosage?
-      if (params.TensorQTL.use_gt_dosage) {
+      if (params.genotypes.use_gt_dosage) {
         dosage = "--dosage"
       }else{
         dosage = ""
