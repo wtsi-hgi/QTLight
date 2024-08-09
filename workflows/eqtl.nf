@@ -199,6 +199,11 @@ workflow EQTL {
         bim_bed_fam = PLINK_CONVERT.out.bim_bed_fam
     }
 
+    // // // 3) Generate the kinship matrix and genotype PCs
+    KINSHIP_CALCULATION(plink_path)
+    GENOTYPE_PC_CALCULATION(plink_path)
+
+
     if(params.genotypes.preprocessed_pgen_file==''){
         if(params.genotypes.use_gt_dosage){
             // Here we are using dosage for anaysis. 
@@ -211,8 +216,7 @@ workflow EQTL {
     }
 
     
-    // // // 3) Generate the kinship matrix and genotype PCs
-    GENOTYPE_PC_CALCULATION(plink_path)
+
     
     // condition_channel = condition_channel.unique() 
 
@@ -235,7 +239,6 @@ workflow EQTL {
     if (params.LIMIX.run){
         filtered_pheno_channel =SUBSET_PCS.out.for_bed.map { tuple ->  [tuple[3],[[tuple[0],tuple[1],tuple[2]]]].combinations()}.flatten().collate(4)
         CHUNK_GENOME(genome_annotation,filtered_pheno_channel)
-        KINSHIP_CALCULATION(plink_path)
         limix_cunks_for_each_cond = CHUNK_GENOME.out.limix_condition_chunking.take(2)
         // limix pipeline is curently not correctly chunked. 
         // Genes should be batched and the regions that they need to be tested on also chunked. 
