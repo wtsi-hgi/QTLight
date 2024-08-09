@@ -73,7 +73,7 @@ process PGEN_CONVERT{
         if ("${file__vcf}".contains(".vcf")) {
             ext1 = "--vcf ${file__vcf} 'dosage=DS' "
         }  else if ("${file__vcf}"=='plink_genotypes_bed') {
-            ext1 = "--bed ${file__vcf}/plink_genotypes"
+            ext1 = "--bfile ${file__vcf}/plink_genotypes"
         }else {
             ext1 = "--bcf ${file__vcf} 'dosage=DS'"
         }
