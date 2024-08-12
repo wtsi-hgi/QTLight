@@ -152,7 +152,8 @@ def parse_options():
             '-covs', '--covariates',
             action='store',
             dest='covariates',
-            required=True,
+            required=False,
+            default='',
             help=''
         )
 
@@ -235,7 +236,7 @@ def main():
 
     # Replace the ages of those missing [SPECIFIC TO OUR DATA/SAMPLES]
     # adata.obs.loc[adata.obs['sanger_sample_id'].isin(['OTARscRNA9294497', 'OTARscRNA9294498']), 'age_imputed'] = 56.5
-    covs_use=covariates.split(',')
+    
     level = list(set(adata.obs[aggregate_on]))[0]
     print(f"~~~~~~~~~~~~Working on: {level}~~~~~~~~~~~~~~~~")
     # Define savedir
@@ -257,6 +258,7 @@ def main():
         br1 = pd.read_csv(bridge,sep='\t')
         br1 = br1.set_index('RNA')
         ob1 = pd.DataFrame(temp.obs[genotype_id])
+        ob1.index.names = ['index']
         ob1 = ob1.reset_index().set_index(genotype_id,drop=False)
         ob1[genotype_id]=br1['Genotype']
         ob2 = ob1.set_index('index')
@@ -294,17 +296,21 @@ def main():
         print(f"Final shape is not acceptable, will not test this phenotype: {counts.shape}") 
         sys.exit()
     # Preprocess the covariates (scale continuous, dummy for categorical)
-    print("Extracting and sorting covariates")
-    to_add = temp.obs[covs_use]
-    # Preprocess the covariates (scale continuous, dummy for categorical)
-    to_add = preprocess_covariates(to_add, scale_covariates)
+    
+    
+    if (covariates!=''):
+        print("Extracting and sorting covariates")
+        covs_use=covariates.split(',')
+        to_add = temp.obs[covs_use]
+        to_add = preprocess_covariates(to_add, scale_covariates)
+        counts = counts.merge(to_add, left_index=True, right_index=True)
     # Bind this onto the counts
     
     with open(f"{savedir}/test_genes.txt", 'w') as file:
         for item in counts.columns.values:
             file.write(f"{item}\n")
             
-    counts = counts.merge(to_add, left_index=True, right_index=True)
+    
     # Add the donor ID (genotyping ID so that we match the genotypes)
     counts[genotype_id] = temp.obs[genotype_id]
     

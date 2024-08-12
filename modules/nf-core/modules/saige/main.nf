@@ -474,12 +474,17 @@ process H5AD_TO_SAIGE_FORMAT {
     // Define the Bash script to run for each array job
     script:
     sanitized_columns = h5ad.getName().replaceAll(/[^a-zA-Z0-9]/, '_').replaceAll(/\.h5ad$/, '')
+    if("${params.SAIGE.covariate_obs_columns}"==''){
+        cov_col = ""
+    }else{
+        cov_col = "--covariates ${params.SAIGE.covariate_obs_columns}"
+    }
+
     """
         echo ${sanitized_columns}
         bridge='${bridge}'
         nperc=${params.percent_of_population_expressed}
         condition_col="NULL" #Specify 'NULL' if want to include all cells
-        covariates="total_counts"
         scale_covariates=true
         expression_pca=${params.SAIGE.nr_expression_pcs}
         aggregate_on="${aggregation_columns}"
@@ -497,9 +502,9 @@ process H5AD_TO_SAIGE_FORMAT {
             --min ${params.n_min_cells} \
             --condition_col \$condition_col \
             --condition \$condition_col \
-            --covariates \$covariates \
             --scale_covariates \$scale_covariates \
-            --expression_pca \$expression_pca
+            --expression_pca \$expression_pca \
+            ${cov_col}
     """
 }
 
