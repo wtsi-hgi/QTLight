@@ -30,7 +30,10 @@ process AGGREGATE_UMI_COUNTS {
     } else {
         container "${params.eqtl_docker}"
     }
-
+    memory { 
+            sizeInGB = adata.size() / 1e9 
+            return (sizeInGB * 2 * task.attempt).toString() + 'GB' 
+        }
   input:
     path(adata) // lists input files per donor
     val(agg_columns)

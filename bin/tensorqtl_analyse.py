@@ -7,20 +7,60 @@ __version__ = '0.0.1'
 # https://github.com/broadinstitute/tensorqtl
 # https://zenodo.org/record/4118403#.YHclzGMo9TY
 
+import torch
+import pandas as pd
+import sys
+import tensorqtl
+from tensorqtl import read_phenotype_bed, cis, calculate_qvalues,pgen 
+import threading
 import numpy as np
 import scipy.stats as stats
-import glob
+import glob    
+import argparse
+import os
+import genotypeio
+
+class BackgroundGenerator(threading.Thread):
+    # Adapted from https://github.com/justheuristic/prefetch_generator
+    def __init__(self, generator, max_prefetch=10):
+        threading.Thread.__init__(self)
+        self.queue = queue.Queue(max_prefetch)
+        self.generator = generator
+        self.daemon = True
+        self.start()
+
+    def run(self):
+        try:
+            for item in self.generator:
+                self.queue.put(item)
+        except Exception as exception:
+            self.queue.put(exception)
+        self.queue.put(None)
+
+    def next(self):
+        next_item = self.queue.get()
+        if next_item is None:
+            self.join()
+            raise StopIteration
+        if isinstance(next_item, Exception):
+            self.join()
+            raise next_item
+        return next_item
+
+    def __next__(self):
+        return self.next()
+    def __iter__(self):
+        return self
+    
+    
+    
+
 def main():
-    import torch
-    import pandas as pd
-    import sys
-    import tensorqtl
-    from tensorqtl import read_phenotype_bed, genotypeio, cis, calculate_qvalues,pgen 
+
     print('PyTorch {}'.format(torch.__version__))
     print('Pandas {}'.format(pd.__version__))
     print('Tensorqtl {}'.format(tensorqtl.__version__))
-    import argparse
-    import os
+
 
     os.system('python -V')
     os.system('which python')
@@ -148,6 +188,7 @@ def main():
     covariates_df=covariates_df.T
     
     phenotype_df1 = list(set(phenotype_pos_df[phenotype_pos_df['chr']!='chrY'].index))
+    # phenotype_df1 = list(set(phenotype_pos_df[phenotype_pos_df['chr']=='21'].index))
     
     # not a good solution but atm
 
@@ -169,7 +210,11 @@ def main():
     # genotype_df = pr.load_genotypes()
     # variant_df = pr.bim.set_index('snp')[['chrom', 'pos']]
     genotype_df, variant_df = genotypeio.load_genotypes(plink_prefix_path, dosages=dosage)
-    os.makedirs(outdir)
+    try:
+        os.makedirs(outdir)
+    except:
+        print('exist')
+
     cis.map_nominal(genotype_df, variant_df,
                     phenotype_df.loc[phenotype_df1],
                     phenotype_pos_df.loc[phenotype_df1],

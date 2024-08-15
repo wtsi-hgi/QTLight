@@ -6,7 +6,10 @@ process NORMALISE_ANNDATA {
     if ("${params.dMean_norm_method}"=='NONE'){
       label 'process_low'
     }else{
-      label 'process_medium_memory'
+        memory { 
+            sizeInGB = adata.size() / 1e9 
+            return (sizeInGB * 2 * task.attempt).toString() + 'GB' 
+        }
     }
 
     if (workflow.containerEngine == 'singularity' && !params.singularity_pull_docker_container) {

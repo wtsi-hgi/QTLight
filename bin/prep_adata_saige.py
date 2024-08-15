@@ -214,10 +214,18 @@ def main():
     # level = inherited_options.level
     
 
-    # Load in the adata object
+    # Load in the adata object and make sure that the indexes are not duplicated
     print("Loading object")
     adata = ad.read_h5ad(phenotype__file)
+    adata.obs['duplicated_indices'] = adata.obs.index.duplicated()
+    adata.obs.loc[adata.obs['duplicated_indices']==True,'duplicated_indices']='--2'
+    adata.obs.loc[adata.obs['duplicated_indices']==False,'duplicated_indices']=''
+    adata.obs.index=adata.obs.index+adata.obs['duplicated_indices']
 
+    # Add prefix to the duplicated indices
+
+    # adata.obs.index[adata.obs.index.duplicated()]
+    # adata.obs.index + adata.obs.index.duplicated().cumsum().astype(str)
     # Load the genotype PCs
     print("Loading genotype PCs")
     geno_pcs = pd.read_csv(genotype_pc_file, sep = "\t")
@@ -285,11 +293,22 @@ def main():
         counts = counts[counts[genotype_id].isin(keep_samples)]
     
     # Subset the genes based on % expressing samples
-    counts_per_sample = counts.groupby(genotype_id).sum()
-    min_samples = math.ceil(len(np.unique(temp.obs[genotype_id]))*(int(nperc)/100))
-    count_per_column = counts_per_sample.astype(bool).sum(axis=0)
-    keep_genes = np.where(count_per_column > min_samples)[0]
-    counts = counts.iloc[:,keep_genes]
+    if (nperc>0):
+        counts_per_sample = counts.groupby(genotype_id).sum()
+        # Step 2: Calculate the minimum samples using numpy for more efficiency
+        min_samples = int(np.ceil(len(np.unique(temp.obs[genotype_id])) * (int(nperc) / 100)))
+        # Step 3: Count non-zero elements per column using a more efficient approach
+        count_per_column = np.count_nonzero(counts_per_sample.values, axis=0)
+        # Step 4: Find the indices of genes that meet the minimum sample threshold
+        keep_genes = np.where(count_per_column > min_samples)[0]
+        # Step 5: Subset the counts matrix, avoiding .iloc if possible
+        counts = counts.iloc[:, keep_genes]
+        
+        # counts_per_sample = counts.groupby(genotype_id).sum()
+        # min_samples = math.ceil(len(np.unique(temp.obs[genotype_id]))*(int(nperc)/100))
+        # count_per_column = counts_per_sample.astype(bool).sum(axis=0)
+        # keep_genes = np.where(count_per_column > min_samples)[0]
+        # counts = counts.iloc[:,keep_genes]
     print(f"Final shape is:{counts.shape}") 
     sh = list(counts.shape)
     if (any(np.array(sh)<2)):
@@ -312,6 +331,16 @@ def main():
             
     
     # Add the donor ID (genotyping ID so that we match the genotypes)
+    counts['duplicated_indices'] = counts.index.duplicated()
+    counts.loc[counts['duplicated_indices']==True,'duplicated_indices']='--2'
+    counts.loc[counts['duplicated_indices']==False,'duplicated_indices']=''
+    counts.index=counts.index+counts['duplicated_indices']
+    
+    temp.obs['duplicated_indices'] = temp.obs.index.duplicated()
+    temp.obs.loc[temp.obs['duplicated_indices']==True,'duplicated_indices']='--2'
+    temp.obs.loc[temp.obs['duplicated_indices']==False,'duplicated_indices']=''
+    temp.obs.index=temp.obs.index+temp.obs['duplicated_indices']    
+    
     counts[genotype_id] = temp.obs[genotype_id]
     
     # Also add the genotyping PCs
