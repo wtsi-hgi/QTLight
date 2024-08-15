@@ -152,7 +152,8 @@ def parse_options():
             '-covs', '--covariates',
             action='store',
             dest='covariates',
-            required=True,
+            required=False,
+            default='',
             help=''
         )
 
@@ -213,10 +214,18 @@ def main():
     # level = inherited_options.level
     
 
-    # Load in the adata object
+    # Load in the adata object and make sure that the indexes are not duplicated
     print("Loading object")
     adata = ad.read_h5ad(phenotype__file)
+    adata.obs['duplicated_indices'] = adata.obs.index.duplicated()
+    adata.obs.loc[adata.obs['duplicated_indices']==True,'duplicated_indices']='--2'
+    adata.obs.loc[adata.obs['duplicated_indices']==False,'duplicated_indices']=''
+    adata.obs.index=adata.obs.index+adata.obs['duplicated_indices']
 
+    # Add prefix to the duplicated indices
+
+    # adata.obs.index[adata.obs.index.duplicated()]
+    # adata.obs.index + adata.obs.index.duplicated().cumsum().astype(str)
     # Load the genotype PCs
     print("Loading genotype PCs")
     geno_pcs = pd.read_csv(genotype_pc_file, sep = "\t")
@@ -235,7 +244,7 @@ def main():
 
     # Replace the ages of those missing [SPECIFIC TO OUR DATA/SAMPLES]
     # adata.obs.loc[adata.obs['sanger_sample_id'].isin(['OTARscRNA9294497', 'OTARscRNA9294498']), 'age_imputed'] = 56.5
-    covs_use=covariates.split(',')
+    
     level = list(set(adata.obs[aggregate_on]))[0]
     print(f"~~~~~~~~~~~~Working on: {level}~~~~~~~~~~~~~~~~")
     # Define savedir
@@ -257,6 +266,7 @@ def main():
         br1 = pd.read_csv(bridge,sep='\t')
         br1 = br1.set_index('RNA')
         ob1 = pd.DataFrame(temp.obs[genotype_id])
+        ob1.index.names = ['index']
         ob1 = ob1.reset_index().set_index(genotype_id,drop=False)
         ob1[genotype_id]=br1['Genotype']
         ob2 = ob1.set_index('index')
@@ -283,29 +293,54 @@ def main():
         counts = counts[counts[genotype_id].isin(keep_samples)]
     
     # Subset the genes based on % expressing samples
-    counts_per_sample = counts.groupby(genotype_id).sum()
-    min_samples = math.ceil(len(np.unique(temp.obs[genotype_id]))*(int(nperc)/100))
-    count_per_column = counts_per_sample.astype(bool).sum(axis=0)
-    keep_genes = np.where(count_per_column > min_samples)[0]
-    counts = counts.iloc[:,keep_genes]
+    if (nperc>0):
+        counts_per_sample = counts.groupby(genotype_id).sum()
+        # Step 2: Calculate the minimum samples using numpy for more efficiency
+        min_samples = int(np.ceil(len(np.unique(temp.obs[genotype_id])) * (int(nperc) / 100)))
+        # Step 3: Count non-zero elements per column using a more efficient approach
+        count_per_column = np.count_nonzero(counts_per_sample.values, axis=0)
+        # Step 4: Find the indices of genes that meet the minimum sample threshold
+        keep_genes = np.where(count_per_column > min_samples)[0]
+        # Step 5: Subset the counts matrix, avoiding .iloc if possible
+        counts = counts.iloc[:, keep_genes]
+        
+        # counts_per_sample = counts.groupby(genotype_id).sum()
+        # min_samples = math.ceil(len(np.unique(temp.obs[genotype_id]))*(int(nperc)/100))
+        # count_per_column = counts_per_sample.astype(bool).sum(axis=0)
+        # keep_genes = np.where(count_per_column > min_samples)[0]
+        # counts = counts.iloc[:,keep_genes]
     print(f"Final shape is:{counts.shape}") 
     sh = list(counts.shape)
     if (any(np.array(sh)<2)):
         print(f"Final shape is not acceptable, will not test this phenotype: {counts.shape}") 
         sys.exit()
     # Preprocess the covariates (scale continuous, dummy for categorical)
-    print("Extracting and sorting covariates")
-    to_add = temp.obs[covs_use]
-    # Preprocess the covariates (scale continuous, dummy for categorical)
-    to_add = preprocess_covariates(to_add, scale_covariates)
+    
+    
+    if (covariates!=''):
+        print("Extracting and sorting covariates")
+        covs_use=covariates.split(',')
+        to_add = temp.obs[covs_use]
+        to_add = preprocess_covariates(to_add, scale_covariates)
+        counts = counts.merge(to_add, left_index=True, right_index=True)
     # Bind this onto the counts
     
     with open(f"{savedir}/test_genes.txt", 'w') as file:
         for item in counts.columns.values:
             file.write(f"{item}\n")
             
-    counts = counts.merge(to_add, left_index=True, right_index=True)
+    
     # Add the donor ID (genotyping ID so that we match the genotypes)
+    counts['duplicated_indices'] = counts.index.duplicated()
+    counts.loc[counts['duplicated_indices']==True,'duplicated_indices']='--2'
+    counts.loc[counts['duplicated_indices']==False,'duplicated_indices']=''
+    counts.index=counts.index+counts['duplicated_indices']
+    
+    temp.obs['duplicated_indices'] = temp.obs.index.duplicated()
+    temp.obs.loc[temp.obs['duplicated_indices']==True,'duplicated_indices']='--2'
+    temp.obs.loc[temp.obs['duplicated_indices']==False,'duplicated_indices']=''
+    temp.obs.index=temp.obs.index+temp.obs['duplicated_indices']    
+    
     counts[genotype_id] = temp.obs[genotype_id]
     
     # Also add the genotyping PCs

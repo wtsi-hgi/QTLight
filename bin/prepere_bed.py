@@ -164,6 +164,9 @@ def main():
 
     # Now just save the file to BED file.
     # mergedDf["gene_id"]=mergedDf.index
+    # g = mergedDf['#chr'].value_counts()
+    # to_keep = list(g[g > 1].index)
+    # mergedDf = mergedDf[mergedDf['#chr'].isin(to_keep)]
     mergedDf.to_csv("Expression_Data.bed.gz", sep='\t', compression='gzip',index=False)
 
 if __name__ == '__main__':

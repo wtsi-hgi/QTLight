@@ -3,7 +3,14 @@
 process NORMALISE_ANNDATA {
     publishDir  path: "${params.outdir}/normalise_anndata/${sanitized_columns}",mode: "${params.copy_mode}",
                 overwrite: "true"
-    label 'process_medium_memory'
+    if ("${params.dMean_norm_method}"=='NONE'){
+      label 'process_low'
+    }else{
+        memory { 
+            sizeInGB = adata.size() / 1e9 
+            return (sizeInGB * 2 * task.attempt).toString() + 'GB' 
+        }
+    }
 
     if (workflow.containerEngine == 'singularity' && !params.singularity_pull_docker_container) {
         container "${params.eqtl_container}"

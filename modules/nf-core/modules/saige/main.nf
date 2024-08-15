@@ -449,8 +449,11 @@ process AGGREGATE_QTL_ALLVARS{
 
 
 process H5AD_TO_SAIGE_FORMAT {
-    label 'process_low'
-
+    // label 'process_low'
+    memory { 
+            sizeInGB = h5ad.size() / 1e9 * 3 + 50 * task.attempt
+            return (sizeInGB ).toString() + 'GB' 
+        }
     // Specify the number of forks (10k)
     maxForks 1000
 
@@ -459,6 +462,7 @@ process H5AD_TO_SAIGE_FORMAT {
     } else {
         container "${params.eqtl_docker}"
     }    
+    
 
 
     input:
@@ -474,12 +478,17 @@ process H5AD_TO_SAIGE_FORMAT {
     // Define the Bash script to run for each array job
     script:
     sanitized_columns = h5ad.getName().replaceAll(/[^a-zA-Z0-9]/, '_').replaceAll(/\.h5ad$/, '')
+    if("${params.SAIGE.covariate_obs_columns}"==''){
+        cov_col = ""
+    }else{
+        cov_col = "--covariates ${params.SAIGE.covariate_obs_columns}"
+    }
+    sizeInGB = h5ad.size() / 1e9 * 3 + 5 * task.attempt
     """
-        echo ${sanitized_columns}
+        echo ${sizeInGB}
         bridge='${bridge}'
         nperc=${params.percent_of_population_expressed}
         condition_col="NULL" #Specify 'NULL' if want to include all cells
-        covariates="total_counts"
         scale_covariates=true
         expression_pca=${params.SAIGE.nr_expression_pcs}
         aggregate_on="${aggregation_columns}"
@@ -497,9 +506,9 @@ process H5AD_TO_SAIGE_FORMAT {
             --min ${params.n_min_cells} \
             --condition_col \$condition_col \
             --condition \$condition_col \
-            --covariates \$covariates \
             --scale_covariates \$scale_covariates \
-            --expression_pca \$expression_pca
+            --expression_pca \$expression_pca \
+            ${cov_col}
     """
 }
 
@@ -561,7 +570,7 @@ process DETERMINE_TSS_AND_TEST_REGIONS {
     label 'process_low'
 
     // Specify the number of forks (10k)
-    maxForks 1000
+    // maxForks 1000
 
     if (workflow.containerEngine == 'singularity' && !params.singularity_pull_docker_container) {
         container "${params.eqtl_container}"
@@ -595,7 +604,7 @@ workflow SAIGE_qtls{
         log.info('------- Running SAIGE QTLs ------- ')
 
         H5AD_TO_SAIGE_FORMAT(phenotype_file.flatten(),params.genotype_phenotype_mapping_file,params.aggregation_columns,genotype_pcs)
-        pheno = H5AD_TO_SAIGE_FORMAT.out.output_pheno.take(2)
+        pheno = H5AD_TO_SAIGE_FORMAT.out.output_pheno
 
         genes = H5AD_TO_SAIGE_FORMAT.out.gene_chunk
         CHUNK_GENES(genes,params.chunkSize)
