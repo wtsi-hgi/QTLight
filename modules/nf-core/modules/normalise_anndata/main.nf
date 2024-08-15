@@ -40,7 +40,7 @@ process NORMALISE_ANNDATA {
 
 
 process REMAP_GENOTPE_ID{
-    publishDir  path: "${params.outdir}/normalise_anndata",mode: "${params.copy_mode}",
+    publishDir  path: "${params.outdir}/norm_data/${sanitized_columns}_${prefix}",
                 overwrite: "true"
     label 'process_low'
 
@@ -55,9 +55,11 @@ process REMAP_GENOTPE_ID{
       tuple val(sanitized_columns), path(phenotype_file),  path(adata_emmited_file)
       path(mapping_file)
     output:
-      tuple val(sanitized_columns), path(phenotype_file),  path("remap_genotype_phenotype_mapping.tsv"), emit:remap_genotype_phenotype_mapping
-      path("remap_genotype_phenotype_mapping.tsv"),emit: genotype_phenotype_mapping
+      tuple val(sanitized_columns), path(phenotype_file),  path("remap_*.tsv"), emit:remap_genotype_phenotype_mapping
+      path("remap_*.tsv"),emit: genotype_phenotype_mapping
     script:
+      matcher = (phenotype_file =~ /^([^_]+)___/)
+      prefix = matcher ? matcher[0][1] : 'all'
       """
         replace_genotype_ids.py --mappings ${mapping_file} --genotype_phenotype_mapping ${adata_emmited_file}
       """

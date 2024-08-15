@@ -133,7 +133,7 @@ workflow EQTL {
                 def (item, list1, list2) = data
                 def result = []
                 list1.eachWithIndex { val, idx ->
-                    result << [item, val, list2[idx]]
+                    result << [val.toString().split('___')[0].split('/')[-1], val, list2[idx]]
                 }
                 return result
             }.flatMap { it }
