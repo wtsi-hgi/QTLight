@@ -8,7 +8,7 @@ import pandas as pd
 import scanpy as sc
 import argparse
 import os
-
+import re
 
 def main():
     """Run CLI."""
@@ -110,15 +110,16 @@ def main():
 
 
     for method in methods:
-        genotype_phenotype_mapping = []
-        aggregated_data=pd.DataFrame()
+
         if (method =='dMean'):
             try:
                 adata.X = adata.layers['dMean_normalised']
             except:
                 print('probably already normalised since no layer added')
         for agg_col in agg_columns:
+
             print(agg_col)
+            
             print("----------")
             try:
                 data_col = adata.obs[agg_col]
@@ -126,9 +127,12 @@ def main():
                 print(f'Agregation column {agg_col} doesnt exist in adata')
                 continue
             for type in data_col.unique():
+                genotype_phenotype_mapping = []
+                aggregated_data=pd.DataFrame()
+            
                 print(type)
                 print("----------")# 
-
+                modified_agg_col = re.sub(r'[^a-zA-Z0-9]', '_', type)
                 # type='CD4 CTL'
                 cell_adata = adata[adata.obs[agg_col]==type]
                 if (len(cell_adata.obs['adata_phenotype_id'].unique())>n_individ):
@@ -166,10 +170,10 @@ def main():
                         aggregated_data=pd.concat([aggregated_data,aggregated_data_pre],axis=1)
                         genotype_phenotype_mapping= genotype_phenotype_mapping+ genotype_phenotype_mapping_pre
                         # f = pd.DataFrame(individual_1_adata.X.mean(axis=0))
-        genotype_phenotype_mapping = pd.DataFrame(genotype_phenotype_mapping)
-        if(len(genotype_phenotype_mapping)!=0):
-            genotype_phenotype_mapping.to_csv(f'{method}___genotype_phenotype_mapping.tsv',sep='\t',index=False)
-            aggregated_data.to_csv(f'{method}___phenotype_file.tsv',sep='\t',index=True)
+                genotype_phenotype_mapping = pd.DataFrame(genotype_phenotype_mapping)
+                if(len(genotype_phenotype_mapping)!=0):
+                    genotype_phenotype_mapping.to_csv(f'{method}__{modified_agg_col}___genotype_phenotype_mapping.tsv',sep='\t',index=False)
+                    aggregated_data.to_csv(f'{method}__{modified_agg_col}___phenotype_file.tsv',sep='\t',index=True)
     print('Successfully Finished')
 
 if __name__ == '__main__':
