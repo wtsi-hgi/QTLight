@@ -251,32 +251,32 @@ workflow TENSORQTL_eqtls{
           int_file
       )
 
-  //     if (params.TensorQTL.optimise_pcs){
-  //         // TENSORQTL.out.pc_qtls_path.view()
-  //         // Make sure all input files are available before running the optimisation
+      if (params.TensorQTL.optimise_pcs){
+          // TENSORQTL.out.pc_qtls_path.view()
+          // Make sure all input files are available before running the optimisation
           
-  //         TENSORQTL.out.pc_qtls_path.collect().subscribe { println "TENSORQTL dist: $it" }
-  //         // Fix the format of the output from TENSORQTL
-  //         prep_optim_pc_channel = TENSORQTL.out.pc_qtls_path.groupTuple().map { key, values -> [key, values.flatten()] }
-  //         // Create symlinks to the output files
-  //         PREP_OPTIMISE_PCS(prep_optim_pc_channel)
-  //         // Run the optimisation to get the eQTL output with the most eGenes
-  //         OPTIMISE_PCS(PREP_OPTIMISE_PCS.out,int_file)
+          TENSORQTL.out.pc_qtls_path.collect().subscribe { println "TENSORQTL dist: $it" }
+          // Fix the format of the output from TENSORQTL
+          prep_optim_pc_channel = TENSORQTL.out.pc_qtls_path.groupTuple().map { key, values -> [key, values.flatten()] }
+          // Create symlinks to the output files
+          PREP_OPTIMISE_PCS(prep_optim_pc_channel)
+          // Run the optimisation to get the eQTL output with the most eGenes
+          OPTIMISE_PCS(PREP_OPTIMISE_PCS.out,int_file)
           
-  //         if(params.TensorQTL.trans_by_cis){
-  //           log.info 'Running trans-by-cis analysis on optimum nPCs'
-  //           TRANS_BY_CIS(
-  //             OPTIMISE_PCS.out.combined_input,
-  //             plink_genotype
-  //           )
-  //         }
+          if(params.TensorQTL.trans_by_cis){
+            log.info 'Running trans-by-cis analysis on optimum nPCs'
+            TRANS_BY_CIS(
+              OPTIMISE_PCS.out.combined_input,
+              plink_genotype
+            )
+          }
           
-  //         if(params.TensorQTL.trans_of_cis){
-  //           log.info 'Running trans-of-cis analysis on optimum nPCs'
-  //           TRANS_OF_CIS(
-  //             OPTIMISE_PCS.out.combined_input,
-  //             plink_genotype
-  //           )
-  //         }
-  // }
+          if(params.TensorQTL.trans_of_cis){
+            log.info 'Running trans-of-cis analysis on optimum nPCs'
+            TRANS_OF_CIS(
+              OPTIMISE_PCS.out.combined_input,
+              plink_genotype
+            )
+          }
+  }
 }
