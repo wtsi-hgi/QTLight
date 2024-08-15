@@ -272,7 +272,7 @@ workflow EQTL {
     if (params.method=='single_cell'){
         if (params.SAIGE.run){
 
-            SAIGE_qtls(GENOTYPE_PC_CALCULATION.out.gtpca_plink,SPLIT_AGGREGATION_ADATA.out.split_phenotypes,bim_bed_fam,genome_annotation)
+            SAIGE_qtls(GENOTYPE_PC_CALCULATION.out.gtpca_plink,adata,bim_bed_fam,genome_annotation)
         }
     }
 

@@ -603,7 +603,7 @@ workflow SAIGE_qtls{
     main:
         log.info('------- Running SAIGE QTLs ------- ')
 
-        H5AD_TO_SAIGE_FORMAT(phenotype_file.flatten(),params.genotype_phenotype_mapping_file,params.aggregation_columns,genotype_pcs)
+        H5AD_TO_SAIGE_FORMAT(phenotype_file,params.genotype_phenotype_mapping_file,params.aggregation_columns,genotype_pcs)
         pheno = H5AD_TO_SAIGE_FORMAT.out.output_pheno
 
         genes = H5AD_TO_SAIGE_FORMAT.out.gene_chunk
