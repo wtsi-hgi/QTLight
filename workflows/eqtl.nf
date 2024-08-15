@@ -113,14 +113,19 @@ workflow EQTL {
             pheno = params.phenotype_file
         }
         
-        SPLIT_AGGREGATION_ADATA(pheno,params.aggregation_columns)
+        if (params.split_aggregation_adata){
+            SPLIT_AGGREGATION_ADATA(pheno,params.aggregation_columns)
+            adata = SPLIT_AGGREGATION_ADATA.out.split_phenotypes.flatten()
+        }else{
+            adata = pheno
+        }   
         
         if (params.normalise_before_or_after_aggregation=='after'){
             // here we normalise the adata per splits
-            NORMALISE_ANNDATA(SPLIT_AGGREGATION_ADATA.out.split_phenotypes.flatten())
+            NORMALISE_ANNDATA(adata)
             splits_h5ad = NORMALISE_ANNDATA.out.adata
         }else{
-            splits_h5ad = SPLIT_AGGREGATION_ADATA.out.split_phenotypes.flatten()
+            splits_h5ad = adata
         }
 
         AGGREGATE_UMI_COUNTS(splits_h5ad,params.aggregation_columns,params.gt_id_column,params.sample_column,params.n_min_cells,params.n_min_individ)
@@ -132,8 +137,6 @@ workflow EQTL {
                 }
                 return result
             }.flatMap { it }
-
-        // out2.subscribe { println "out2 dist: $it" }
 
         if(params.genotype_phenotype_mapping_file!=''){
             // Here user has provided a genotype phenotype file where the provided gt_id_column is contaiming a mapping file instead of actual genotype
@@ -200,7 +203,9 @@ workflow EQTL {
     }
 
     // // // 3) Generate the kinship matrix and genotype PCs
-    KINSHIP_CALCULATION(plink_path)
+    if (params.LIMIX.run){
+        KINSHIP_CALCULATION(plink_path)
+    }
     GENOTYPE_PC_CALCULATION(plink_path)
 
 
