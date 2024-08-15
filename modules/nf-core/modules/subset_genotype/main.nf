@@ -2,8 +2,7 @@
 process SUBSET_GENOTYPE {
     tag "${samplename}.${sample_subset_file}"
     label 'process_medium'
-    publishDir "${params.outdir}/subset_genotype/", mode: "${params.copy_mode}", pattern: "${samplename}.${sample_subset_file}.subset.vcf.gz"
-    
+    // publishDir "${params.outdir}/subset_genotype/", mode: "${params.copy_mode}", pattern: "${samplename}.${sample_subset_file}.subset.vcf.gz"
     
     if (workflow.containerEngine == 'singularity' && !params.singularity_pull_docker_container) {
         container "${params.eqtl_container}"
