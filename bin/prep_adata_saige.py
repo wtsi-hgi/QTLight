@@ -245,160 +245,162 @@ def main():
     # Replace the ages of those missing [SPECIFIC TO OUR DATA/SAMPLES]
     # adata.obs.loc[adata.obs['sanger_sample_id'].isin(['OTARscRNA9294497', 'OTARscRNA9294498']), 'age_imputed'] = 56.5
     
-    level = list(set(adata.obs[aggregate_on]))[0]
-    print(f"~~~~~~~~~~~~Working on: {level}~~~~~~~~~~~~~~~~")
-    # Define savedir
-    if condition_col != "NULL":
-        savedir=f"{general_file_dir}/{aggregate_on}/{level}/{condition_col}/{condition}"
-    else:
-        savedir=f"{general_file_dir}/{aggregate_on}/{level}"
-    
-    print(f"Files will be saved in {savedir}")
-    
-    
-    if os.path.exists(savedir) == False:
-        os.makedirs(savedir, exist_ok=True)
-    print("Filtering anndata")
-    temp = adata[adata.obs[aggregate_on] == level]
-    
-    # Filter for intersection with genotypes
-    if bridge!=None:
-        br1 = pd.read_csv(bridge,sep='\t')
-        br1 = br1.set_index('RNA')
-        ob1 = pd.DataFrame(temp.obs[genotype_id])
-        ob1.index.names = ['index']
-        ob1 = ob1.reset_index().set_index(genotype_id,drop=False)
-        ob1[genotype_id]=br1['Genotype']
-        ob2 = ob1.set_index('index')
-        temp.obs[genotype_id]=ob2[genotype_id]
-        # temp.obs.index = ob1[genotype_id]
-        # 
+    levels = list(set(adata.obs[aggregate_on]))
+    for level in levels:
+        print(f"~~~~~~~~~~~~Working on: {level}~~~~~~~~~~~~~~~~")
+        # Define savedir
+        if condition_col != "NULL":
+            savedir=f"{general_file_dir}/{aggregate_on}/{level}/{condition_col}/{condition}"
+        else:
+            savedir=f"{general_file_dir}/{aggregate_on}/{level}"
         
-    temp = temp[temp.obs[genotype_id].isin(geno_pcs[genotype_id])]
-    
-    # prep counts
-    print("Filtering lowly expressed genes")
-    counts=temp.X
-    counts = pd.DataFrame.sparse.from_spmatrix(counts)
-    counts.columns = temp.var.index.values
-    counts = counts.loc[:, counts.sum() > 0]
-    counts[genotype_id] = temp.obs[genotype_id].values.astype(str)
-    counts.index = temp.obs.index
-    counts.index.names = ['IID']
-    # Subset samples if doing so
-    if min_cells != "NULL":
-        print(f"Working on min cells/sample of {min_cells}")
-        cells_per_sample = counts[genotype_id].value_counts()
-        keep_samples = cells_per_sample[cells_per_sample > min_cells].index
-        counts = counts[counts[genotype_id].isin(keep_samples)]
-    
-    # Subset the genes based on % expressing samples
-    if (nperc>0):
-        counts_per_sample = counts.groupby(genotype_id).sum()
-        # Step 2: Calculate the minimum samples using numpy for more efficiency
-        min_samples = int(np.ceil(len(np.unique(temp.obs[genotype_id])) * (int(nperc) / 100)))
-        # Step 3: Count non-zero elements per column using a more efficient approach
-        count_per_column = np.count_nonzero(counts_per_sample.values, axis=0)
-        # Step 4: Find the indices of genes that meet the minimum sample threshold
-        keep_genes = np.where(count_per_column > min_samples)[0]
-        # Step 5: Subset the counts matrix, avoiding .iloc if possible
-        counts = counts.iloc[:, keep_genes]
+        print(f"Files will be saved in {savedir}")
         
-        # counts_per_sample = counts.groupby(genotype_id).sum()
-        # min_samples = math.ceil(len(np.unique(temp.obs[genotype_id]))*(int(nperc)/100))
-        # count_per_column = counts_per_sample.astype(bool).sum(axis=0)
-        # keep_genes = np.where(count_per_column > min_samples)[0]
-        # counts = counts.iloc[:,keep_genes]
-    print(f"Final shape is:{counts.shape}") 
-    sh = list(counts.shape)
-    if (any(np.array(sh)<2)):
-        print(f"Final shape is not acceptable, will not test this phenotype: {counts.shape}") 
-        sys.exit()
-    # Preprocess the covariates (scale continuous, dummy for categorical)
-    
-    
-    if (covariates!=''):
-        print("Extracting and sorting covariates")
-        covs_use=covariates.split(',')
-        to_add = temp.obs[covs_use]
-        to_add = preprocess_covariates(to_add, scale_covariates)
-        counts = counts.merge(to_add, left_index=True, right_index=True)
-    # Bind this onto the counts
-    
-    with open(f"{savedir}/test_genes.txt", 'w') as file:
-        for item in counts.columns.values:
-            file.write(f"{item}\n")
+        
+        if os.path.exists(savedir) == False:
+            os.makedirs(savedir, exist_ok=True)
+        print("Filtering anndata")
+        temp = adata[adata.obs[aggregate_on] == level]
+        
+        # Filter for intersection with genotypes
+        if bridge!=None:
+            br1 = pd.read_csv(bridge,sep='\t')
+            br1 = br1.set_index('RNA')
+            ob1 = pd.DataFrame(temp.obs[genotype_id])
+            ob1.index.names = ['index']
+            ob1 = ob1.reset_index().set_index(genotype_id,drop=False)
+            ob1[genotype_id]=br1['Genotype']
+            ob2 = ob1.set_index('index')
+            temp.obs[genotype_id]=ob2[genotype_id]
+            # temp.obs.index = ob1[genotype_id]
+            # 
             
-    
-    # Add the donor ID (genotyping ID so that we match the genotypes)
-    counts['duplicated_indices'] = counts.index.duplicated()
-    counts.loc[counts['duplicated_indices']==True,'duplicated_indices']='--2'
-    counts.loc[counts['duplicated_indices']==False,'duplicated_indices']=''
-    counts.index=counts.index+counts['duplicated_indices']
-    
-    temp.obs['duplicated_indices'] = temp.obs.index.duplicated()
-    temp.obs.loc[temp.obs['duplicated_indices']==True,'duplicated_indices']='--2'
-    temp.obs.loc[temp.obs['duplicated_indices']==False,'duplicated_indices']=''
-    temp.obs.index=temp.obs.index+temp.obs['duplicated_indices']    
-    
-    counts[genotype_id] = temp.obs[genotype_id]
-    
-    # Also add the genotyping PCs
-    index_use = counts.index
-    counts = counts.merge(geno_pcs, on=genotype_id, how='left')
-    counts.set_index(index_use, inplace=True)
+        temp = temp[temp.obs[genotype_id].isin(geno_pcs[genotype_id])]
+        
+        # prep counts
+        print("Filtering lowly expressed genes")
+        counts=temp.X
+        counts = pd.DataFrame.sparse.from_spmatrix(counts)
+        counts.columns = temp.var.index.values
+        counts = counts.loc[:, counts.sum() > 0]
+        counts[genotype_id] = temp.obs[genotype_id].values.astype(str)
+        counts.index = temp.obs.index
+        counts.index.names = ['IID']
+        # Subset samples if doing so
+        if min_cells != "NULL":
+            print(f"Working on min cells/sample of {min_cells}")
+            cells_per_sample = counts[genotype_id].value_counts()
+            keep_samples = cells_per_sample[cells_per_sample > min_cells].index
+            counts = counts[counts[genotype_id].isin(keep_samples)]
+        
+        # Subset the genes based on % expressing samples
+        if (nperc>0):
+            counts_per_sample = counts.groupby(genotype_id).sum()
+            # Step 2: Calculate the minimum samples using numpy for more efficiency
+            min_samples = int(np.ceil(len(np.unique(temp.obs[genotype_id])) * (int(nperc) / 100)))
+            # Step 3: Count non-zero elements per column using a more efficient approach
+            count_per_column = np.count_nonzero(counts_per_sample.values, axis=0)
+            # Step 4: Find the indices of genes that meet the minimum sample threshold
+            keep_genes = np.where(count_per_column > min_samples)[0]
+            # Step 5: Subset the counts matrix, avoiding .iloc if possible
+            counts = counts.iloc[:, keep_genes]
+            
+            # counts_per_sample = counts.groupby(genotype_id).sum()
+            # min_samples = math.ceil(len(np.unique(temp.obs[genotype_id]))*(int(nperc)/100))
+            # count_per_column = counts_per_sample.astype(bool).sum(axis=0)
+            # keep_genes = np.where(count_per_column > min_samples)[0]
+            # counts = counts.iloc[:,keep_genes]
+        print(f"Final shape is:{counts.shape}") 
+        sh = list(counts.shape)
+        if (any(np.array(sh)<2)):
+            print(f"Final shape is not acceptable, will not test this phenotype: {counts.shape}") 
+            continue
+            # sys.exit()
+        # Preprocess the covariates (scale continuous, dummy for categorical)
+        
+        
+        if (covariates!=''):
+            print("Extracting and sorting covariates")
+            covs_use=covariates.split(',')
+            to_add = temp.obs[covs_use]
+            to_add = preprocess_covariates(to_add, scale_covariates)
+            counts = counts.merge(to_add, left_index=True, right_index=True)
+        # Bind this onto the counts
+        
+        with open(f"{savedir}/test_genes.txt", 'w') as file:
+            for item in counts.columns.values:
+                file.write(f"{item}\n")
+                
+        
+        # Add the donor ID (genotyping ID so that we match the genotypes)
+        counts['duplicated_indices'] = counts.index.duplicated()
+        counts.loc[counts['duplicated_indices']==True,'duplicated_indices']='--2'
+        counts.loc[counts['duplicated_indices']==False,'duplicated_indices']=''
+        counts.index=counts.index+counts['duplicated_indices']
+        
+        temp.obs['duplicated_indices'] = temp.obs.index.duplicated()
+        temp.obs.loc[temp.obs['duplicated_indices']==True,'duplicated_indices']='--2'
+        temp.obs.loc[temp.obs['duplicated_indices']==False,'duplicated_indices']=''
+        temp.obs.index=temp.obs.index+temp.obs['duplicated_indices']    
+        
+        counts[genotype_id] = temp.obs[genotype_id]
+        
+        # Also add the genotyping PCs
+        index_use = counts.index
+        counts = counts.merge(geno_pcs, on=genotype_id, how='left')
+        counts.set_index(index_use, inplace=True)
 
-    # If a covariate has ':' in it's name, this will throw errors in SAIGE, replace this with '_'
-    counts.columns=counts.columns.str.replace(':', '_')
-    covariates_string = covariates+','+','.join(geno_pcs.drop(genotype_id,axis=1).columns.values)
-    sample_covariates = ','.join(geno_pcs.drop(genotype_id,axis=1).columns.values)
-    # Compute and add the expression PCs
-    if expression_pca >0:
-        print("Computing expression PCs")
-        sc.pp.normalize_total(temp, target_sum=1e4)
-        sc.pp.log1p(temp)
-        sc.pp.highly_variable_genes(temp, flavor="seurat", n_top_genes=2000)
-        sc.pp.scale(temp, max_value=10)
-        sc.tl.pca(temp, svd_solver='arpack')
-        pca_variance=pd.DataFrame({'x':list(range(1, 51, 1)), 'y':temp.uns['pca']['variance']})
-        # Identify 'knee'
-        knee=kd.KneeLocator(x=list(range(1, 51, 1)), y=temp.uns['pca']['variance'], curve="convex", direction = "decreasing")
-        knee_point = knee.knee
-        print('Knee: ', knee_point)
-        # Save knee
-        np.savetxt(f"{savedir}/knee.txt", [knee_point], delimiter=',', fmt='%s')
-        # Append the PC matrix onto the count data (up to 20)
-        loadings = pd.DataFrame(temp.obsm['X_pca'])
-        loadings = loadings.iloc[:,0:expression_pca]
-        loadings.index = temp.obs.index
-        loadings.rename(columns=lambda x: f'xPC{x+1}', inplace=True)
-        counts = counts.merge(loadings, left_index=True, right_index=True)
-        covariates_string = covariates_string+','+','.join(loadings.columns.values)
-        
-    # Save this as a dataframe in a directory specific to this resolution - make this if not already
-    print("Saving")
-    # Save list of gene names to test
+        # If a covariate has ':' in it's name, this will throw errors in SAIGE, replace this with '_'
+        counts.columns=counts.columns.str.replace(':', '_')
+        covariates_string = covariates+','+','.join(geno_pcs.drop(genotype_id,axis=1).columns.values)
+        sample_covariates = ','.join(geno_pcs.drop(genotype_id,axis=1).columns.values)
+        # Compute and add the expression PCs
+        if expression_pca >0:
+            print("Computing expression PCs")
+            sc.pp.normalize_total(temp, target_sum=1e4)
+            sc.pp.log1p(temp)
+            sc.pp.highly_variable_genes(temp, flavor="seurat", n_top_genes=2000)
+            sc.pp.scale(temp, max_value=10)
+            sc.tl.pca(temp, svd_solver='arpack')
+            pca_variance=pd.DataFrame({'x':list(range(1, 51, 1)), 'y':temp.uns['pca']['variance']})
+            # Identify 'knee'
+            knee=kd.KneeLocator(x=list(range(1, 51, 1)), y=temp.uns['pca']['variance'], curve="convex", direction = "decreasing")
+            knee_point = knee.knee
+            print('Knee: ', knee_point)
+            # Save knee
+            np.savetxt(f"{savedir}/knee.txt", [knee_point], delimiter=',', fmt='%s')
+            # Append the PC matrix onto the count data (up to 20)
+            loadings = pd.DataFrame(temp.obsm['X_pca'])
+            loadings = loadings.iloc[:,0:expression_pca]
+            loadings.index = temp.obs.index
+            loadings.rename(columns=lambda x: f'xPC{x+1}', inplace=True)
+            counts = counts.merge(loadings, left_index=True, right_index=True)
+            covariates_string = covariates_string+','+','.join(loadings.columns.values)
+            
+        # Save this as a dataframe in a directory specific to this resolution - make this if not already
+        print("Saving")
+        # Save list of gene names to test
 
-            
-            
-    # Save counts + covariates
-    # NOTE: This currently isn't implemented to save sparse or compressed files (as SAIGE requires dense input) - 80k cells and 10k genes = ~2.5GB file
-    #counts.to_csv(f"{savedir}/saige_filt_expr_input.txt", sep = "\t", index=False)
-    # Do this per gene with the maximum number of expression PCs - may end up being quicker in SAIGE
-    gene_savdir=f"{savedir}/per_gene_input_files"
-    if os.path.exists(gene_savdir) == False:
-        os.makedirs(gene_savdir, exist_ok=True)
-    counts = counts.set_index(genotype_id)
-    
-    counts.to_csv(f"{savedir}/saige_filt_expr_input.tsv", sep = "\t", index=True)
-    with open(f"{savedir}/covariates.txt", 'w') as file:
-            file.write(f"{covariates_string}\n")  
-            file.write(f"{sample_covariates}")  
-    # Save per gene
-    # for gene_name in counts.columns.values:
-    #     selected_columns = [col for col in counts.columns if col == gene_name or not col.startswith('ENSG')]
-    #     new_df = counts[selected_columns]
-    #     new_df.to_csv(f"{gene_savdir}/{gene_name}_saige_filt_expr_input.txt", sep = "\t", index=False)
+                
+                
+        # Save counts + covariates
+        # NOTE: This currently isn't implemented to save sparse or compressed files (as SAIGE requires dense input) - 80k cells and 10k genes = ~2.5GB file
+        #counts.to_csv(f"{savedir}/saige_filt_expr_input.txt", sep = "\t", index=False)
+        # Do this per gene with the maximum number of expression PCs - may end up being quicker in SAIGE
+        gene_savdir=f"{savedir}/per_gene_input_files"
+        if os.path.exists(gene_savdir) == False:
+            os.makedirs(gene_savdir, exist_ok=True)
+        counts = counts.set_index(genotype_id)
+        
+        counts.to_csv(f"{savedir}/saige_filt_expr_input.tsv", sep = "\t", index=True)
+        with open(f"{savedir}/covariates.txt", 'w') as file:
+                file.write(f"{covariates_string}\n")  
+                file.write(f"{sample_covariates}")  
+        # Save per gene
+        # for gene_name in counts.columns.values:
+        #     selected_columns = [col for col in counts.columns if col == gene_name or not col.startswith('ENSG')]
+        #     new_df = counts[selected_columns]
+        #     new_df.to_csv(f"{gene_savdir}/{gene_name}_saige_filt_expr_input.txt", sep = "\t", index=False)
 
 
 

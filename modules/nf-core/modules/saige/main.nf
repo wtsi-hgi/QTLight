@@ -449,7 +449,7 @@ process AGGREGATE_QTL_ALLVARS{
 
 
 process H5AD_TO_SAIGE_FORMAT {
-    // label 'process_low'
+    label 'process_medium'
     memory { 
             sizeInGB = h5ad.size() / 1e9 * 3 + 50 * task.attempt
             return (sizeInGB ).toString() + 'GB' 

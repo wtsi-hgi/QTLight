@@ -122,6 +122,7 @@ workflow EQTL {
         
         if (params.normalise_before_or_after_aggregation=='after'){
             // here we normalise the adata per splits
+            adata.subscribe { println "adata: $it" }
             NORMALISE_ANNDATA(adata)
             splits_h5ad = NORMALISE_ANNDATA.out.adata
         }else{
@@ -131,12 +132,16 @@ workflow EQTL {
         AGGREGATE_UMI_COUNTS(splits_h5ad,params.aggregation_columns,params.gt_id_column,params.sample_column,params.n_min_cells,params.n_min_individ)
         out2 = AGGREGATE_UMI_COUNTS.out.phenotype_genotype_file.map { data ->
                 def (item, list1, list2) = data
+                // Ensure list1 and list2 are processed as lists
+                list1 = (list1 instanceof List) ? list1 : [list1]
+                list2 = (list2 instanceof List) ? list2 : [list2]
                 def result = []
                 list1.eachWithIndex { val, idx ->
                     result << [val.toString().split('___')[0].split('/')[-1], val, list2[idx]]
                 }
                 return result
             }.flatMap { it }
+        out2.subscribe { println "out2: $it" }
 
         if(params.genotype_phenotype_mapping_file!=''){
             // Here user has provided a genotype phenotype file where the provided gt_id_column is contaiming a mapping file instead of actual genotype
