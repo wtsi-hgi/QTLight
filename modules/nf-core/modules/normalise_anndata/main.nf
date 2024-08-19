@@ -20,7 +20,7 @@ process NORMALISE_ANNDATA {
     }
 
     input:
-      path(adata)
+      each path(adata)
 
     output:
       path("nAD_*.h*", emit:adata)

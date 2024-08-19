@@ -150,9 +150,10 @@ workflow EQTL {
             genotype_phenotype_mapping_file = REMAP_GENOTPE_ID.out.genotype_phenotype_mapping
         }else{
             phenotype_condition = out2
-            genotype_phenotype_mapping_file = AGGREGATE_UMI_COUNTS.out.genotype_phenotype_mapping
+            genotype_phenotype_mapping_file = AGGREGATE_UMI_COUNTS.out.genotype_phenotype_mapping.flatten()
         }
 
+        genotype_phenotype_mapping_file.subscribe { println "genotype_phenotype_mapping_file: $it" }
         genotype_phenotype_mapping_file.splitCsv(header: true, sep: params.input_tables_column_delimiter)
             .map{row->tuple(row.Genotype)}.distinct()
             .set{channel_input_data_table2}

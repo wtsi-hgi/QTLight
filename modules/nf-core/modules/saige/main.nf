@@ -153,6 +153,12 @@ process SAIGE_S2 {
                     --GMMATmodel_varianceRatio_multiTraits_File=${output}/step1_output_formultigenes.txt     \
                     --SPAcutoff=${params.SAIGE.SPAcutoff} \
                     --markers_per_chunk=${params.SAIGE.markers_per_chunk} ${mode}
+
+            if [ \$? -ne 0 ]; then
+                echo "step2_tests_qtl.R command failed" >&2
+                exit 1  # Exit the script with a non-zero status
+            fi
+
             line_count=\$(wc -l < output/step1_output_formultigenes.txt)
             if [ "\$line_count" -eq 1 ]; then
                 echo "File has exactly one line"
@@ -236,6 +242,12 @@ process SAIGE_S2_CIS {
                     --GMMATmodelFile=\${step1prefix}_\${variable}.rda    \
                     --SPAcutoff=${params.SAIGE.SPAcutoff} \
                     --markers_per_chunk=${params.SAIGE.markers_per_chunk} ${mode} 
+
+                if [ \$? -ne 0 ]; then
+                    echo "step2_tests_qtl.R command failed" >&2
+                    exit 1  # Exit the script with a non-zero status
+                fi
+
                 line_count=\$(wc -l < output_${name}___${chr}/nindep_100_ncell_100_lambda_2_tauIntraSample_0.5_cis_\${variable})        
                 if [ "\$line_count" -eq 1 ]; then
                     echo "File has exactly one line"
@@ -450,6 +462,7 @@ process AGGREGATE_QTL_ALLVARS{
 
 process H5AD_TO_SAIGE_FORMAT {
     label 'process_medium'
+    tag { sanitized_columns }
     memory { 
             sizeInGB = h5ad.size() / 1e9 * 3 + 50 * task.attempt
             return (sizeInGB ).toString() + 'GB' 
@@ -463,7 +476,20 @@ process H5AD_TO_SAIGE_FORMAT {
         container "${params.eqtl_docker}"
     }    
     
-
+    publishDir  path: "${params.outdir}/Saige_eQTLS",
+                saveAs: {filename ->
+                    if (filename.contains("covariates.txt")) {
+                        null
+                    } else if(filename.contains("saige_filt_expr_input.tsv"))  {
+                        filename =null
+                    }else if(filename.contains("test_genes.txt"))  {
+                        filename =null
+                    }else{
+                        filename
+                    }
+                },
+                mode: "${params.copy_mode}",
+                overwrite: "true"
 
     input:
         each path(h5ad)  
@@ -474,6 +500,7 @@ process H5AD_TO_SAIGE_FORMAT {
     output:
         tuple val(sanitized_columns), path("output_agg/*/*/saige_filt_expr_input.tsv"),path("output_agg/*/*/covariates.txt"),emit:output_pheno optional true
         tuple val(sanitized_columns),path("output_agg/*/*/test_genes.txt"),emit:gene_chunk optional true
+        path("output_agg/*"),emit:output_agg 
 
     // Define the Bash script to run for each array job
     script:
@@ -540,7 +567,7 @@ process TEST {
 
 process CHUNK_GENES {
     label 'process_low'
-
+    tag { sanitized_columns }
     // Specify the number of forks (10k)
     maxForks 1000
 
@@ -606,8 +633,8 @@ workflow SAIGE_qtls{
         H5AD_TO_SAIGE_FORMAT(phenotype_file,params.genotype_phenotype_mapping_file,params.aggregation_columns,genotype_pcs)
         pheno = H5AD_TO_SAIGE_FORMAT.out.output_pheno
 
-        genes = H5AD_TO_SAIGE_FORMAT.out.gene_chunk
-        CHUNK_GENES(genes,params.chunkSize)
+        H5AD_TO_SAIGE_FORMAT.out.gene_chunk.subscribe { println "H5AD_TO_SAIGE_FORMAT.out.gene_chunk dist: $it" }
+        CHUNK_GENES(H5AD_TO_SAIGE_FORMAT.out.gene_chunk,params.chunkSize)
         result = CHUNK_GENES.out.output_genes.flatMap { item ->
             def (first, second) = item
             return second.collect { [first, it] }
