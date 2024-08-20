@@ -1,7 +1,7 @@
 process SPLIT_AGGREGATION_ADATA {
     // label 'process_medium'
     memory { 
-            sizeInGB = adata.size() / 1e9 * task.attempt
+            sizeInGB = adata.size() / 1e9 * 0.7 * task.attempt
             return (sizeInGB ).toString() + 'GB' 
         }
       

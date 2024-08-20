@@ -108,12 +108,14 @@ workflow EQTL {
         if (params.normalise_before_or_after_aggregation=='before'){
             // here we normalise the adata all together per splits
             NORMALISE_ANNDATA(params.phenotype_file)
+            // NORMALISE_ANNDATA.out.adata.subscribe { println "NORMALISE_ANNDATA.out.adata: $it" }
             pheno = NORMALISE_ANNDATA.out.adata
         }else{
             pheno = params.phenotype_file
         }
         
         if (params.split_aggregation_adata){
+            // pheno.subscribe { println "pheno: $it" }
             SPLIT_AGGREGATION_ADATA(pheno,params.aggregation_columns)
             adata = SPLIT_AGGREGATION_ADATA.out.split_phenotypes.flatten()
         }else{
@@ -122,7 +124,7 @@ workflow EQTL {
         
         if (params.normalise_before_or_after_aggregation=='after'){
             // here we normalise the adata per splits
-            adata.subscribe { println "adata: $it" }
+            // adata.subscribe { println "adata: $it" }
             NORMALISE_ANNDATA(adata)
             splits_h5ad = NORMALISE_ANNDATA.out.adata
         }else{
@@ -141,7 +143,7 @@ workflow EQTL {
                 }
                 return result
             }.flatMap { it }
-        out2.subscribe { println "out2: $it" }
+        // out2.subscribe { println "out2: $it" }
 
         if(params.genotype_phenotype_mapping_file!=''){
             // Here user has provided a genotype phenotype file where the provided gt_id_column is contaiming a mapping file instead of actual genotype
@@ -153,7 +155,7 @@ workflow EQTL {
             genotype_phenotype_mapping_file = AGGREGATE_UMI_COUNTS.out.genotype_phenotype_mapping.flatten()
         }
 
-        genotype_phenotype_mapping_file.subscribe { println "genotype_phenotype_mapping_file: $it" }
+        // genotype_phenotype_mapping_file.subscribe { println "genotype_phenotype_mapping_file: $it" }
         genotype_phenotype_mapping_file.splitCsv(header: true, sep: params.input_tables_column_delimiter)
             .map{row->tuple(row.Genotype)}.distinct()
             .set{channel_input_data_table2}

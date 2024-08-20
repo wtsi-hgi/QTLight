@@ -62,7 +62,7 @@ def main():
         for type in data_col.unique():
             print(type)
             print("----------")
-            cell_adata = adata[adata.obs[agg_col] == type]  # This is a view, not a copy
+            cell_adata = adata[adata.obs[agg_col] == type].copy(filename='tmp.h5ad')  # can also use .to_memory() which will be faster but more memory consuming. This is a view, not a copy
             agg_col_cleaned = re.sub(r'\W+', '_', agg_col.replace(' ', '_'))
             tp2 = re.sub(r'\W+', '_', type.replace(' ', '_'))
 
@@ -70,8 +70,13 @@ def main():
             print(f'Writing to {output_file}...')
 
             # Write directly from the view
+            print(f"Final shape is: {cell_adata.obs.shape}") 
             cell_adata.write(output_file)
-            del cell_adata
+            cell_adata.file.close()
+
+            # Remove the temporary file
+            os.remove('tmp.h5ad')
+            # del cell_adata
             gc.collect()  # Force garbage collection to free up memory
 
     adata.file.close()  # Close the AnnData file to free up resources
