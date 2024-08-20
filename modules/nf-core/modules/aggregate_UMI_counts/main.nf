@@ -1,5 +1,10 @@
 process SPLIT_AGGREGATION_ADATA {
-    label 'process_medium'
+    // label 'process_medium'
+    memory { 
+            sizeInGB = adata.size() / 1e9 * task.attempt
+            return (sizeInGB ).toString() + 'GB' 
+        }
+      
     if (workflow.containerEngine == 'singularity' && !params.singularity_pull_docker_container) {
         container "${params.eqtl_container}"
         

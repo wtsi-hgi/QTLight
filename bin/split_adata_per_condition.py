@@ -9,6 +9,7 @@ import scanpy as sc
 import argparse
 import os
 import re
+import gc
 
 def main():
     """Run CLI."""
@@ -42,44 +43,38 @@ def main():
 
     options = parser.parse_args()
 
-    # h5ad = '/lustre/scratch123/hgi/projects/ukbb_scrna/pipelines/Pilot_UKB/qc/Franke_with_genotypes_nfCore/results/celltype/adata.h5ad'
-    # agg_columns = 'Azimuth:predicted.celltype.l2'
-    # agg_columns='Azimuth:predicted.celltype.l2,Celltypist:Immune_All_High,Celltypist:Immune_All_Low'
-    # gt_id_column = 'donor_id'
-    # sample_column = 'convoluted_samplename'
-    # n_individ=30
-    # n_cells=10
     h5ad = options.h5ad
     agg_columns = options.agg_columns
     agg_columns = agg_columns.split(",")
 
-    # if options.genotype_phenotype:
-    #     genotype_phenotype = options.genotype_phenotype
-    #     genotype_phenotype = pd.read_csv(genotype_phenotype)
-    # else:
-        # here we estimate the genotype phenotype interaction file from the genotype, since the IDs are the same. 
     print('Reading in data...')
-    adata = sc.read_h5ad(filename=h5ad)
-
+    adata = sc.read_h5ad(filename=h5ad, backed='r')
 
     for agg_col in agg_columns:
         print(agg_col)
         print("----------")
         try:
             data_col = adata.obs[agg_col]
-        except:
-            print(f'Agregation column {agg_col} doesnt exist in adata')
+        except KeyError:
+            print(f'Aggregation column {agg_col} doesnt exist in adata')
             continue
-            
+
         for type in data_col.unique():
             print(type)
             print("----------")
-            cell_adata = adata[adata.obs[agg_col]==type]
+            cell_adata = adata[adata.obs[agg_col] == type]  # This is a view, not a copy
             agg_col_cleaned = re.sub(r'\W+', '_', agg_col.replace(' ', '_'))
-            cell_adata.write(
-                f'{agg_col_cleaned}__{type}__split.h5ad',
-                compression='gzip'
-            )     
+            tp2 = re.sub(r'\W+', '_', type.replace(' ', '_'))
+
+            output_file = f'{agg_col_cleaned}__{tp2}__split.h5ad'
+            print(f'Writing to {output_file}...')
+
+            # Write directly from the view
+            cell_adata.write(output_file)
+            del cell_adata
+            gc.collect()  # Force garbage collection to free up memory
+
+    adata.file.close()  # Close the AnnData file to free up resources
 
 if __name__ == '__main__':
     main()

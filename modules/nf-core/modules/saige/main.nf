@@ -521,7 +521,7 @@ process H5AD_TO_SAIGE_FORMAT {
     label 'process_medium'
     tag { sanitized_columns }
     memory { 
-            sizeInGB = h5ad.size() / 1e9 * 5 + 50 * task.attempt
+            sizeInGB = h5ad.size() / 1e9 * task.attempt
             return (sizeInGB ).toString() + 'GB' 
         }
     // Specify the number of forks (10k)
