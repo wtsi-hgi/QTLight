@@ -63,9 +63,11 @@ if(is.na(as.numeric(res[,as.numeric(column)][1]))){
 p_values = as.numeric(res[,as.numeric(column)])
 
 # Generate q-value object
-# qobj = qvalue(p = p_values, pi0.method = "bootstrap")
+qobj1 = qvalue(p = p_values); 
+qobj = qobj1$qvalues
+
 # qobj =p.adjust(p_values, method = c("BH"),n = length(p_values))
-qobj <- p.adjust(p_values, method = "BY", n = length(p_values))
+# qobj <- p.adjust(p_values, method = "BY", n = length(p_values))
 # Add q-values
 res[,new_column] = qobj
 

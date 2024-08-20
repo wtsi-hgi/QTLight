@@ -12,32 +12,86 @@ process CONDITIONAL_QTL {
     }    
 
     input:
-        tuple val(name),path(for_conditioning)
-    // output:
-    //     tuple val(name),path("${output}/*_minimum_q.txt"),path("${output}/*_cis_genePval"), emit: q_out
-        // echo step2_tests_qtl.R \
-        //         --bedFile=${general_file_dir}/genotypes/plink_genotypes_chr${gene_chr}.bed      \
-        //         --bimFile=${general_file_dir}/genotypes/plink_genotypes_chr${gene_chr}.bim      \
-        //         --famFile=${general_file_dir}/genotypes/plink_genotypes_chr${gene_chr}.fam      \
-        //         --SAIGEOutputFile=${cond_dir}/${gene}__npc${n_expr_pcs}_cis_round2.txt    \
-        //         --chrom=${gene_chr}       \
-        //         --minMAF=0.05 \
-        //         --minMAC=20 \
-        //         --LOCO=FALSE    \
-        //         --is_imputed_data=TRUE \
-        //         --GMMATmodelFile=${step1prefix}.rda     \
-        //         --SPAcutoff=2 \
-        //         --varianceRatioFile=${step1prefix}.varianceRatio.txt    \
-        //         --rangestoIncludeFile=${step2prefix}_region_file.txt     \
-        //         --markers_per_chunk=10000 \
-        //         --condition=$topvariant
-        // echo qvalue_correction.R -f ${cond_dir}/${gene}__npc${n_expr_pcs}_cis_round2.txt -c "20" -n "c-${topvariant}.qvalues" -w "TRUE"
+        tuple val(name),path(output),path(output_rda),path(output3),path(for_conditioning),path(genome_regions),path(plink_bim), path(plink_bed), path(plink_fam),val(chr)
+
     script:
+        if (params.SAIGE.cis_trans_mode=='cis'){
+            mode="--rangestoIncludeFile=\${step2prefix}_region_file.txt"
+        }else{
+            mode=""
+        }
     """
         echo "~~~~~~~~~~~~~~~~PERFORMING THE SECOND ROUND OF EQTL ANALYSIS~~~~~~~~~~~~~~~~~"
+        #
 
+        # Extract the minimum p-value for which there is an FDR < 0.05 in the first round
+        #pval_thresh=\$(awk -F'\t' 'NR==2 {print \$13}' ${output3}_minimum_q.txt)        
 
         # Now perform an additional 3 rounds if we keep finding conditional 
+
+        run_step2_tests_qtl() {
+            { 
+                topvariant=\$(awk -F'\t' 'NR==2 {print \$3}' ${output3}/cis_\${gene}_${chr}_minimum_q.txt)
+                step2_tests_qtl.R       \
+                    --bedFile=${plink_bed}      \
+                    --bimFile=${plink_bim}      \
+                    --famFile=${plink_fam}      \
+                    --SAIGEOutputFile=output_${name}___${chr}/nindep_100_ncell_100_lambda_2_tauIntraSample_0.5_cis_\${variable}    \
+                    --chrom=${chr}       \
+                    --minMAF=${params.SAIGE.minMAF} \
+                    --minMAC=${params.SAIGE.minMAC} \
+                    --LOCO=FALSE    \
+                    --varianceRatioFile=\${step1prefix}_\${variable}.varianceRatio.txt    \
+                    --GMMATmodelFile=\${step1prefix}_\${variable}.rda    \
+                    --SPAcutoff=${params.SAIGE.SPAcutoff} \
+                    --condition=\$topvariant \
+                    --markers_per_chunk=${params.SAIGE.markers_per_chunk} ${mode} 
+
+                if [ \$? -ne 0 ]; then
+                    echo "step2_tests_qtl.R command failed" >&2
+                    exit 1  # Exit the script with a non-zero status
+                fi
+
+                line_count=\$(wc -l < output_${name}___${chr}/nindep_100_ncell_100_lambda_2_tauIntraSample_0.5_cis_\${variable})        
+                if [ "\$line_count" -eq 1 ]; then
+                    echo "File has exactly one line"
+                    rm output_${name}___${chr}/nindep_100_ncell_100_lambda_2_tauIntraSample_0.5_cis_\${variable}
+                else
+                    echo "\${variable}" >> genes_list2.tsv
+                fi
+                
+            } || { 
+                echo 'Failed since no markers present in range'
+                rm output_${name}___${chr}/nindep_100_ncell_100_lambda_2_tauIntraSample_0.5_cis_\${variable}
+            }
+        }
+
+
+        if awk '\$2 == ${chr} {found=${chr}; exit} END {exit !found}' ${genome_regions}; then
+            echo "The chromosome '${chr}' is found in the second column."
+
+            step1prefix=${output}/nindep_100_ncell_100_lambda_2_tauIntraSample_0.5           
+            step2prefix=output_${name}___${chr}/nindep_100_ncell_100_lambda_2_tauIntraSample_0.5_cis
+            mkdir output_${name}___${chr}
+            
+            cat "${genome_regions}" | while IFS= read -r gene || [ -n "\$gene" ]
+            do
+                echo "\$gene" | cut -f2- >> regions_cis.tsv
+                variable=\$(echo "\$gene" | cut -f1)
+                echo \${variable}
+                chr1=\$(echo "\$gene" | cut -f2)
+                
+                if [ "\$chr1" -eq ${chr} ]; then
+                    run_step2_tests_qtl
+                else
+                    echo 'Not on the correct chromosome'
+                    
+                fi
+                rm regions_cis.tsv
+            done
+        else
+            echo "The chromosome '${chr}' is not found in the testing range, and hence ignored."
+        fi
 
     """
 }
@@ -108,6 +162,7 @@ process SAIGE_S1 {
     """
 }
 
+
 process SAIGE_S2 {
     label 'process_low'
 
@@ -124,7 +179,7 @@ process SAIGE_S2 {
         tuple val(name),path(genes_list),path(output),path(plink_bim), path(plink_bed), path(plink_fam),val(chr)
 
     output:
-        tuple val("${name}___${chr}"),path(genes_list),path("output_${name}___${chr}"),emit:output
+        tuple val("${name}___${chr}"),path(genes_list),path("output_${name}___${chr}"),path(output),path("regions_${genes_list}"),path(plink_bim), path(plink_bed), path(plink_fam),val(chr),emit:output
         tuple val("${name}___${chr}"),path("output_${name}___${chr}/nindep_100_ncell_100_lambda_2_tauIntraSample_0.5_cis_*"),emit:for_aggregation
 
     script:
@@ -135,7 +190,7 @@ process SAIGE_S2 {
         }
     
     """
-        
+        cp ${genes_list} regions_${genes_list}
         step1prefix=${output}/nindep_100_ncell_100_lambda_2_tauIntraSample_0.5           
         step2prefix=output_${name}___${chr}/nindep_100_ncell_100_lambda_2_tauIntraSample_0.5_cis
         mkdir output_${name}___${chr}
@@ -216,7 +271,7 @@ process SAIGE_S2_CIS {
         tuple val(name),path(genes_list),path(output),path(genome_regions),path(plink_bim), path(plink_bed), path(plink_fam),val(chr)
 
     output:
-        tuple val("${name}___${chr}"),path("genes_list2.tsv"),path("output_${name}___${chr}"),emit:output optional true
+        tuple val("${name}___${chr}"),path("genes_list2.tsv"),path("output_${name}___${chr}"),path(output),path(genome_regions),path(plink_bim), path(plink_bed), path(plink_fam),val(chr),emit:output optional true
         tuple val("${name}___${chr}"),path("output_${name}___${chr}/nindep_100_ncell_100_lambda_2_tauIntraSample_0.5_cis_*"),emit:for_aggregation  optional true
 
     script:
@@ -299,17 +354,18 @@ process SAIGE_QVAL_COR {
     maxForks 1000
 
     if (workflow.containerEngine == 'singularity' && !params.singularity_pull_docker_container) {
-        container "${params.eqtl_container}"
+        container "https://yascp.cog.sanger.ac.uk/public/singularity_images/wtsihgi_nf_scrna_qc_6bb6af5-2021-12-23-3270149cf265.sif"
+        //// container "/lustre/scratch123/hgi/projects/ukbb_scrna/pipelines/singularity_images/nf_qc_cluster_2.4.img"
     } else {
-        container "${params.eqtl_docker}"
-    }    
+        container "wtsihgi/nf_scrna_qc:6bb6af5"
+    }
 
     input:
-        tuple val(name),path(genes_list),path(output)
+        tuple val(name),path(genes_list),path(output),path(output_rda),path(regions),path(plink_bim), path(plink_bed), path(plink_fam),val(chr)
 
     output:
         tuple val(name),path(genes_list),path(output),emit:output
-        tuple val(name),path('for_conditioning.csv'), emit: for_conditioning optional true
+        tuple val(name),path(output),path(output_rda),path('output3'),path('for_conditioning.csv'),path(regions),path(plink_bim), path(plink_bed), path(plink_fam),val(chr), emit: for_conditioning optional true
         tuple val(name),path("output3/*_minimum_q.txt"), emit: q_out
     script:
 
@@ -322,14 +378,15 @@ process SAIGE_QVAL_COR {
         mkdir output3 
         cat "${genes_list}" | while IFS= read -r gene || [ -n "\$gene" ]
         do
-            qvalue_correction.R -f \${step2prefix}_\${gene} -c "13" -n "qvalues" -w "TRUE"
+            qvalue_correction.py -f \${step2prefix}_\${gene} -c "13" -n "qvalues" -w "TRUE"
             mv \${step2prefix}_\${gene}_minimum_q.txt output3/cis_\${gene}_${chr}_minimum_q.txt
 
-            top_q=\$(awk -F'\t' 'NR==2 {print \$18}' output3/cis_\${gene}_${chr}_minimum_q.txt)
-            threshold=0.05
-            if awk "BEGIN {exit !(\$top_q <= \$threshold)}"; then
-                echo "Performing conditional analysis: q-value for first pass > \$threshold"
-                echo \${gene},${output}/nindep_100_ncell_100_lambda_2_tauIntraSample_0.5_\${gene}.rda,nindep_100_ncell_100_lambda_2_tauIntraSample_0.5_\${gene}.varianceRatio.txt >> for_conditioning.csv
+            top_q=\$(awk -F'	' 'NR==2 {print \$17}' output3/cis_\${gene}_${chr}_minimum_q.txt)
+            threshold=${params.SAIGE.q_val_threshold_for_conditioning}
+            echo "\$top_q"
+            if awk -v tq="\$top_q" -v th="\$threshold" 'BEGIN {exit !(tq <= th)}'; then
+                echo "Performing conditional analysis: q-value for first pass <= \$threshold"
+                echo \${gene},${output_rda}/nindep_100_ncell_100_lambda_2_tauIntraSample_0.5_\${gene}.rda,${output_rda}/nindep_100_ncell_100_lambda_2_tauIntraSample_0.5_\${gene}.varianceRatio.txt >> for_conditioning.csv
             fi            
         done
     """
@@ -425,7 +482,7 @@ process AGGREGATE_QTL_RESULTS{
         
         """
             prepend_gene.py --pattern 'cis_*_minimum_q.txt' --column 'gene' --outfile 'minimum_q_all_genes.tsv'
-            qvalue_correction.R -f minimum_q_all_genes.tsv -c "18" -n "qvalues_across_genes" -w "FALSE"
+            qvalue_correction.py -f minimum_q_all_genes.tsv -c "18" -n "qvalues_across_genes" -w "FALSE"
         """
 }
 
@@ -464,7 +521,7 @@ process H5AD_TO_SAIGE_FORMAT {
     label 'process_medium'
     tag { sanitized_columns }
     memory { 
-            sizeInGB = h5ad.size() / 1e9 * 3 + 50 * task.attempt
+            sizeInGB = h5ad.size() / 1e9 * 5 + 50 * task.attempt
             return (sizeInGB ).toString() + 'GB' 
         }
     // Specify the number of forks (10k)
@@ -484,7 +541,10 @@ process H5AD_TO_SAIGE_FORMAT {
                         filename =null
                     }else if(filename.contains("test_genes.txt"))  {
                         filename =null
-                    }else{
+                    }else if(filename.contains("output_agg/"))  {
+                         filename.replaceAll("output_agg/", "")
+                    }
+                    else{
                         filename
                     }
                 },
@@ -705,6 +765,6 @@ workflow SAIGE_qtls{
         AGGREGATE_QTL_RESULTS(SAIGE_S3_for_aggregation.groupTuple(by: 0))
         AGGREGATE_QTL_ALLVARS(SAIGE_S2_for_aggregation.groupTuple(by: 0))
         AGGREGATE_ACAT_RESULTS(SAIGE_S3_for_aggregation_ACAT.groupTuple(by: 0))
-        CONDITIONAL_QTL(SAIGE_QVAL_COR.out.for_conditioning)
+        // CONDITIONAL_QTL(SAIGE_QVAL_COR.out.for_conditioning)
 
 }
