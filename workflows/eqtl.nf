@@ -246,7 +246,7 @@ workflow EQTL {
     if (params.LIMIX.run){
         KINSHIP_CALCULATION(plink_path)
     }
-    GENOTYPE_PC_CALCULATION(plink_path)
+    
 
 
     if(params.genotypes.preprocessed_pgen_file==''){
@@ -263,7 +263,7 @@ workflow EQTL {
         }
     }
 
-    
+    GENOTYPE_PC_CALCULATION(plink_path)
 
     
     // condition_channel = condition_channel.unique() 

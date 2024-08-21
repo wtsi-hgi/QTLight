@@ -542,7 +542,7 @@ process H5AD_TO_SAIGE_FORMAT {
                     }else if(filename.contains("test_genes.txt"))  {
                         filename =null
                     }else if(filename.contains("output_agg/"))  {
-                         filename.replaceAll("output_agg/", "")
+                         filename.replaceAll("output_agg/${aggregation_columns}/", "")
                     }
                     else{
                         filename
