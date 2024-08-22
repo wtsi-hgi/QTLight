@@ -212,22 +212,24 @@ workflow EQTL {
                 // here we dont use dosage for analysis
                 plink_path = plink_path
             }
+        }else{
+            plink_path = Channel.from(params.genotypes.preprocessed_pgen_file)
         }
 
     }
     
-    if(params.genotypes.preprocessed_pgen_file!=''){
-        // USE PGEN FILE
-        plink_convert_input=Channel.from(genotypes.preprocessed_pgen_file)
-        PLINK_CONVERT(plink_convert_input)
-        if(params.genotypes.use_gt_dosage){
-            plink_path = plink_convert_input
-        }else{
-            // here we dont use dosage for analysis
-            plink_path = PLINK_CONVERT.out.plink_path
-        }
-        bim_bed_fam = PLINK_CONVERT.out.bim_bed_fam
-    }
+    // if(params.genotypes.preprocessed_pgen_file!=''){
+    //     // USE PGEN FILE
+    //     plink_convert_input=Channel.from(genotypes.preprocessed_pgen_file)
+    //     PLINK_CONVERT(plink_convert_input)
+    //     if(params.genotypes.use_gt_dosage){
+    //         plink_path = plink_convert_input
+    //     }else{
+    //         // here we dont use dosage for analysis
+    //         plink_path = PLINK_CONVERT.out.plink_path
+    //     }
+    //     bim_bed_fam = PLINK_CONVERT.out.bim_bed_fam
+    // }
     
     
     // if (params.genotypes.preprocessed_bed_file=='' || params.genotypes.preprocessed_pgen_file==''){

@@ -534,18 +534,18 @@ process H5AD_TO_SAIGE_FORMAT {
     }    
     
     publishDir  path: "${params.outdir}/Saige_eQTLS",
-                saveAs: {filename ->
+                saveAs: { filename ->
                     if (filename.contains("covariates.txt")) {
-                        null
-                    } else if(filename.contains("saige_filt_expr_input.tsv"))  {
-                        filename =null
-                    }else if(filename.contains("test_genes.txt"))  {
-                        filename =null
-                    }else if(filename.contains("output_agg/"))  {
-                         filename.replaceAll("output_agg/${aggregation_columns}/", "")
-                    }
-                    else{
-                        filename
+                        return null
+                    } else if (filename.contains("saige_filt_expr_input.tsv")) {
+                        return null
+                    } else if (filename.contains("test_genes.txt")) {
+                        return null
+                    } else if (filename.contains("output_agg/")) {
+                        // Replace the exact string instead of using regex
+                        return filename.replace("output_agg/${aggregation_columns}/", "")
+                    } else {
+                        return null
                     }
                 },
                 mode: "${params.copy_mode}",

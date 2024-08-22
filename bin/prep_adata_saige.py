@@ -23,6 +23,7 @@ import kneed as kd
 from sklearn.preprocessing import StandardScaler
 import argparse
 import gc
+import sys
 
 # Define covariate process function
 def preprocess_covariates(df, scale_covariates):
@@ -69,6 +70,15 @@ def main():
 
     print("Loading object")
     adata = ad.read_h5ad(phenotype__file,backed='r')
+    # condition='Platelet'
+    if condition_col != "NULL":
+        print("Subsetting for the condition")
+        conditions=list(set(condition.split(',')))
+        adata = adata[adata.obs[condition_col].isin(conditions)].copy(filename='tmp.h5ad')
+
+    if len(adata.obs)==0:
+        print('The final subset adata is empty, hence we do not perform analysis')
+        sys.exit()
     adata.obs.index += adata.obs.index.duplicated().cumsum().astype(str)  # Resolve duplicated indices
 
     print("Loading genotype PCs")
@@ -77,22 +87,17 @@ def main():
         geno_pcs = geno_pcs.set_index("#IID")
     except:
         geno_pcs = geno_pcs.set_index("IID")
-    geno_pcs = geno_pcs.iloc[:,1:]
+    # geno_pcs = geno_pcs.iloc[:,1:]
     geno_pcs.reset_index(inplace=True)
     geno_pcs.rename(columns={"#IID": genotype_id,"IID": genotype_id}, inplace=True)
     geno_pcs.rename(columns={"#FID": genotype_id,"IID": genotype_id}, inplace=True)
     geno_pcs = geno_pcs.set_index(genotype_id)
-    if condition_col != "NULL":
-        print("Subsetting for the condition")
-        conditions=list(set(condition.split(',')))
-        adata = adata[adata.obs[condition_col].isin(conditions)]
 
-    
     levels = adata.obs[aggregate_on].unique()
     
     for level in levels:
         print(f"~~~~~~~~~~~~Working on: {level}~~~~~~~~~~~~~~~~")
-        savedir = f"{general_file_dir}/{aggregate_on}/{level}/{condition_col}/{condition}" if condition_col != "NULL" else f"{general_file_dir}/{aggregate_on}/{level}"
+        savedir = f"{general_file_dir}/{aggregate_on}/{level}"
         
         os.makedirs(savedir, exist_ok=True)
         print("Filtering anndata")
@@ -115,13 +120,33 @@ def main():
             keep_samples = cells_per_sample[cells_per_sample > min_cells].index
             counts = counts[counts[genotype_id].isin(keep_samples)]
         
-        if nperc > 0:
-            counts_per_sample = counts.groupby(genotype_id).sum()
-            min_samples = int(np.ceil(len(np.unique(temp.obs[genotype_id])) * (nperc / 100)))
-            count_per_column = np.count_nonzero(counts_per_sample.values, axis=0)
-            keep_genes = np.where(count_per_column > min_samples)[0]
-            counts = counts.iloc[:, keep_genes]
         
+        if nperc > 0:
+            # counts_per_sample = counts.groupby(genotype_id).sum()
+            # min_samples = int(np.ceil(len(np.unique(genotype_ids)) * (nperc / 100)))
+            # count_per_column = np.count_nonzero(counts_per_sample.values, axis=0)
+            # keep_genes = np.where(count_per_column > min_samples)[0]
+            # counts2 = counts.iloc[:, keep_genes]
+            
+            # Precompute unique genotypes and minimum samples needed
+            genotype_ids = counts[genotype_id].values  # Extract genotype IDs
+            unique_genotypes = np.unique(genotype_ids)  # Get unique genotypes
+            min_samples = int(np.ceil(len(unique_genotypes) * (nperc / 100)))
+            counts_data = counts.drop(columns=[genotype_id]).values  # Convert counts (excluding genotype_id) to NumPy array
+            summed_counts = np.zeros((len(unique_genotypes), counts_data.shape[1]))
+            # Accumulate sums directly on the NumPy array
+            for i, genotype in enumerate(unique_genotypes):
+                mask = (genotype_ids == genotype)
+                summed_counts[i, :] = counts_data[mask, :].sum(axis=0)
+            count_per_column = np.count_nonzero(summed_counts, axis=0)
+            keep_genes = np.where(count_per_column > min_samples)[0]
+            # Use NumPy slicing for efficient selection
+            filtered_counts = counts.iloc[:, keep_genes].copy()
+            # Reattach genotype_id
+            filtered_counts[genotype_id] = genotype_ids
+            counts3 = filtered_counts
+            
+        temp = temp[temp.obs[genotype_id].isin(keep_samples)]
         print(f"Final shape is: {counts.shape}") 
         if (any(np.array(counts.shape) < 2)):
             print(f"Final shape is not acceptable, skipping this phenotype: {counts.shape}")
@@ -164,8 +189,8 @@ def main():
             covariates_string = covariates_string+','+','.join(loadings.columns.values)
         
         print("Saving")
-        gene_savdir = f"{savedir}/per_gene_input_files"
-        os.makedirs(gene_savdir, exist_ok=True)
+        # gene_savdir = f"{savedir}/per_gene_input_files"
+        # os.makedirs(gene_savdir, exist_ok=True)
         counts.set_index(genotype_id).to_csv(f"{savedir}/saige_filt_expr_input.tsv", sep="\t", index=True, chunksize=500000)
         with open(f"{savedir}/covariates.txt", 'w') as file:
                 file.write(f"{covariates_string}\n")  
@@ -173,6 +198,11 @@ def main():
         del counts
         del temp
         gc.collect()  # Clean up memory
+        try:
+            os.remove('tmp.h5ad')
+        except:
+            _=''
+
 
 if __name__ == '__main__':
     main()
