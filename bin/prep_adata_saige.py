@@ -84,8 +84,10 @@ def main():
     geno_pcs = geno_pcs.set_index(genotype_id)
     if condition_col != "NULL":
         print("Subsetting for the condition")
-        adata = adata[adata.obs[condition_col] == condition]
+        conditions=list(set(condition.split(',')))
+        adata = adata[adata.obs[condition_col].isin(conditions)]
 
+    
     levels = adata.obs[aggregate_on].unique()
     
     for level in levels:

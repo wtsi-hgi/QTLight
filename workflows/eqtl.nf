@@ -162,8 +162,6 @@ workflow EQTL {
         channel_input_data_table=channel_input_data_table2.collect().unique()
     }
 
-    // If we have pgen file but not bed file
-    // If we have both pgen and bed file
 
     if (params.genotypes.preprocessed_bed_file=='' || params.genotypes.preprocessed_pgen_file==''){
         // USE VCF FILE
@@ -222,31 +220,36 @@ workflow EQTL {
         // USE PGEN FILE
         plink_convert_input=Channel.from(genotypes.preprocessed_pgen_file)
         PLINK_CONVERT(plink_convert_input)
-        plink_path = PLINK_CONVERT.out.plink_path
-        bim_bed_fam = PLINK_CONVERT.out.bim_bed_fam
-    }
-    
-    
-    if (params.genotypes.preprocessed_bed_file=='' || params.genotypes.preprocessed_pgen_file==''){
-
-        // 2) Generate the PLINK file
-        PLINK_CONVERT(plink_convert_input)
-        plink_path = PLINK_CONVERT.out.plink_path
-        bim_bed_fam = PLINK_CONVERT.out.bim_bed_fam
-
-        // we prioritise vcf to convert to pgen
-        if(params.genotypes.preprocessed_pgen_file==''){
-            if(params.genotypes.use_gt_dosage){
-                if (params.input_vcf!=''){
-                    PGEN_CONVERT(plink_convert_input)
-                    plink_path = PGEN_CONVERT.out.plink_path
-                }
-            }else{
-                // here we dont use dosage for analysis
-                plink_path = plink_path
-            }
+        if(params.genotypes.use_gt_dosage){
+            plink_path = plink_convert_input
+        }else{
+            // here we dont use dosage for analysis
+            plink_path = PLINK_CONVERT.out.plink_path
         }
+        bim_bed_fam = PLINK_CONVERT.out.bim_bed_fam
     }
+    
+    
+    // if (params.genotypes.preprocessed_bed_file=='' || params.genotypes.preprocessed_pgen_file==''){
+
+    //     // 2) Generate the PLINK file
+    //     PLINK_CONVERT(plink_convert_input)
+    //     plink_path = PLINK_CONVERT.out.plink_path
+    //     bim_bed_fam = PLINK_CONVERT.out.bim_bed_fam
+
+    //     // we prioritise vcf to convert to pgen
+    //     if(params.genotypes.preprocessed_pgen_file==''){
+    //         if(params.genotypes.use_gt_dosage){
+    //             if (params.input_vcf!=''){
+    //                 PGEN_CONVERT(plink_convert_input)
+    //                 plink_path = PGEN_CONVERT.out.plink_path
+    //             }
+    //         }else{
+    //             // here we dont use dosage for analysis
+    //             plink_path = plink_path
+    //         }
+    //     }
+    // }
 
     // // // 3) Generate the kinship matrix and genotype PCs
     if (params.LIMIX.run){

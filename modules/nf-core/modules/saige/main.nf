@@ -560,7 +560,7 @@ process H5AD_TO_SAIGE_FORMAT {
     output:
         tuple val(sanitized_columns), path("output_agg/*/*/saige_filt_expr_input.tsv"),path("output_agg/*/*/covariates.txt"),emit:output_pheno optional true
         tuple val(sanitized_columns),path("output_agg/*/*/test_genes.txt"),emit:gene_chunk optional true
-        path("output_agg/*"),emit:output_agg 
+        path("output_agg/*"),emit:output_agg optional true
 
     // Define the Bash script to run for each array job
     script:
@@ -571,11 +571,20 @@ process H5AD_TO_SAIGE_FORMAT {
         cov_col = "--covariates ${params.SAIGE.covariate_obs_columns}"
     }
     sizeInGB = h5ad.size() / 1e9 * 3 + 5 * task.attempt
+
+    if ("${params.aggregation_subentry}"==''){
+        cond1 = " --condition_col 'NULL' --condition 'NULL' "
+    }else{
+        cond1 = " --condition_col '${aggregation_columns}' --condition '${params.aggregation_subentry}' "
+    }
+
     """
         echo ${sizeInGB}
         bridge='${bridge}'
         nperc=${params.percent_of_population_expressed}
-        condition_col="NULL" #Specify 'NULL' if want to include all cells
+        condition_col="${aggregation_columns}" #Specify 'NULL' if want to include all cells
+        condition="${aggregation_columns}" #Specify 'NULL' if want to include all cells
+        
         scale_covariates=true
         expression_pca=${params.SAIGE.nr_expression_pcs}
         aggregate_on="${aggregation_columns}"
@@ -591,11 +600,9 @@ process H5AD_TO_SAIGE_FORMAT {
             --general_file_dir ./output_agg \
             --nperc \$nperc \
             --min ${params.n_min_cells} \
-            --condition_col \$condition_col \
-            --condition \$condition_col \
             --scale_covariates \$scale_covariates \
             --expression_pca \$expression_pca \
-            ${cov_col}
+            ${cov_col} ${cond1}
     """
 }
 
