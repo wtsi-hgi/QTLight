@@ -167,6 +167,7 @@ workflow EQTL {
 
     if (params.genotypes.preprocessed_bed_file=='' || params.genotypes.preprocessed_pgen_file==''){
         // USE VCF FILE
+        log.info 'Lets preprocess genotypes'
         donorsvcf = Channel.from(params.input_vcf)
         if (params.genotypes.subset_genotypes_to_available){
             // Subset genotypes to available in expression data
@@ -215,13 +216,18 @@ workflow EQTL {
             }
         }
 
-    }else if(params.genotypes.preprocessed_pgen_file!=''){
+    }
+    
+    if(params.genotypes.preprocessed_pgen_file!=''){
         // USE PGEN FILE
         plink_convert_input=Channel.from(genotypes.preprocessed_pgen_file)
         PLINK_CONVERT(plink_convert_input)
         plink_path = PLINK_CONVERT.out.plink_path
         bim_bed_fam = PLINK_CONVERT.out.bim_bed_fam
-    }else{
+    }
+    
+    
+    if (params.genotypes.preprocessed_bed_file=='' || params.genotypes.preprocessed_pgen_file==''){
 
         // 2) Generate the PLINK file
         PLINK_CONVERT(plink_convert_input)

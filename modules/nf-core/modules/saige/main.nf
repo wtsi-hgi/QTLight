@@ -3,7 +3,7 @@ process CONDITIONAL_QTL {
 
     // Finds top variant per gene and calculates up to 5 conditionally independent signals by including additional variant effects in the model
 
-    maxForks 1000
+    // maxForks 1000
 
     if (workflow.containerEngine == 'singularity' && !params.singularity_pull_docker_container) {
         container "${params.saige_container}"
@@ -101,7 +101,7 @@ process SAIGE_S1 {
     label 'process_low'
 
     // Specify the number of forks (10k)
-    maxForks 1000
+    // maxForks 1000
 
     if (workflow.containerEngine == 'singularity' && !params.singularity_pull_docker_container) {
         container "${params.saige_container}"
@@ -167,7 +167,7 @@ process SAIGE_S2 {
     label 'process_low'
 
     // Specify the number of forks (10k)
-    maxForks 1000
+    // maxForks 1000
 
     if (workflow.containerEngine == 'singularity' && !params.singularity_pull_docker_container) {
         container "${params.saige_container}"
@@ -259,7 +259,7 @@ process SAIGE_S2_CIS {
     label 'process_low'
 
     // Specify the number of forks (10k)
-    maxForks 1000
+    // maxForks 1000
 
     if (workflow.containerEngine == 'singularity' && !params.singularity_pull_docker_container) {
         container "${params.saige_container}"
@@ -351,7 +351,7 @@ process SAIGE_QVAL_COR {
     label 'process_low'
 
     // Specify the number of forks (10k)
-    maxForks 1000
+    // maxForks 1000
 
     if (workflow.containerEngine == 'singularity' && !params.singularity_pull_docker_container) {
         container "https://yascp.cog.sanger.ac.uk/public/singularity_images/wtsihgi_nf_scrna_qc_6bb6af5-2021-12-23-3270149cf265.sif"
@@ -397,7 +397,7 @@ process SAIGE_S3 {
     label 'process_tiny'
 
     // Specify the number of forks (10k)
-    maxForks 1000
+    // maxForks 1000
 
     if (workflow.containerEngine == 'singularity' && !params.singularity_pull_docker_container) {
         container "${params.saige_container}"
@@ -525,7 +525,7 @@ process H5AD_TO_SAIGE_FORMAT {
             return (sizeInGB ).toString() + 'GB' 
         }
     // Specify the number of forks (10k)
-    maxForks 1000
+    // maxForks 1000
 
     if (workflow.containerEngine == 'singularity' && !params.singularity_pull_docker_container) {
         container "${params.eqtl_container}"
@@ -604,7 +604,7 @@ process TEST {
     label 'process_low'
 
     // Specify the number of forks (10k)
-    maxForks 1000
+    // maxForks 1000
 
     if (workflow.containerEngine == 'singularity' && !params.singularity_pull_docker_container) {
         container "${params.saige_container}"
@@ -629,7 +629,7 @@ process CHUNK_GENES {
     label 'process_low'
     tag { sanitized_columns }
     // Specify the number of forks (10k)
-    maxForks 1000
+    // maxForks 1000
 
     if (workflow.containerEngine == 'singularity' && !params.singularity_pull_docker_container) {
         container "${params.saige_container}"
