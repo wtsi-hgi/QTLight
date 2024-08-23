@@ -101,7 +101,7 @@ process SAIGE_S1 {
     label 'process_low'
 
     // Specify the number of forks (10k)
-    // maxForks 1000
+    maxForks 1000
 
     if (workflow.containerEngine == 'singularity' && !params.singularity_pull_docker_container) {
         container "${params.saige_container}"
@@ -534,23 +534,24 @@ process H5AD_TO_SAIGE_FORMAT {
     }    
     
     publishDir  path: "${params.outdir}/Saige_eQTLS",
-                saveAs: { filename ->
-                    if (filename.contains("covariates.txt")) {
-                        return null
-                    } else if (filename.contains("saige_filt_expr_input.tsv")) {
-                        return null
-                    } else if (filename.contains("test_genes.txt")) {
-                        return null
-                    } else if (filename.contains("output_agg/")) {
-                        // Replace the exact string instead of using regex
-                        return filename.replace("output_agg/${aggregation_columns}/", "")
-                    } else {
-                        return null
-                    }
-                },
-                mode: "${params.copy_mode}",
-                overwrite: "true"
-
+        saveAs: { filename ->
+            if (filename.contains("covariates.txt")) {
+                return null
+            } else if (filename.contains("saige_filt_expr_input.tsv")) {
+                return null
+            } else if (filename.contains("test_genes.txt")) {
+                return null
+            } else if (filename.contains("output_agg/")) {
+                // Assuming `filename` contains the full path including directories
+                // Remove 'output_agg/azimuth.celltyp.l0/' from the path
+                def newFilename = filename.replaceAll(".*output_agg/[^/]+/", "")
+                return newFilename
+            } else {
+                return null
+            }
+        },
+        mode: "${params.copy_mode}",
+        overwrite: "true"
     input:
         each path(h5ad)  
         path(bridge)  

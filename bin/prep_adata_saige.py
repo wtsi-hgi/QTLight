@@ -106,6 +106,7 @@ def main():
         if bridge:
             br1 = pd.read_csv(bridge, sep='\t').set_index('RNA')
             temp.obs[genotype_id] = temp.obs[genotype_id].map(br1['Genotype'])
+            del br1
         
         temp = temp[temp.obs[genotype_id].isin(geno_pcs.index)]
         
@@ -119,8 +120,10 @@ def main():
             cells_per_sample = counts[genotype_id].value_counts()
             keep_samples = cells_per_sample[cells_per_sample > min_cells].index
             counts = counts[counts[genotype_id].isin(keep_samples)]
+            del cells_per_sample
         
-        
+        temp = temp[temp.obs[genotype_id].isin(keep_samples)]
+        del keep_samples
         if nperc > 0:
             # counts_per_sample = counts.groupby(genotype_id).sum()
             # min_samples = int(np.ceil(len(np.unique(genotype_ids)) * (nperc / 100)))
@@ -144,9 +147,10 @@ def main():
             filtered_counts = counts.iloc[:, keep_genes].copy()
             # Reattach genotype_id
             filtered_counts[genotype_id] = genotype_ids
-            counts3 = filtered_counts
+            counts = filtered_counts
+            del counts_data, summed_counts  # Free memory
             
-        temp = temp[temp.obs[genotype_id].isin(keep_samples)]
+        
         print(f"Final shape is: {counts.shape}") 
         if (any(np.array(counts.shape) < 2)):
             print(f"Final shape is not acceptable, skipping this phenotype: {counts.shape}")
