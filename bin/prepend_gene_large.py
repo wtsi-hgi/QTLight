@@ -6,8 +6,9 @@ import argparse
 
 def main(pattern, column, outfile):
     
-    all_files = glob.glob("*"+pattern)
-    
+    all_files = pd.DataFrame(glob.glob("*"+pattern),columns=['col1'])
+    all_files = all_files[~all_files['col1'].str.contains('.index')]
+    all_files = list(all_files['col1'])
     # Initialize the output file with the header from the first file
     first_file = all_files[0]
     pattern_pre = pattern.split('*')
