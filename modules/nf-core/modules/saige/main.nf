@@ -176,10 +176,10 @@ process SAIGE_S2 {
     }    
 
     input:
-        tuple val(name),path(genes_list),path(output),path(plink_bim), path(plink_bed), path(plink_fam),val(chr)
+        tuple val(name),path(genes_list),path(output),path(plink_bim), path(plink_bed), path(plink_fam)
 
     output:
-        tuple val("${name}___${chr}"),path(genes_list),path("output_${name}___${chr}"),path(output),path("regions_${genes_list}"),path(plink_bim), path(plink_bed), path(plink_fam),val(chr),emit:output
+        tuple val("${name}"),path(genes_list),path("output_${name}___${chr}"),path(output),path("regions_${genes_list}"),path(plink_bim), path(plink_bed), path(plink_fam),val(chr),emit:output
         tuple val("${name}___${chr}"),path("output_${name}___${chr}/nindep_100_ncell_100_lambda_2_tauIntraSample_0.5_cis_*"),emit:for_aggregation
 
     script:
@@ -268,11 +268,11 @@ process SAIGE_S2_CIS {
     }    
 
     input:
-        tuple val(name),path(genes_list),path(output),path(genome_regions),path(plink_bim), path(plink_bed), path(plink_fam),val(chr)
+        tuple val(name),path(genes_list),path(output),path(genome_regions),path(plink_bim), path(plink_bed), path(plink_fam)
 
     output:
-        tuple val("${name}___${chr}"),path("genes_list2.tsv"),path("output_${name}___${chr}"),path(output),path(genome_regions),path(plink_bim), path(plink_bed), path(plink_fam),val(chr),emit:output optional true
-        tuple val("${name}___${chr}"),path("output_${name}___${chr}/nindep_100_ncell_100_lambda_2_tauIntraSample_0.5_cis_*"),emit:for_aggregation  optional true
+        tuple val("${name}"),path("genes_list2.tsv"),path("output_${name}___*"),path(output),path(genome_regions),path(plink_bim), path(plink_bed), path(plink_fam),emit:output optional true
+        tuple val("${name}"),path("output_${name}___*/nindep_100_ncell_100_lambda_2_tauIntraSample_0.5_cis_*"),emit:for_aggregation  optional true
 
     script:
         if (params.SAIGE.cis_trans_mode=='cis'){
@@ -288,8 +288,8 @@ process SAIGE_S2_CIS {
                     --bedFile=${plink_bed}      \
                     --bimFile=${plink_bim}      \
                     --famFile=${plink_fam}      \
-                    --SAIGEOutputFile=output_${name}___${chr}/nindep_100_ncell_100_lambda_2_tauIntraSample_0.5_cis_\${variable}    \
-                    --chrom=${chr}       \
+                    --SAIGEOutputFile=output_${name}___\${chr1}/nindep_100_ncell_100_lambda_2_tauIntraSample_0.5_cis_\${variable}    \
+                    --chrom=\${chr1}     \
                     --minMAF=${params.SAIGE.minMAF} \
                     --minMAC=${params.SAIGE.minMAC} \
                     --LOCO=FALSE    \
@@ -298,51 +298,42 @@ process SAIGE_S2_CIS {
                     --SPAcutoff=${params.SAIGE.SPAcutoff} \
                     --markers_per_chunk=${params.SAIGE.markers_per_chunk} ${mode} 
 
-                if [ \$? -ne 0 ]; then
-                    echo "step2_tests_qtl.R command failed" >&2
-                    exit 1  # Exit the script with a non-zero status
-                fi
+                #if [ \$? -ne 0 ]; then
+                #    echo "step2_tests_qtl.R command failed" >&2
+                #    exit 1  # Exit the script with a non-zero status
+                #fi
 
-                line_count=\$(wc -l < output_${name}___${chr}/nindep_100_ncell_100_lambda_2_tauIntraSample_0.5_cis_\${variable})        
+                line_count=\$(wc -l < output_${name}___\${chr1}/nindep_100_ncell_100_lambda_2_tauIntraSample_0.5_cis_\${variable})        
                 if [ "\$line_count" -eq 1 ]; then
                     echo "File has exactly one line"
-                    rm output_${name}___${chr}/nindep_100_ncell_100_lambda_2_tauIntraSample_0.5_cis_\${variable}
+                    rm output_${name}___\${chr1}/nindep_100_ncell_100_lambda_2_tauIntraSample_0.5_cis_\${variable}
                 else
-                    echo "\${variable}" >> genes_list2.tsv
+                    echo "\${variable}\t\${chr1}" >> genes_list2.tsv
                 fi
                 
             } || { 
                 echo 'Failed since no markers present in range'
-                rm output_${name}___${chr}/nindep_100_ncell_100_lambda_2_tauIntraSample_0.5_cis_\${variable}
+                rm output_${name}___\${chr1}/nindep_100_ncell_100_lambda_2_tauIntraSample_0.5_cis_\${variable}
             }
         }
 
 
-        if awk '\$2 == ${chr} {found=${chr}; exit} END {exit !found}' ${genome_regions}; then
-            echo "The chromosome '${chr}' is found in the second column."
+        step1prefix=${output}/nindep_100_ncell_100_lambda_2_tauIntraSample_0.5           
+        
+        
+        
+        cat "${genome_regions}" | while IFS= read -r gene || [ -n "\$gene" ]
+        do
+            echo "\$gene" | cut -f2- >> regions_cis.tsv
+            variable=\$(echo "\$gene" | cut -f1)
+            echo \${variable}
+            chr1=\$(echo "\$gene" | cut -f2)
+            step2prefix=output_${name}___\${chr1}/nindep_100_ncell_100_lambda_2_tauIntraSample_0.5_cis
+            mkdir -p output_${name}___\${chr1}
+            run_step2_tests_qtl
+            rm regions_cis.tsv
+        done
 
-            step1prefix=${output}/nindep_100_ncell_100_lambda_2_tauIntraSample_0.5           
-            step2prefix=output_${name}___${chr}/nindep_100_ncell_100_lambda_2_tauIntraSample_0.5_cis
-            mkdir output_${name}___${chr}
-            
-            cat "${genome_regions}" | while IFS= read -r gene || [ -n "\$gene" ]
-            do
-                echo "\$gene" | cut -f2- >> regions_cis.tsv
-                variable=\$(echo "\$gene" | cut -f1)
-                echo \${variable}
-                chr1=\$(echo "\$gene" | cut -f2)
-                
-                if [ "\$chr1" -eq ${chr} ]; then
-                    run_step2_tests_qtl
-                else
-                    echo 'Not on the correct chromosome'
-                    #sed -i '/\$variable/d' ${genes_list}
-                fi
-                rm regions_cis.tsv
-            done
-        else
-            echo "The chromosome '${chr}' is not found in the testing range, and hence ignored."
-        fi
 
     """
 }
@@ -361,11 +352,11 @@ process SAIGE_QVAL_COR {
     }
 
     input:
-        tuple val(name),path(genes_list),path(output),path(output_rda),path(regions),path(plink_bim), path(plink_bed), path(plink_fam),val(chr)
+        tuple val(name),path(genes_list),path(output),path(output_rda),path(regions),path(plink_bim), path(plink_bed), path(plink_fam)
 
     output:
         tuple val(name),path(genes_list),path(output),emit:output
-        tuple val(name),path(output),path(output_rda),path('output3'),path('for_conditioning.csv'),path(regions),path(plink_bim), path(plink_bed), path(plink_fam),val(chr), emit: for_conditioning optional true
+        tuple val(name),path(output),path(output_rda),path('output3'),path('for_conditioning.csv'),path(regions),path(plink_bim), path(plink_bed), path(plink_fam), emit: for_conditioning optional true
         tuple val(name),path("output3/*_minimum_q.txt"), emit: q_out
     script:
 
@@ -374,14 +365,17 @@ process SAIGE_QVAL_COR {
         exp = parts[0]
     """
         
-        step2prefix=output_${name}/nindep_100_ncell_100_lambda_2_tauIntraSample_0.5_cis
-        mkdir output3 
-        cat "${genes_list}" | while IFS= read -r gene || [ -n "\$gene" ]
+        
+        mkdir -p output3 
+        cat "${genes_list}" | while IFS= read -r gene1 || [ -n "\$gene1" ]
         do
+            chr1=\$(echo "\${gene1}" | cut -f2)
+            gene=\$(echo "\${gene1}" | cut -f1)
+            step2prefix=output_${name}___\${chr1}/nindep_100_ncell_100_lambda_2_tauIntraSample_0.5_cis
             qvalue_correction.py -f \${step2prefix}_\${gene} -c "13" -n "qvalues" -w "TRUE"
-            mv \${step2prefix}_\${gene}_minimum_q.txt output3/cis_\${gene}_${chr}_minimum_q.txt
+            mv \${step2prefix}_\${gene}_minimum_q.txt output3/cis_\${gene}_\${chr1}_minimum_q.txt
 
-            top_q=\$(awk -F'	' 'NR==2 {print \$17}' output3/cis_\${gene}_${chr}_minimum_q.txt)
+            top_q=\$(awk -F'	' 'NR==2 {print \$17}' output3/cis_\${gene}_\${chr1}_minimum_q.txt)
             threshold=${params.SAIGE.q_val_threshold_for_conditioning}
             echo "\$top_q"
             if awk -v tq="\$top_q" -v th="\$threshold" 'BEGIN {exit !(tq <= th)}'; then
@@ -418,12 +412,15 @@ process SAIGE_S3 {
 
     """
         mkdir output_2
-        cat "${genes_list}" | while IFS= read -r gene || [ -n "\$gene" ]
+        cat "${genes_list}" | while IFS= read -r gene1 || [ -n "\$gene1" ]
         do
+            chr1=\$(echo "\${gene1}" | cut -f2)
+            gene=\$(echo "\${gene1}" | cut -f1)
+            step2prefix=output_${name}___\${chr1}/nindep_100_ncell_100_lambda_2_tauIntraSample_0.5_cis
             step3_gene_pvalue_qtl.R \
-            --assocFile=${output}/nindep_100_ncell_100_lambda_2_tauIntraSample_0.5_cis_\${gene}        \
+            --assocFile=\${step2prefix}_\${gene}        \
             --geneName=\${gene}       \
-            --genePval_outputFile=output_2/nindep_100_ncell_100_lambda_chr${chr}_tauIntraSample_0.5_\${gene}_cis_genePval
+            --genePval_outputFile=output_2/nindep_100_ncell_100_lambda_chr\${chr1}_tauIntraSample_0.5_\${gene}_cis_genePval
         done
     """
 }
@@ -718,20 +715,25 @@ workflow SAIGE_qtls{
 
 
         if(params.SAIGE.cis_trans_mode=='trans'){
-            SAIGE_S2(SAIGE_S1.out.output.combine(bim_bed_fam).combine(chromosomes_to_test))
+            SAIGE_S2(SAIGE_S1.out.output.combine(bim_bed_fam))
             output_s2 = SAIGE_S2.out.output
             agg_output = SAIGE_S2.out.for_aggregation
 
         }else if(params.SAIGE.cis_trans_mode=='cis'){
             DETERMINE_TSS_AND_TEST_REGIONS(SAIGE_S1.out.output,genome_annotation)
             for_cis_input = DETERMINE_TSS_AND_TEST_REGIONS.out.output_genes
-            SAIGE_S2_CIS(for_cis_input.combine(bim_bed_fam).combine(chromosomes_to_test))
+            SAIGE_S2_CIS(for_cis_input.combine(bim_bed_fam))
+            // there will be cases where the genes are across multiple chr. and this will emt two outputs. 
+            // they need to be standardised.
             output_s2 = SAIGE_S2_CIS.out.output
             agg_output = SAIGE_S2_CIS.out.for_aggregation
+
+
         }
 
         // HERE WE either run the cis or trans qtl mapping. For cis we loop through each of the chunks whereas in trans we can run all together.
-         
+        output_s2.subscribe { println "output_s2 dist: $it" }
+        agg_output.subscribe { println "agg_output dist: $it" }
         SAIGE_QVAL_COR(output_s2)
         SAIGE_S3(SAIGE_QVAL_COR.out.output)
 
