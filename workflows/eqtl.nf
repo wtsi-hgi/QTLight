@@ -162,8 +162,8 @@ workflow EQTL {
         channel_input_data_table=channel_input_data_table2.collect().unique()
     }
 
-
-    if (params.genotypes.preprocessed_bed_file=='' || params.genotypes.preprocessed_pgen_file==''){
+    
+    if (params.genotypes.preprocessed_bed_file=='' && params.genotypes.preprocessed_pgen_file==''){
         // USE VCF FILE
         log.info 'Lets preprocess genotypes'
         donorsvcf = Channel.from(params.input_vcf)
@@ -182,41 +182,83 @@ workflow EQTL {
         }else{
             plink_convert_input=subset_genotypes  
         }
+    }else if (params.genotypes.preprocessed_pgen_file!=''){
+        plink_path = Channel.from(params.genotypes.preprocessed_pgen_file)
+    }else{
+        plink_path = Channel.from(params.genotypes.preprocessed_pgen_file)
     }
 
 
-
-    if(params.genotypes.preprocessed_bed_file!=''){
-        // USE BED FILE
-        plink_path = Channel.from(params.genotypes.preprocessed_bed_file)
-        Channel.fromPath("${params.genotypes.preprocessed_bed_file}/*.bed", followLinks: true)
-            .set { bed_files }
-
-        Channel.fromPath("${params.genotypes.preprocessed_bed_file}/*.bim", followLinks: true)
-            .set { bim_files }
-
-        Channel.fromPath("${params.genotypes.preprocessed_bed_file}/*.fam", followLinks: true)
-            .set { fam_files }
-        bim_bed_fam = bim_files
-                    .combine(bed_files)
-                    .combine(fam_files)
-
-        // we prioritise vcf to convert to pgen
+    // If use dosages we convert vcf to pgen
+    // Otherwise we convert it to bed
+    if(params.genotypes.use_gt_dosage){
         if(params.genotypes.preprocessed_pgen_file==''){
-            if(params.genotypes.use_gt_dosage){
-                if (params.input_vcf!=''){
-                    PGEN_CONVERT(plink_convert_input)
-                    plink_path = PGEN_CONVERT.out.plink_path
-                }
-            }else{
-                // here we dont use dosage for analysis
-                plink_path = plink_path
-            }
+            PGEN_CONVERT(plink_convert_input)
+            plink_path = PGEN_CONVERT.out.plink_path
         }else{
-            plink_path = Channel.from(params.genotypes.preprocessed_pgen_file)
+            plink_path = Channel.from(params.genotypes.preprocessed_bed_file)
         }
 
+        // Saige S1 needs bed file
+        if (params.SAIGE.run){
+            PLINK_CONVERT(plink_convert_input)
+            bim_bed_fam = PLINK_CONVERT.out.bim_bed_fam
+        }
+
+    }else{
+        if(params.genotypes.preprocessed_bed_file!=''){
+            // USE BED FILE
+            plink_path = Channel.from(params.genotypes.preprocessed_bed_file)
+            Channel.fromPath("${params.genotypes.preprocessed_bed_file}/*.bed", followLinks: true)
+                .set { bed_files }
+
+            Channel.fromPath("${params.genotypes.preprocessed_bed_file}/*.bim", followLinks: true)
+                .set { bim_files }
+
+            Channel.fromPath("${params.genotypes.preprocessed_bed_file}/*.fam", followLinks: true)
+                .set { fam_files }
+            bim_bed_fam = bim_files
+                        .combine(bed_files)
+                        .combine(fam_files)   
+        }else{
+            // here we dont use dosage for analysis
+            PLINK_CONVERT(plink_convert_input)
+            plink_path = plink_path
+            bim_bed_fam = PLINK_CONVERT.out.bim_bed_fam
+        }         
+
     }
+        
+    
+
+
+
+
+
+        // we prioritise vcf to convert to pgen
+    //     if(params.genotypes.preprocessed_pgen_file==''){
+    //         if(params.genotypes.use_gt_dosage){
+    //             if (params.input_vcf!=''){
+    //                 PGEN_CONVERT(plink_convert_input)
+    //                 plink_path = PGEN_CONVERT.out.plink_path
+    //             }
+    //         }else{
+    //             // here we dont use dosage for analysis
+    //             PLINK_CONVERT(plink_convert_input)
+    //             plink_path = plink_path
+    //         }
+    //     }else{
+    //         if(params.genotypes.use_gt_dosage){
+    //             plink_path = Channel.from(params.genotypes.preprocessed_pgen_file)
+    //         }else{
+    //             // here we dont use dosage for analysis
+    //             plink_convert_input = Channel.from(params.genotypes.preprocessed_pgen_file)
+    //             PLINK_CONVERT(plink_convert_input)
+    //             plink_path = plink_path
+    //         }
+    //     }
+
+    // }
     
     // if(params.genotypes.preprocessed_pgen_file!=''){
     //     // USE PGEN FILE
@@ -253,26 +295,25 @@ workflow EQTL {
     //     }
     // }
 
-    // // // 3) Generate the kinship matrix and genotype PCs
-    if (params.LIMIX.run){
-        KINSHIP_CALCULATION(plink_path)
-    }
+    // // // 
+    // if (params.LIMIX.run){
+        
+    // }
     
 
+    // if(params.genotypes.preprocessed_pgen_file==''){
+    //     if(params.genotypes.use_gt_dosage){
+    //         // Here we are using dosage for anaysis.
+    //         if (params.input_vcf==''){
+    //             PGEN_CONVERT(plink_path)
+    //             plink_path = PGEN_CONVERT.out.plink_path
+    //         }
 
-    if(params.genotypes.preprocessed_pgen_file==''){
-        if(params.genotypes.use_gt_dosage){
-            // Here we are using dosage for anaysis.
-            if (params.input_vcf==''){
-                PGEN_CONVERT(plink_path)
-                plink_path = PGEN_CONVERT.out.plink_path
-            }
-
-        }else{
-            // here we dont use dosage for analysis
-            plink_path = plink_path
-        }
-    }
+    //     }else{
+    //         // here we dont use dosage for analysis
+    //         plink_path = plink_path
+    //     }
+    // }
 
     GENOTYPE_PC_CALCULATION(plink_path)
 
@@ -296,6 +337,8 @@ workflow EQTL {
 
     // LIMIX QTL mapping method
     if (params.LIMIX.run){
+        // 3) Generate the kinship matrix and genotype PCs
+        KINSHIP_CALCULATION(plink_path)
         filtered_pheno_channel =SUBSET_PCS.out.for_bed.map { tuple ->  [tuple[3],[[tuple[0],tuple[1],tuple[2]]]].combinations()}.flatten().collate(4)
         CHUNK_GENOME(genome_annotation,filtered_pheno_channel)
         limix_cunks_for_each_cond = CHUNK_GENOME.out.limix_condition_chunking.take(2)
@@ -325,7 +368,6 @@ workflow EQTL {
     // SAIGE SCRNA QTL mapping method
     if (params.method=='single_cell'){
         if (params.SAIGE.run){
-
             SAIGE_qtls(GENOTYPE_PC_CALCULATION.out.gtpca_plink,adata,bim_bed_fam,genome_annotation)
         }
     }

@@ -36,7 +36,7 @@ process CONDITIONAL_QTL {
                     --bedFile=${plink_bed}      \
                     --bimFile=${plink_bim}      \
                     --famFile=${plink_fam}      \
-                    --SAIGEOutputFile=output_${name}___${chr}/nindep_100_ncell_100_lambda_2_tauIntraSample_0.5_cis_\${variable}    \
+                    --SAIGEOutputFile=output_${name}___${chr}/\${chr1}___nindep_100_ncell_100_lambda_2_tauIntraSample_0.5_cis_\${variable}    \
                     --chrom=${chr}       \
                     --minMAF=${params.SAIGE.minMAF} \
                     --minMAC=${params.SAIGE.minMAC} \
@@ -52,17 +52,17 @@ process CONDITIONAL_QTL {
                     exit 1  # Exit the script with a non-zero status
                 fi
 
-                line_count=\$(wc -l < output_${name}___${chr}/nindep_100_ncell_100_lambda_2_tauIntraSample_0.5_cis_\${variable})        
+                line_count=\$(wc -l < output_${name}___${chr}/\${chr1}___nindep_100_ncell_100_lambda_2_tauIntraSample_0.5_cis_\${variable})        
                 if [ "\$line_count" -eq 1 ]; then
                     echo "File has exactly one line"
-                    rm output_${name}___${chr}/nindep_100_ncell_100_lambda_2_tauIntraSample_0.5_cis_\${variable}
+                    rm output_${name}___${chr}/\${chr1}___nindep_100_ncell_100_lambda_2_tauIntraSample_0.5_cis_\${variable}
                 else
                     echo "\${variable}" >> genes_list2.tsv
                 fi
                 
             } || { 
                 echo 'Failed since no markers present in range'
-                rm output_${name}___${chr}/nindep_100_ncell_100_lambda_2_tauIntraSample_0.5_cis_\${variable}
+                rm output_${name}___${chr}/\${chr1}___nindep_100_ncell_100_lambda_2_tauIntraSample_0.5_cis_\${variable}
             }
         }
 
@@ -70,8 +70,8 @@ process CONDITIONAL_QTL {
         if awk '\$2 == ${chr} {found=${chr}; exit} END {exit !found}' ${genome_regions}; then
             echo "The chromosome '${chr}' is found in the second column."
 
-            step1prefix=${output}/nindep_100_ncell_100_lambda_2_tauIntraSample_0.5           
-            step2prefix=output_${name}___${chr}/nindep_100_ncell_100_lambda_2_tauIntraSample_0.5_cis
+            step1prefix=${output}/\${chr1}___nindep_100_ncell_100_lambda_2_tauIntraSample_0.5           
+            step2prefix=output_${name}___${chr}/\${chr1}___nindep_100_ncell_100_lambda_2_tauIntraSample_0.5_cis
             mkdir output_${name}___${chr}
             
             cat "${genome_regions}" | while IFS= read -r gene || [ -n "\$gene" ]
@@ -135,7 +135,7 @@ process SAIGE_S1 {
                 --sampleCovarColList=\$(sed -n '2p' ${cov})      \
                 --sampleIDColinphenoFile=${params.gt_id_column} \
                 --traitType=count \
-                --outputPrefix=./output/nindep_100_ncell_100_lambda_2_tauIntraSample_0.5_\$i  \
+                --outputPrefix=./output/\${chr1}___nindep_100_ncell_100_lambda_2_tauIntraSample_0.5_\$i  \
                 --skipVarianceRatioEstimation=FALSE  \
                 --isRemoveZerosinPheno=FALSE \
                 --isCovariateOffset=TRUE  \
@@ -156,7 +156,7 @@ process SAIGE_S1 {
         cat "${genes_list}" | while IFS= read -r i || [ -n "\$i" ]
         do
             echo \$i >> ./output/gene_string.tsv
-            step1prefix=./output/nindep_100_ncell_100_lambda_2_tauIntraSample_0.5_\$i
+            step1prefix=./output/\${chr1}___nindep_100_ncell_100_lambda_2_tauIntraSample_0.5_\$i
             echo -e "\${i} \${step1prefix}.rda \${step1prefix}.varianceRatio.txt" >> ./output/step1_output_formultigenes.txt
         done
     """
@@ -180,7 +180,7 @@ process SAIGE_S2 {
 
     output:
         tuple val("${name}"),path(genes_list),path("output_${name}___${chr}"),path(output),path("regions_${genes_list}"),path(plink_bim), path(plink_bed), path(plink_fam),val(chr),emit:output
-        tuple val("${name}___${chr}"),path("output_${name}___${chr}/nindep_100_ncell_100_lambda_2_tauIntraSample_0.5_cis_*"),emit:for_aggregation
+        tuple val("${name}___${chr}"),path("output_${name}___${chr}/\${chr1}___nindep_100_ncell_100_lambda_2_tauIntraSample_0.5_cis_*"),emit:for_aggregation
 
     script:
         if (params.SAIGE.cis_trans_mode=='cis'){
@@ -191,8 +191,8 @@ process SAIGE_S2 {
     
     """
         cp ${genes_list} regions_${genes_list}
-        step1prefix=${output}/nindep_100_ncell_100_lambda_2_tauIntraSample_0.5           
-        step2prefix=output_${name}___${chr}/nindep_100_ncell_100_lambda_2_tauIntraSample_0.5_cis
+        step1prefix=${output}/\${chr1}___nindep_100_ncell_100_lambda_2_tauIntraSample_0.5           
+        step2prefix=output_${name}___${chr}/\${chr1}___nindep_100_ncell_100_lambda_2_tauIntraSample_0.5_cis
         mkdir output_${name}___${chr}
 
         run_step2_tests_qtl() {
@@ -219,8 +219,8 @@ process SAIGE_S2 {
                 echo "File has exactly one line"
                 var=\$(cat output/step1_output_formultigenes.txt | awk '{print \$1}')
                 echo \$var
-                mv output_${name}___${chr}/nindep_100_ncell_100_lambda_2_tauIntraSample_0.5_cis output_${name}___${chr}/nindep_100_ncell_100_lambda_2_tauIntraSample_0.5_cis_\$var
-                mv output_${name}___${chr}/nindep_100_ncell_100_lambda_2_tauIntraSample_0.5_cis.index output_${name}___${chr}/nindep_100_ncell_100_lambda_2_tauIntraSample_0.5_cis_\$var.index
+                mv output_${name}___${chr}/\${chr1}___nindep_100_ncell_100_lambda_2_tauIntraSample_0.5_cis output_${name}___${chr}/\${chr1}___nindep_100_ncell_100_lambda_2_tauIntraSample_0.5_cis_\$var
+                mv output_${name}___${chr}/\${chr1}___nindep_100_ncell_100_lambda_2_tauIntraSample_0.5_cis.index output_${name}___${chr}/\${chr1}___nindep_100_ncell_100_lambda_2_tauIntraSample_0.5_cis_\$var.index
             else
                 echo "File does not have exactly one line"
             fi
@@ -230,7 +230,7 @@ process SAIGE_S2 {
         
         cat "${genes_list}" | while IFS= read -r gene || [ -n "\$gene" ]
         do
-            f1="output_${name}___${chr}/nindep_100_ncell_100_lambda_2_tauIntraSample_0.5_cis_\$gene"
+            f1="output_${name}___${chr}/\${chr1}___nindep_100_ncell_100_lambda_2_tauIntraSample_0.5_cis_\$gene"
             first_line=\$(head -n 1 "\$f1")
             # Check if the first line contains both V1 and V2
             if [[ \$first_line == *"V1"* && \$first_line == *"V2"* ]]; then
@@ -272,7 +272,7 @@ process SAIGE_S2_CIS {
 
     output:
         tuple val("${name}"),path("genes_list2.tsv"),path("output_${name}___*"),path(output),path(genome_regions),path(plink_bim), path(plink_bed), path(plink_fam),emit:output optional true
-        tuple val("${name}"),path("output_${name}___*/nindep_100_ncell_100_lambda_2_tauIntraSample_0.5_cis_*"),emit:for_aggregation  optional true
+        tuple val("${name}"),path("output_${name}___*/\${chr1}___nindep_100_ncell_100_lambda_2_tauIntraSample_0.5_cis_*"),emit:for_aggregation  optional true
 
     script:
         if (params.SAIGE.cis_trans_mode=='cis'){
@@ -288,7 +288,7 @@ process SAIGE_S2_CIS {
                     --bedFile=${plink_bed}      \
                     --bimFile=${plink_bim}      \
                     --famFile=${plink_fam}      \
-                    --SAIGEOutputFile=output_${name}___\${chr1}/nindep_100_ncell_100_lambda_2_tauIntraSample_0.5_cis_\${variable}    \
+                    --SAIGEOutputFile=output_${name}___\${chr1}/\${chr1}___nindep_100_ncell_100_lambda_2_tauIntraSample_0.5_cis_\${variable}    \
                     --chrom=\${chr1}     \
                     --minMAF=${params.SAIGE.minMAF} \
                     --minMAC=${params.SAIGE.minMAC} \
@@ -303,22 +303,22 @@ process SAIGE_S2_CIS {
                 #    exit 1  # Exit the script with a non-zero status
                 #fi
 
-                line_count=\$(wc -l < output_${name}___\${chr1}/nindep_100_ncell_100_lambda_2_tauIntraSample_0.5_cis_\${variable})        
+                line_count=\$(wc -l < output_${name}___\${chr1}/\${chr1}___nindep_100_ncell_100_lambda_2_tauIntraSample_0.5_cis_\${variable})        
                 if [ "\$line_count" -eq 1 ]; then
                     echo "File has exactly one line"
-                    rm output_${name}___\${chr1}/nindep_100_ncell_100_lambda_2_tauIntraSample_0.5_cis_\${variable}
+                    rm output_${name}___\${chr1}/\${chr1}___nindep_100_ncell_100_lambda_2_tauIntraSample_0.5_cis_\${variable}
                 else
                     echo "\${variable}\t\${chr1}" >> genes_list2.tsv
                 fi
                 
             } || { 
                 echo 'Failed since no markers present in range'
-                rm output_${name}___\${chr1}/nindep_100_ncell_100_lambda_2_tauIntraSample_0.5_cis_\${variable}
+                rm output_${name}___\${chr1}/\${chr1}___nindep_100_ncell_100_lambda_2_tauIntraSample_0.5_cis_\${variable}
             }
         }
 
 
-        step1prefix=${output}/nindep_100_ncell_100_lambda_2_tauIntraSample_0.5           
+        step1prefix=${output}/\${chr1}___nindep_100_ncell_100_lambda_2_tauIntraSample_0.5           
         
         
         
@@ -328,7 +328,7 @@ process SAIGE_S2_CIS {
             variable=\$(echo "\$gene" | cut -f1)
             echo \${variable}
             chr1=\$(echo "\$gene" | cut -f2)
-            step2prefix=output_${name}___\${chr1}/nindep_100_ncell_100_lambda_2_tauIntraSample_0.5_cis
+            step2prefix=output_${name}___\${chr1}/\${chr1}___nindep_100_ncell_100_lambda_2_tauIntraSample_0.5_cis
             mkdir -p output_${name}___\${chr1}
             run_step2_tests_qtl
             rm regions_cis.tsv
@@ -371,7 +371,7 @@ process SAIGE_QVAL_COR {
         do
             chr1=\$(echo "\${gene1}" | cut -f2)
             gene=\$(echo "\${gene1}" | cut -f1)
-            step2prefix=output_${name}___\${chr1}/nindep_100_ncell_100_lambda_2_tauIntraSample_0.5_cis
+            step2prefix=output_${name}___\${chr1}/\${chr1}___nindep_100_ncell_100_lambda_2_tauIntraSample_0.5_cis
             qvalue_correction.py -f \${step2prefix}_\${gene} -c "13" -n "qvalues" -w "TRUE"
             mv \${step2prefix}_\${gene}_minimum_q.txt output3/cis_\${gene}_\${chr1}_minimum_q.txt
 
@@ -380,7 +380,7 @@ process SAIGE_QVAL_COR {
             echo "\$top_q"
             if awk -v tq="\$top_q" -v th="\$threshold" 'BEGIN {exit !(tq <= th)}'; then
                 echo "Performing conditional analysis: q-value for first pass <= \$threshold"
-                echo \${gene},${output_rda}/nindep_100_ncell_100_lambda_2_tauIntraSample_0.5_\${gene}.rda,${output_rda}/nindep_100_ncell_100_lambda_2_tauIntraSample_0.5_\${gene}.varianceRatio.txt >> for_conditioning.csv
+                echo \${gene},${output_rda}/\${chr1}___nindep_100_ncell_100_lambda_2_tauIntraSample_0.5_\${gene}.rda,${output_rda}/\${chr1}___nindep_100_ncell_100_lambda_2_tauIntraSample_0.5_\${gene}.varianceRatio.txt >> for_conditioning.csv
             fi            
         done
     """
@@ -404,7 +404,7 @@ process SAIGE_S3 {
     output:
         tuple val(name),path("output_2/*_cis_genePval"), emit: q_out_2
     // Define the Bash script to run for each array job
-    // nindep_100_ncell_100_lambda_2_tauIntraSample_0.5_gene_1_cis_gene_1
+    // \${chr1}___nindep_100_ncell_100_lambda_2_tauIntraSample_0.5_gene_1_cis_gene_1
     script:
 
     parts = name.split('___')
@@ -416,7 +416,7 @@ process SAIGE_S3 {
         do
             chr1=\$(echo "\${gene1}" | cut -f2)
             gene=\$(echo "\${gene1}" | cut -f1)
-            step2prefix=output_${name}___\${chr1}/nindep_100_ncell_100_lambda_2_tauIntraSample_0.5_cis
+            step2prefix=output_${name}___\${chr1}/\${chr1}___nindep_100_ncell_100_lambda_2_tauIntraSample_0.5_cis
             step3_gene_pvalue_qtl.R \
             --assocFile=\${step2prefix}_\${gene}        \
             --geneName=\${gene}       \
@@ -621,7 +621,7 @@ process TEST {
         tuple val(sanitized_columns), path(saige_filt_expr_input),path(test_genes) 
        
     // Define the Bash script to run for each array job
-    // nindep_100_ncell_100_lambda_2_tauIntraSample_0.5_gene_1_cis_gene_1
+    // \${chr1}___nindep_100_ncell_100_lambda_2_tauIntraSample_0.5_gene_1_cis_gene_1
     script:
     """
         echo ${sanitized_columns}
@@ -649,7 +649,7 @@ process CHUNK_GENES {
         tuple val(sanitized_columns), path("chunk_${sanitized_columns}_*"),emit:output_genes
         
     // Define the Bash script to run for each array job
-    // nindep_100_ncell_100_lambda_2_tauIntraSample_0.5_gene_1_cis_gene_1
+    // \${chr1}___nindep_100_ncell_100_lambda_2_tauIntraSample_0.5_gene_1_cis_gene_1
     script:
     """
         echo ${sanitized_columns}
