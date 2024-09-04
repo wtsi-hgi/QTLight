@@ -9,6 +9,7 @@ import scanpy as sc
 import argparse
 import os
 import re
+import gc
 
 def main():
     """Run CLI."""
@@ -105,7 +106,8 @@ def main():
     # else:
         # here we estimate the genotype phenotype interaction file from the genotype, since the IDs are the same. 
     print('Reading in data...')
-    adata = sc.read_h5ad(filename=h5ad)
+    adata = sc.read_h5ad(filename=h5ad, backed='r')
+    adata.strings_to_categoricals()
     adata.obs['adata_phenotype_id'] = adata.obs[gt_id_column].astype('str')+'_'+adata.obs[sample_column].astype('str')
 
 
@@ -133,13 +135,15 @@ def main():
                 print(type)
                 print("----------")# 
                 modified_agg_col = re.sub(r'[^a-zA-Z0-9]', '_', type)
+                adata.strings_to_categoricals()
                 # type='CD4 CTL'
                 cell_adata = adata[adata.obs[agg_col]==type]
                 if (len(cell_adata.obs['adata_phenotype_id'].unique())>n_individ):
                     aggregated_data_pre=pd.DataFrame()
                     genotype_phenotype_mapping_pre = []
                     for individual_1 in cell_adata.obs['adata_phenotype_id'].unique():
-                        individual_1_adata = cell_adata[cell_adata.obs['adata_phenotype_id']==individual_1]
+                        individual_indices = cell_adata.obs['adata_phenotype_id'] == individual_1
+                        individual_1_adata = adata[adata.obs['adata_phenotype_id']==individual_1]
                         if(individual_1_adata.obs.shape[0]>n_cells):
                             print(individual_1)
                             Genotype = individual_1_adata.obs[gt_id_column].unique()[0]
@@ -170,6 +174,9 @@ def main():
                         aggregated_data=pd.concat([aggregated_data,aggregated_data_pre],axis=1)
                         genotype_phenotype_mapping= genotype_phenotype_mapping+ genotype_phenotype_mapping_pre
                         # f = pd.DataFrame(individual_1_adata.X.mean(axis=0))
+                # os.remove('tmp.h5ad')
+                # del cell_adata
+                # gc.collect()  # Force garbage collection to free up memory
                 genotype_phenotype_mapping = pd.DataFrame(genotype_phenotype_mapping)
                 if(len(genotype_phenotype_mapping)!=0):
                     genotype_phenotype_mapping.to_csv(f'{method}__{modified_agg_col}___genotype_phenotype_mapping.tsv',sep='\t',index=False)

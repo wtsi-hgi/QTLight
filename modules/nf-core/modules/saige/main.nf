@@ -70,9 +70,9 @@ process CONDITIONAL_QTL {
         if awk '\$2 == ${chr} {found=${chr}; exit} END {exit !found}' ${genome_regions}; then
             echo "The chromosome '${chr}' is found in the second column."
 
-            step1prefix=${output}/\${chr1}___nindep_100_ncell_100_lambda_2_tauIntraSample_0.5           
+            step1prefix=${output}/nindep_100_ncell_100_lambda_2_tauIntraSample_0.5           
             step2prefix=output_${name}___${chr}/\${chr1}___nindep_100_ncell_100_lambda_2_tauIntraSample_0.5_cis
-            mkdir output_${name}___${chr}
+            mkdir -p output_${name}___${chr}
             
             cat "${genome_regions}" | while IFS= read -r gene || [ -n "\$gene" ]
             do
@@ -122,7 +122,7 @@ process SAIGE_S1 {
     """
         # Execute with the bash executable in an array (one job per gene within level)
         #// Genome wide for this we send a list of genes in chunks 
-        mkdir output
+        mkdir -p output
         cat "${genes_list}" | while IFS= read -r i || [ -n "\$i" ]
         do
            {  # try
@@ -135,7 +135,7 @@ process SAIGE_S1 {
                 --sampleCovarColList=\$(sed -n '2p' ${cov})      \
                 --sampleIDColinphenoFile=${params.gt_id_column} \
                 --traitType=count \
-                --outputPrefix=./output/\${chr1}___nindep_100_ncell_100_lambda_2_tauIntraSample_0.5_\$i  \
+                --outputPrefix=./output/nindep_100_ncell_100_lambda_2_tauIntraSample_0.5_\$i  \
                 --skipVarianceRatioEstimation=FALSE  \
                 --isRemoveZerosinPheno=FALSE \
                 --isCovariateOffset=TRUE  \
@@ -156,7 +156,7 @@ process SAIGE_S1 {
         cat "${genes_list}" | while IFS= read -r i || [ -n "\$i" ]
         do
             echo \$i >> ./output/gene_string.tsv
-            step1prefix=./output/\${chr1}___nindep_100_ncell_100_lambda_2_tauIntraSample_0.5_\$i
+            step1prefix=./output/nindep_100_ncell_100_lambda_2_tauIntraSample_0.5_\$i
             echo -e "\${i} \${step1prefix}.rda \${step1prefix}.varianceRatio.txt" >> ./output/step1_output_formultigenes.txt
         done
     """
@@ -191,9 +191,9 @@ process SAIGE_S2 {
     
     """
         cp ${genes_list} regions_${genes_list}
-        step1prefix=${output}/\${chr1}___nindep_100_ncell_100_lambda_2_tauIntraSample_0.5           
+        step1prefix=${output}/nindep_100_ncell_100_lambda_2_tauIntraSample_0.5           
         step2prefix=output_${name}___${chr}/\${chr1}___nindep_100_ncell_100_lambda_2_tauIntraSample_0.5_cis
-        mkdir output_${name}___${chr}
+        mkdir -p output_${name}___${chr}
 
         run_step2_tests_qtl() {
             step2_tests_qtl.R       \
@@ -318,7 +318,7 @@ process SAIGE_S2_CIS {
         }
 
 
-        step1prefix=${output}/\${chr1}___nindep_100_ncell_100_lambda_2_tauIntraSample_0.5           
+        step1prefix=${output}/nindep_100_ncell_100_lambda_2_tauIntraSample_0.5           
         
         
         
@@ -517,10 +517,7 @@ process AGGREGATE_QTL_ALLVARS{
 process H5AD_TO_SAIGE_FORMAT {
     label 'process_medium'
     tag { sanitized_columns }
-    memory { 
-            sizeInGB = h5ad.size() / 1e9 * task.attempt
-            return (sizeInGB ).toString() + 'GB' 
-        }
+
     // Specify the number of forks (10k)
     // maxForks 1000
 
@@ -528,8 +525,12 @@ process H5AD_TO_SAIGE_FORMAT {
         container "${params.eqtl_container}"
     } else {
         container "${params.eqtl_docker}"
-    }    
-    
+    }   
+
+    memory { 
+        sizeInGB = adata.size() / 1e9 * 1.25 * task.attempt
+        return (sizeInGB ).toString() + 'GB' 
+    }   
     publishDir  path: "${params.outdir}/Saige_eQTLS",
         saveAs: { filename ->
             if (filename.contains("covariates.txt")) {
@@ -554,6 +555,7 @@ process H5AD_TO_SAIGE_FORMAT {
         path(bridge)  
         val(aggregation_columns)
         path(genotype_pcs)
+        path(genome_annotation)
 
     output:
         tuple val(sanitized_columns), path("output_agg/*/*/saige_filt_expr_input.tsv"),path("output_agg/*/*/covariates.txt"),emit:output_pheno optional true
@@ -574,6 +576,13 @@ process H5AD_TO_SAIGE_FORMAT {
         cond1 = " --condition_col 'NULL' --condition 'NULL' "
     }else{
         cond1 = " --condition_col '${aggregation_columns}' --condition '${params.aggregation_subentry}' "
+    }
+
+    if ("${params.SAIGE.chromosomes_to_test}"!=''){
+        chromosomes_as_string = params.SAIGE.chromosomes_to_test.join(',')
+        cond2 = " --chr ${chromosomes_as_string} --genome ${genome_annotation}"
+    }else{
+        cond2 = " "
     }
 
     """
@@ -600,7 +609,7 @@ process H5AD_TO_SAIGE_FORMAT {
             --min ${params.n_min_cells} \
             --scale_covariates \$scale_covariates \
             --expression_pca \$expression_pca \
-            ${cov_col} ${cond1}
+            ${cov_col} ${cond1} ${cond2}
     """
 }
 
@@ -695,7 +704,7 @@ workflow SAIGE_qtls{
     main:
         log.info('------- Running SAIGE QTLs ------- ')
 
-        H5AD_TO_SAIGE_FORMAT(phenotype_file,params.genotype_phenotype_mapping_file,params.aggregation_columns,genotype_pcs)
+        H5AD_TO_SAIGE_FORMAT(phenotype_file,params.genotype_phenotype_mapping_file,params.aggregation_columns,genotype_pcs,genome_annotation)
         pheno = H5AD_TO_SAIGE_FORMAT.out.output_pheno
 
         H5AD_TO_SAIGE_FORMAT.out.gene_chunk.subscribe { println "H5AD_TO_SAIGE_FORMAT.out.gene_chunk dist: $it" }
