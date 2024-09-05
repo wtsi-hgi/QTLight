@@ -141,7 +141,7 @@ process SAIGE_S1 {
                 --isCovariateOffset=TRUE  \
                 --isCovariateTransform=TRUE  \
                 --skipModelFitting=FALSE  \
-                --tol=0.00001   \
+                --tol=0.00001 --traceCVcutoff 0.005 --nrun 15  \
                 --famFile ${plink_fam} \
                 --bimFile ${plink_bim} \
                 --bedFile ${plink_bed} \
@@ -272,7 +272,7 @@ process SAIGE_S2_CIS {
 
     output:
         tuple val("${name}"),path("genes_list2.tsv"),path("output_${name}___*"),path(output),path(genome_regions),path(plink_bim), path(plink_bed), path(plink_fam),emit:output optional true
-        tuple val("${name}"),path("output_${name}___*/\${chr1}___nindep_100_ncell_100_lambda_2_tauIntraSample_0.5_cis_*"),emit:for_aggregation  optional true
+        tuple val("${name}"),path("output_${name}___*/*___nindep_100_ncell_100_lambda_2_tauIntraSample_0.5_cis_*"),emit:for_aggregation  optional true
 
     script:
         if (params.SAIGE.cis_trans_mode=='cis'){
@@ -298,10 +298,10 @@ process SAIGE_S2_CIS {
                     --SPAcutoff=${params.SAIGE.SPAcutoff} \
                     --markers_per_chunk=${params.SAIGE.markers_per_chunk} ${mode} 
 
-                #if [ \$? -ne 0 ]; then
-                #    echo "step2_tests_qtl.R command failed" >&2
-                #    exit 1  # Exit the script with a non-zero status
-                #fi
+                if [ \$? -ne 0 ]; then
+                    echo "step2_tests_qtl.R command failed" >&2
+                    return  # Skip the rest of the function and go to the next iteration
+                fi
 
                 line_count=\$(wc -l < output_${name}___\${chr1}/\${chr1}___nindep_100_ncell_100_lambda_2_tauIntraSample_0.5_cis_\${variable})        
                 if [ "\$line_count" -eq 1 ]; then
