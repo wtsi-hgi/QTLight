@@ -513,6 +513,34 @@ process AGGREGATE_QTL_ALLVARS{
         """
 }
 
+process PHENOTYPE_PCs{
+    label 'process_medium'
+    tag { sanitized_columns }
+
+    if (workflow.containerEngine == 'singularity' && !params.singularity_pull_docker_container) {
+        container "${params.eqtl_container}"
+    } else {
+        container "${params.eqtl_docker}"
+    }   
+
+    memory { 
+        sizeInGB = saige_filt_expr_input.size() / 1e9 * 2 * task.attempt
+        return (sizeInGB ).toString() + 'GB' 
+    }   
+
+    input:
+        tuple val(sanitized_columns), path(saige_filt_expr_input),path(covariates)
+        val(phenotype_pcs)
+
+    output:
+        tuple val(sanitized_columns), path("${sanitized_columns}_with_pheno_pcs.tsv"),path("covariates_new.txt"), emit: output_pheno
+
+    script:
+
+    """
+        saige_phenotype_pcs_and_other_covs.py ${saige_filt_expr_input} ${sanitized_columns}_with_pheno_pcs.tsv ${phenotype_pcs} ${covariates}
+    """
+}
 
 process H5AD_TO_SAIGE_FORMAT {
     label 'process_medium'
@@ -705,9 +733,9 @@ workflow SAIGE_qtls{
         log.info('------- Running SAIGE QTLs ------- ')
 
         H5AD_TO_SAIGE_FORMAT(phenotype_file,params.genotype_phenotype_mapping_file,params.aggregation_columns,genotype_pcs,genome_annotation)
-        pheno = H5AD_TO_SAIGE_FORMAT.out.output_pheno
+        PHENOTYPE_PCs(H5AD_TO_SAIGE_FORMAT.out.output_pheno,params.SAIGE.nr_expression_pcs)
+        pheno = PHENOTYPE_PCs.out.output_pheno
 
-        H5AD_TO_SAIGE_FORMAT.out.gene_chunk.subscribe { println "H5AD_TO_SAIGE_FORMAT.out.gene_chunk dist: $it" }
         CHUNK_GENES(H5AD_TO_SAIGE_FORMAT.out.gene_chunk,params.chunkSize)
         result = CHUNK_GENES.out.output_genes.flatMap { item ->
             def (first, second) = item
