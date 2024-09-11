@@ -1,7 +1,7 @@
 process SPLIT_AGGREGATION_ADATA {
     // label 'process_medium'
     memory { 
-            sizeInGB = adata.size() / 1e9 * 0.7 * task.attempt
+            sizeInGB = adata.size() / 1e9 * 0.4 * task.attempt
             return (sizeInGB ).toString() + 'GB' 
         }
       
@@ -36,8 +36,8 @@ process AGGREGATE_UMI_COUNTS {
         container "${params.eqtl_docker}"
     }
     memory { 
-            sizeInGB = adata.size() / 1e9 
-            return (sizeInGB * 2 * task.attempt).toString() + 'GB' 
+            sizeInGB = adata.size() / 1e9 * 0.3 * task.attempt
+            return (sizeInGB ).toString() + 'GB' 
         }
   input:
     path(adata) // lists input files per donor

@@ -26,6 +26,6 @@ process SUBSET_GENOTYPE {
         // sample_subset_file = donor_vcf.getSimpleName()
         // sample_names = file__reduced_dims.toString()
         """ 
-            bcftools view ${donor_vcf} -s ${file__reduced_dims2} --force-samples -Oz -o ${samplename}.subset.vcf.gz
+            bcftools view ${donor_vcf} -s ${file__reduced_dims2} --force-samples -Oz -o ${samplename}.subset.vcf.gz --threads ${task.threads}
         """
 }
