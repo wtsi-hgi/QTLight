@@ -118,7 +118,8 @@ def main():
     levels = set(adata.obs[aggregate_on].unique())
     l1 = len(levels)
     conditions=set(condition.split(','))
-    levels=levels.intersection(conditions)
+    if list(conditions)[0]!='NULL':
+        levels=levels.intersection(conditions)
     
     for level in levels:
         print(f"~~~~~~~~~~~~Working on: {level}~~~~~~~~~~~~~~~~")
