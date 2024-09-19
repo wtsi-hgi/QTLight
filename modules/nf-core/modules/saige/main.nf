@@ -533,7 +533,7 @@ process PHENOTYPE_PCs{
         val(phenotype_pcs)
 
     output:
-        tuple val(sanitized_columns), path("${sanitized_columns}_with_pheno_pcs.tsv"),path("covariates_new.txt"), emit: output_pheno
+        tuple val(sanitized_columns), path("${sanitized_columns}_with_pheno_pcs.tsv"),path("covariates_new.txt"), emit: output_pheno optional true
 
     script:
 
@@ -739,6 +739,9 @@ workflow SAIGE_qtls{
         CHUNK_GENES(H5AD_TO_SAIGE_FORMAT.out.gene_chunk,params.chunkSize)
         result = CHUNK_GENES.out.output_genes.flatMap { item ->
             def (first, second) = item
+            if (!(second instanceof Collection)) {
+                second = [second] // Wrap single value in a list
+            }
             return second.collect { [first, it] }
         }
 
@@ -769,8 +772,8 @@ workflow SAIGE_qtls{
         }
 
         // HERE WE either run the cis or trans qtl mapping. For cis we loop through each of the chunks whereas in trans we can run all together.
-        output_s2.subscribe { println "output_s2 dist: $it" }
-        agg_output.subscribe { println "agg_output dist: $it" }
+        // output_s2.subscribe { println "output_s2 dist: $it" }
+        // agg_output.subscribe { println "agg_output dist: $it" }
         SAIGE_QVAL_COR(output_s2)
         SAIGE_S3(SAIGE_QVAL_COR.out.output)
 

@@ -38,7 +38,11 @@ def run_pca_and_save(file_path, output_file, n_pcs, covs):
     sc.pp.scale(adata, max_value=10)
 
     # Perform PCA
-    sc.tl.pca(adata, svd_solver='arpack')
+    try:
+        sc.tl.pca(adata, svd_solver='arpack',n_comps=n_pcs)
+    except:
+        print(f'Can not compute {n_pcs}; most likely not enough data')
+        exit()
 
     # Extract the PCA loadings for the specified number of PCs
     loadings = pd.DataFrame(adata.obsm['X_pca'][:, :n_pcs], index=adata.obs.index)
