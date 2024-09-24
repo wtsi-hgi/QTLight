@@ -1,0 +1,6 @@
+#/bin/bash
+
+dir="$(dirname "$0")";
+cmd="$(basename "$0")";
+cmd_exec="$cmd $@"
+singularity exec --bind /lustre --bind /nfs --bind /software --bind $PWD --cleanenv --containall /software/hgi/containers/yascp/yascp.cog.sanger.ac.uk-public-singularity_images-eqtl_08_07_2024.sif /bin/bash -c "cd $PWD; $cmd_exec";

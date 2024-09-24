@@ -1,6 +1,6 @@
 
 process PREPERE_EXP_BED {
-  label 'process_low'
+  label 'process_medium'
   tag "$condition, $nr_phenotype_pcs"
   if (workflow.containerEngine == 'singularity' && !params.singularity_pull_docker_container) {
       container "${params.eqtl_container}"

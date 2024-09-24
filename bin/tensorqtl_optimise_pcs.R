@@ -15,7 +15,7 @@ if(!interactive()){
 sumstats.dir = './'
 alpha = as.numeric(0.05)
 interaction.name = 'NA'
-annot.name = 'Celltypist:Immune_All_High:predicted_labels-Monocytes-dMean'
+annot.name = 'dMean__CD4_T_all'
 out.dir = './OPTIM_pcs/base_output__base'
 
 sumstats.dir = args[1]
@@ -39,6 +39,7 @@ if (is.na(interaction.name)){
 }
 list.of.sumstat.dfs <- lapply(sumstat.files, function(file.name) {
   # Get info from filename
+  # file.name='dMean__CD4_T_all_symlink/10pcs__base_output__base/Cis_eqtls_qval.tsv'
   split.file.name <- str_split(file.name,'/')[[1]]
   symlink.dir <- split.file.name[2]
   split.symlink.dir <- str_split(symlink.dir,'__')[[1]]
@@ -47,7 +48,21 @@ list.of.sumstat.dfs <- lapply(sumstat.files, function(file.name) {
   
   # Read file
   df <- read_tsv(paste0(sumstats.dir, file.name),show_col_types = FALSE)
-  
+  df$num_var <- as.numeric(df$num_var)
+  df$beta_shape1 <- as.numeric(df$beta_shape1)
+  df$beta_shape2 <- as.numeric(df$beta_shape2)
+  df$true_df <- as.numeric(df$true_df)
+  df$pval_true_df <- as.numeric(df$pval_true_df)
+    df$start_distance <- as.numeric(df$start_distance)
+      df$end_distance <- as.numeric(df$end_distance)
+        df$ma_samples <- as.numeric(df$ma_samples)
+          df$ma_count <- as.numeric(df$ma_count)
+            df$af <- as.numeric(df$af)
+              df$pval_nominal <- as.numeric(df$pval_nominal)
+               df$slope <- as.numeric(df$slope)
+                 df$slope_se <- as.numeric(df$slope_se)
+                   df$pval_perm <- as.numeric(df$pval_perm)
+                     df$pval_beta <- as.numeric(df$pval_beta)
   # Add new columns
   mutate(df, num_PCs = as.integer(gsub('pcs', '', n.pcs)))
 })

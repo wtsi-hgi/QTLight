@@ -58,6 +58,14 @@ def main():
     )    
 
     parser.add_argument(
+        '-gp', '--genotype_phenotype_file',
+        action='store',
+        dest='genotype_phenotype_file',
+        required=True,
+        help='Genotype phenotype mapping file.'
+    )    
+    
+    parser.add_argument(
         '-cs', '--chunk_size',
         action='store',
         dest='chunk_size',
@@ -67,7 +75,7 @@ def main():
     options = parser.parse_args()
 
     genes = int(options.chunk_size)
-    # Data = pd.read_csv(options.genome_annotation)
+
     try:
         df = read_gtf(options.genome_annotation)
         df2 = df[df.feature == 'gene']
@@ -79,6 +87,11 @@ def main():
     Data=Gene_Chr_Start_End_Data
 
     Phenotype_file = pd.read_csv(options.phenotype_file,sep='\t',index_col=0)
+    if(len(Phenotype_file.index[0].split('.'))>1):
+        prot_version=True
+        Phenotype_file.index = Phenotype_file.index.str.split('.').str[0]
+    else:
+        prot_version=False
     Phenotype_file_index = list(Phenotype_file.index)
 
     Phenotype_file_index
@@ -118,8 +131,9 @@ def main():
     
     data_to_export2=data_to_export.rename(columns={0:'Range'})
     data_to_export2['condition']=options.condition
-    data_to_export2['phenotypeFile']=f"{os.getcwd()}/normalised_phenotype.tsv"
-    data_to_export2['covars']=f"{os.getcwd()}/pcs.tsv"
+    data_to_export2['phenotypeFile']=f"{os.getcwd()}/{options.phenotype_file}"
+    data_to_export2['covars']=f"{os.getcwd()}/{options.covar_file}"
+    data_to_export2['genotype_phenotype_file']=f"{os.getcwd()}/{options.genotype_phenotype_file}"
     data_to_export2['anotation_file']=f"{os.getcwd()}/annotation_file_processed.tsv"
     
     data_to_export2.to_csv('limix_chunking.tsv',sep='\t',index=None)

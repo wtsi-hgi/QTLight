@@ -21,11 +21,11 @@ process SPLIT_PHENOTYPE_DATA{
         val(condition)
     output:
         tuple val(condition),path("*_phenotype.tsv"),path(annotation_file), emit: phenotye_file
-        
+
     script:
         
         """
-            split_phenotype_for_condition.py --condition '${condition}' --genome_phenotype ${annotation_file} --phenotype ${phenotype_file}
+            split_phenotype_for_condition.py --condition '${condition}' --genome_phenotype ${annotation_file} --phenotype ${phenotype_file} 
         """
     
 }

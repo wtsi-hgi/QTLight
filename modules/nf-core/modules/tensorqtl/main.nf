@@ -34,15 +34,15 @@ process TENSORQTL {
     outpath = "${nr_phenotype_pcs}/base_output/base"
   }
 
-  if (params.TensorQTL.use_gt_dosage) {
+  if (params.genotypes.use_gt_dosage) {
     dosage = "--dosage"
   }else{
     dosage = ""
   }
     """ 
       bedtools sort -i ${aggrnorm_counts_bed} -header > Expression_Data.sorted.bed
-      
-      ${tensor_qtl_script} --plink_prefix_path ${plink_files_prefix}/plink_genotypes --expression_bed Expression_Data.sorted.bed --covariates_file ${covariates_tsv} -window ${params.windowSize} ${dosage} --outdir ${outpath}
+      sed -i 's/^chr//' Expression_Data.sorted.bed
+      ${tensor_qtl_script} --plink_prefix_path ${plink_files_prefix}/plink_genotypes --expression_bed Expression_Data.sorted.bed --covariates_file ${covariates_tsv} -window ${params.windowSize} ${dosage} --maf ${params.maf} --outdir ${outpath}
       cd ${outpath} && ln ../../../${covariates_tsv} ./ && ln ../../../Expression_Data.sorted.bed
     """
 }
@@ -64,7 +64,7 @@ process PREP_OPTIMISE_PCS {
     cd ${condition}_symlink
     for path in ${paths_str}; do
          unique_name=\$(echo \$path | awk -F/ '{print \$(NF-2)"__"\$(NF-1)"__"\$NF}')
-        ln -s \$path \$unique_name
+        ln -s \$path \$unique_name || echo 'already liked'
     done
     """
 }
@@ -154,13 +154,12 @@ process TRANS_BY_CIS {
 
     script:
       // Use dosage?
-      if (params.TensorQTL.use_gt_dosage) {
+      if (params.genotypes.use_gt_dosage) {
         dosage = "--dosage"
       }else{
         dosage = ""
       }
-      // Define alpha value
-      alpha = "0.05"
+
       """
       tensor_analyse_trans_by_cis.py \
         --covariates_file ${covariates} \
@@ -168,10 +167,11 @@ process TRANS_BY_CIS {
         --plink_prefix_path ${plink_files_prefix}/plink_genotypes \
         --outdir "./" \
         --dosage ${dosage} \
-        --maf "0.05" \
+        --maf ${params.maf} \
         --cis_qval_results ${cis_eqtls_qval} \
-        --alpha ${alpha} \
+        --alpha ${params.TensorQTL.alpha} \
         --window ${params.windowSize}
+        
       """
 
       
@@ -207,7 +207,7 @@ process TRANS_OF_CIS {
 
     script:
       // Use dosage?
-      if (params.TensorQTL.use_gt_dosage) {
+      if (params.genotypes.use_gt_dosage) {
         dosage = "--dosage"
       }else{
         dosage = ""
@@ -222,10 +222,11 @@ process TRANS_OF_CIS {
         --plink_prefix_path ${plink_files_prefix}/plink_genotypes \
         --outdir "./" \
         --dosage ${dosage} \
-        --maf "0.05" \
+        --maf ${params.maf}  \
         --cis_qval_results ${cis_eqtls_qval} \
         --alpha ${alpha} \
-        --window ${params.windowSize}
+        --window ${params.windowSize} \
+        --pval_threshold ${params.TensorQTL.trans_by_cis_pval_threshold}
       """
       //cp trans-by-cis_bonf_fdr.tsv ${outpath}
       //"""
@@ -253,7 +254,8 @@ workflow TENSORQTL_eqtls{
       if (params.TensorQTL.optimise_pcs){
           // TENSORQTL.out.pc_qtls_path.view()
           // Make sure all input files are available before running the optimisation
-          TENSORQTL.out.pc_qtls_path.collect()
+          
+          TENSORQTL.out.pc_qtls_path.collect().subscribe { println "TENSORQTL dist: $it" }
           // Fix the format of the output from TENSORQTL
           prep_optim_pc_channel = TENSORQTL.out.pc_qtls_path.groupTuple().map { key, values -> [key, values.flatten()] }
           // Create symlinks to the output files

@@ -1,5 +1,10 @@
 process SPLIT_AGGREGATION_ADATA {
-    label 'process_medium'
+    // label 'process_medium'
+    memory { 
+            sizeInGB = adata.size() / 1e9 * 0.5 * task.attempt
+            return (sizeInGB ).toString() + 'GB' 
+        }
+      
     if (workflow.containerEngine == 'singularity' && !params.singularity_pull_docker_container) {
         container "${params.eqtl_container}"
         
@@ -13,9 +18,14 @@ process SPLIT_AGGREGATION_ADATA {
 
   output:
     path("*__split.h5ad", emit:split_phenotypes)
-
+  script:
+    if ("${params.aggregation_subentry}"==''){
+        cond1 = ""
+    }else{
+        cond1 = " --condition '${params.aggregation_subentry}' "
+    }
   """
-    split_adata_per_condition.py --agg_columns '${agg_columns}' -h5ad ${adata}
+    split_adata_per_condition.py --agg_columns '${agg_columns}' -h5ad ${adata} ${cond1}
   """
 }
 
@@ -30,7 +40,10 @@ process AGGREGATE_UMI_COUNTS {
     } else {
         container "${params.eqtl_docker}"
     }
-
+    memory { 
+            sizeInGB = adata.size() / 1e9 * 0.3 * task.attempt
+            return (sizeInGB ).toString() + 'GB' 
+        }
   input:
     path(adata) // lists input files per donor
     val(agg_columns)
