@@ -92,11 +92,12 @@ workflow EQTL {
         input_channel = Channel.fromPath(genotype_phenotype_mapping_file, followLinks: true, checkIfExists: true)
         
         input_channel.splitCsv(header: true, sep: params.input_tables_column_delimiter)
-            .map{row->tuple(row.Genotype)}.distinct()
+            .map{row->tuple(row.Genotype)}.unique()
             .set{channel_input_data_table}
-        channel_input_data_table = channel_input_data_table.collect().flatten().distinct()
+        channel_input_data_table = channel_input_data_table.collect().flatten().unique()
         input_channel.splitCsv(header: true, sep: params.input_tables_column_delimiter)
-            .map{row->row.Sample_Category}.distinct().set{condition_channel}
+            .map{row->row.Sample_Category}.unique().set{condition_channel}
+        condition_channel.subscribe { println "condition_channel.out.adata: $it" }
         SPLIT_PHENOTYPE_DATA(genotype_phenotype_mapping_file,phenotype_file,condition_channel)
 
         phenotype_condition = SPLIT_PHENOTYPE_DATA.out.phenotye_file
