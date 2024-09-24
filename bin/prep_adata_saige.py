@@ -24,6 +24,7 @@ from sklearn.preprocessing import StandardScaler
 import argparse
 import gc
 import sys
+import gc
 
 # Define covariate process function
 def preprocess_covariates(df, scale_covariates):
@@ -48,6 +49,8 @@ def parse_options():
     parser.add_argument('-cond', '--condition', default='')
     parser.add_argument('-covs', '--covariates', default='')
     parser.add_argument('-xpca', '--expression_pca', required=True)
+    parser.add_argument('-chr', '--chr', required=False, default=None)
+    parser.add_argument('-genome', '--genome', required=False, default=None)
     parser.add_argument('-sc', '--scale_covariates', required=True)
     parser.add_argument('-br', '--bridge', default=None)
     return parser.parse_args()
@@ -70,11 +73,30 @@ def main():
 
     print("Loading object")
     adata = ad.read_h5ad(phenotype__file,backed='r')
+    genes=list(adata.var.index)
+    if (inherited_options.chr):
+        # Here we subset down to the genes available on determined chr.
+        from gtfparse import read_gtf
+        df = read_gtf(inherited_options.genome)
+        df = df[df.feature == 'gene']
+        Gene_Chr_Start_End_Data =df[['gene_id','start','end','strand','seqname']]
+        Gene_Chr_Start_End_Data.rename(columns={'gene_id':'feature_id','seqname':'chromosome'},inplace=True)
+        chrs = inherited_options.chr.split(',')
+        all_genes = set(Gene_Chr_Start_End_Data[Gene_Chr_Start_End_Data['chromosome'].isin(chrs)]['feature_id'])
+        
+        genes = list(all_genes.intersection(genes))
+        # adata = adata[:, all_genes]
+        del df
+        del all_genes
+        del Gene_Chr_Start_End_Data
+        gc.collect()
+        
     # condition='Platelet'
-    if condition_col != "NULL":
-        print("Subsetting for the condition")
-        conditions=list(set(condition.split(',')))
-        adata = adata[adata.obs[condition_col].isin(conditions)].copy(filename='tmp.h5ad')
+    # if condition_col != "NULL":
+    #     print("Subsetting for the condition")
+    #     conditions=list(set(condition.split(',')))
+    #     adata = adata[adata.obs[condition_col].isin(conditions),genes].copy(filename='tmp.h5ad')
+    #     gc.collect()
 
     if len(adata.obs)==0:
         print('The final subset adata is empty, hence we do not perform analysis')
@@ -93,7 +115,11 @@ def main():
     geno_pcs.rename(columns={"#FID": genotype_id,"IID": genotype_id}, inplace=True)
     geno_pcs = geno_pcs.set_index(genotype_id)
 
-    levels = adata.obs[aggregate_on].unique()
+    levels = set(adata.obs[aggregate_on].unique())
+    l1 = len(levels)
+    conditions=set(condition.split(','))
+    if list(conditions)[0]!='NULL':
+        levels=levels.intersection(conditions)
     
     for level in levels:
         print(f"~~~~~~~~~~~~Working on: {level}~~~~~~~~~~~~~~~~")
@@ -101,15 +127,20 @@ def main():
         
         os.makedirs(savedir, exist_ok=True)
         print("Filtering anndata")
-        temp = adata[adata.obs[aggregate_on] == level].to_memory()  # Use copy to avoid modifying original data
-        
+
+        temp = adata[adata.obs[aggregate_on] == level,genes].to_memory()  # Use copy to avoid modifying original data
+        if (l1==1):
+            del adata
+            gc.collect() 
+            
         if bridge:
             br1 = pd.read_csv(bridge, sep='\t').set_index('RNA')
-            temp.obs[genotype_id] = temp.obs[genotype_id].map(br1['Genotype'])
+            br2 = temp.obs[genotype_id].map(br1['Genotype'])
+            temp.obs[genotype_id] = br2
             del br1
-        
-        temp = temp[temp.obs[genotype_id].isin(geno_pcs.index)]
-        
+        temp = temp[temp.obs[genotype_id].isin(geno_pcs.index)]        
+
+            
         print("Filtering lowly expressed genes")
         counts = pd.DataFrame.sparse.from_spmatrix(temp.X, index=temp.obs.index, columns=temp.var.index)
         counts = counts.loc[:, counts.sum(axis=0) > 0]
@@ -148,7 +179,7 @@ def main():
             # Reattach genotype_id
             filtered_counts[genotype_id] = genotype_ids
             counts = filtered_counts
-            del counts_data, summed_counts  # Free memory
+            del counts_data, summed_counts, genotype_ids, unique_genotypes, count_per_column  # Free memory
             
         
         print(f"Final shape is: {counts.shape}") 
@@ -163,8 +194,7 @@ def main():
             counts = counts.join(to_add)
             covariates_string = ','+inherited_options.covariates
         
-        with open(f"{savedir}/test_genes.txt", 'w') as file:
-            file.write("\n".join(counts.columns))
+
         
         counts.index = counts.index + counts.index.duplicated().cumsum().astype(str)
         temp.obs.index = temp.obs.index + temp.obs.index.duplicated().cumsum().astype(str)
@@ -176,34 +206,46 @@ def main():
         covariates_string = ','.join(geno_pcs.columns.values)+covariates_string
         sample_covariates = ','.join(geno_pcs.columns.values)
         
-        if expression_pca > 0:
-            print("Computing expression PCs")
-            sc.pp.normalize_total(temp, target_sum=1e4)
-            sc.pp.log1p(temp)
-            sc.pp.highly_variable_genes(temp, flavor="seurat", n_top_genes=2000)
-            sc.pp.scale(temp, max_value=10)
-            sc.tl.pca(temp, svd_solver='arpack')
-            pca_variance = pd.DataFrame({'x': range(1, 51), 'y': temp.uns['pca']['variance']})
-            knee = kd.KneeLocator(x=pca_variance['x'], y=pca_variance['y'], curve="convex", direction="decreasing")
-            knee_point = knee.knee
-            np.savetxt(f"{savedir}/knee.txt", [knee_point], delimiter=',', fmt='%s')
-            loadings = pd.DataFrame(temp.obsm['X_pca'][:, :expression_pca], index=temp.obs.index)
-            loadings.columns = [f'xPC{i+1}' for i in range(expression_pca)]
-            counts = counts.join(loadings)
-            covariates_string = covariates_string+','+','.join(loadings.columns.values)
+        with open(f"{savedir}/test_genes.txt", 'w') as file:
+            file.write("\n".join(counts.columns))
+            
+        # if expression_pca > 0:
+        #     print("Computing expression PCs")
+        #     sc.pp.normalize_total(temp, target_sum=1e4)
+        #     sc.pp.log1p(temp)
+        #     sc.pp.highly_variable_genes(temp, flavor="seurat", n_top_genes=2000)
+        #     sc.pp.scale(temp, max_value=10)
+        #     sc.tl.pca(temp, svd_solver='arpack')
+        #     pca_variance = pd.DataFrame({'x': range(1, 51), 'y': temp.uns['pca']['variance']})
+        #     knee = kd.KneeLocator(x=pca_variance['x'], y=pca_variance['y'], curve="convex", direction="decreasing")
+        #     knee_point = knee.knee
+        #     np.savetxt(f"{savedir}/knee.txt", [knee_point], delimiter=',', fmt='%s')
+        #     loadings = pd.DataFrame(temp.obsm['X_pca'][:, :expression_pca], index=temp.obs.index)
+        #     loadings.columns = [f'xPC{i+1}' for i in range(expression_pca)]
+        #     counts = counts.join(loadings)
+        #     covariates_string = covariates_string+','+','.join(loadings.columns.values)
         
         print("Saving")
-        # gene_savdir = f"{savedir}/per_gene_input_files"
-        # os.makedirs(gene_savdir, exist_ok=True)
-        counts.set_index(genotype_id).to_csv(f"{savedir}/saige_filt_expr_input.tsv", sep="\t", index=True, chunksize=500000)
         with open(f"{savedir}/covariates.txt", 'w') as file:
                 file.write(f"{covariates_string}\n")  
                 file.write(f"{sample_covariates}")  
+        # gene_savdir = f"{savedir}/per_gene_input_files"
+        # os.makedirs(gene_savdir, exist_ok=True)
+        counts.set_index(genotype_id).to_csv(f"{savedir}/saige_filt_expr_input.tsv", sep="\t", index=True, chunksize=50000)
+
         del counts
         del temp
         gc.collect()  # Clean up memory
         try:
             os.remove('tmp.h5ad')
+        except:
+            _=''
+        try:
+            os.remove('tmp2.h5ad')
+        except:
+            _=''
+        try:
+            os.remove('tmp3.h5ad')
         except:
             _=''
 

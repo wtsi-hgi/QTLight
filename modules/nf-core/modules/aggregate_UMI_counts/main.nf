@@ -1,7 +1,7 @@
 process SPLIT_AGGREGATION_ADATA {
     // label 'process_medium'
     memory { 
-            sizeInGB = adata.size() / 1e9 * 0.4 * task.attempt
+            sizeInGB = adata.size() / 1e9 * 0.5 * task.attempt
             return (sizeInGB ).toString() + 'GB' 
         }
       
@@ -18,9 +18,14 @@ process SPLIT_AGGREGATION_ADATA {
 
   output:
     path("*__split.h5ad", emit:split_phenotypes)
-
+  script:
+    if ("${params.aggregation_subentry}"==''){
+        cond1 = ""
+    }else{
+        cond1 = " --condition '${params.aggregation_subentry}' "
+    }
   """
-    split_adata_per_condition.py --agg_columns '${agg_columns}' -h5ad ${adata}
+    split_adata_per_condition.py --agg_columns '${agg_columns}' -h5ad ${adata} ${cond1}
   """
 }
 

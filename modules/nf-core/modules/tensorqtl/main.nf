@@ -42,7 +42,7 @@ process TENSORQTL {
     """ 
       bedtools sort -i ${aggrnorm_counts_bed} -header > Expression_Data.sorted.bed
       sed -i 's/^chr//' Expression_Data.sorted.bed
-      ${tensor_qtl_script} --plink_prefix_path ${plink_files_prefix}/plink_genotypes --expression_bed Expression_Data.sorted.bed --maf ${params.maf} --covariates_file ${covariates_tsv} -window ${params.windowSize} ${dosage} --outdir ${outpath}
+      ${tensor_qtl_script} --plink_prefix_path ${plink_files_prefix}/plink_genotypes --expression_bed Expression_Data.sorted.bed --covariates_file ${covariates_tsv} -window ${params.windowSize} ${dosage} --maf ${params.maf} --outdir ${outpath}
       cd ${outpath} && ln ../../../${covariates_tsv} ./ && ln ../../../Expression_Data.sorted.bed
     """
 }
@@ -222,7 +222,7 @@ process TRANS_OF_CIS {
         --plink_prefix_path ${plink_files_prefix}/plink_genotypes \
         --outdir "./" \
         --dosage ${dosage} \
-        --maf "0.05" \
+        --maf ${params.maf}  \
         --cis_qval_results ${cis_eqtls_qval} \
         --alpha ${alpha} \
         --window ${params.windowSize} \
