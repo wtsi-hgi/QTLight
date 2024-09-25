@@ -217,7 +217,7 @@ def main():
 
     cis.map_nominal(genotype_df, variant_df,
                     phenotype_df.loc[phenotype_df1],
-                    phenotype_pos_df.loc[phenotype_df1],
+                    phenotype_pos_df.loc[phenotype_df1],maf_threshold=maf,
                     covariates_df=covariates_df,prefix='cis_nominal1',
                     output_dir=outdir, write_top=True, write_stats=True)
 
@@ -292,9 +292,9 @@ def main():
         cis_df_dropped = cis_df.loc[sv]
         # r = stats.pearsonr(cis_df_dropped['pval_perm'], cis_df_dropped['pval_beta'])[0]
         # calculate_qvalues(cis_df_dropped, qvalue_lambda=0.85)
-    if 'qvals' not in cis_df_dropped.columns:
+    if 'qval' not in cis_df_dropped.columns:
         # Add 'qvals' column with None values
-        cis_df_dropped['qvals'] = None
+        cis_df_dropped['qval'] = None
     cis_df_dropped.to_csv(f"{outdir}/Cis_eqtls_qval.tsv", sep='\t')
 
 
