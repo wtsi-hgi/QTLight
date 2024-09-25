@@ -21,7 +21,7 @@ process GENOTYPE_PC_CALCULATION {
         path("gtpca_plink.eigenvec"), emit: gtpca_plink
 
     script:
-        if (params.use_gt_dosage) {
+        if (params.genotypes.use_gt_dosage) {
             pgen_or_bed = "--pfile"
         }else{
             pgen_or_bed = "--bfile"
