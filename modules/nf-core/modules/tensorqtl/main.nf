@@ -22,7 +22,7 @@ process TENSORQTL {
 
   output:
     tuple val(condition), path("${outpath}"), emit: pc_qtls_path
-
+    tuple val(condition), path("Covariates.tsv"), path("Expression_Data.sorted.bed"), path("${outpath}/Cis_eqtls_qval.tsv"),val(nr_phenotype_pcs), emit: combined_input, optional: true
   script:
   // If a file with interaction terms is provided, use the interaction script otherwise use the standard script   
   if ("${interaction_file}" != 'fake_file.fq') {
@@ -133,7 +133,7 @@ process TRANS_BY_CIS {
       container "${params.eqtl_docker}"
     }
 
-    publishDir  path: "${params.outdir}/TensorQTL_eQTLS/${condition}/",
+    publishDir  path: "${params.outdir}/TensorQTL_eQTLS/${condition}/${pcs}",
                 mode: "${params.copy_mode}",
                 overwrite: "true"
 
@@ -143,14 +143,15 @@ process TRANS_BY_CIS {
           val(condition),
           path(covariates),
           path(phenotype_file),
-          path(cis_eqtls_qval)
+          path(cis_eqtls_qval),
+          val(pcs)
         )
         each path(plink_files_prefix) 
 
     output:
         //path("${outpath}/trans-by-cis_bonf_fdr.tsv", emit: trans_res, optional: true)
         path("trans-by-cis_bonf_fdr.tsv", emit: trans_res, optional: true)
-        //path("trans-by-cis_all.tsv.gz", emit: trans_res_all, optional:true)
+        path("trans-by-cis_all.tsv.gz", emit: trans_res_all, optional:true)
 
     script:
       // Use dosage?
@@ -187,7 +188,7 @@ process TRANS_OF_CIS {
       container "${params.eqtl_docker}"
     }
 
-    publishDir  path: "${params.outdir}/TensorQTL_eQTLS/${condition}",
+    publishDir  path: "${params.outdir}/TensorQTL_eQTLS/${condition}/${pcs}",
                 mode: "${params.copy_mode}",
                 overwrite: "true"
 
@@ -196,7 +197,8 @@ process TRANS_OF_CIS {
           val(condition),
           path(covariates),
           path(phenotype_file),
-          path(cis_eqtls_qval)
+          path(cis_eqtls_qval),
+          val(pcs)
         )
         each path(plink_files_prefix) 
 
@@ -266,7 +268,7 @@ workflow TENSORQTL_eqtls{
           if(params.TensorQTL.trans_by_cis){
             log.info 'Running trans-by-cis analysis on optimum nPCs'
             TRANS_BY_CIS(
-              OPTIMISE_PCS.out.combined_input,
+              TENSORQTL.out.combined_input,
               plink_genotype
             )
           }
@@ -274,7 +276,7 @@ workflow TENSORQTL_eqtls{
           if(params.TensorQTL.trans_of_cis){
             log.info 'Running trans-of-cis analysis on optimum nPCs'
             TRANS_OF_CIS(
-              OPTIMISE_PCS.out.combined_input,
+              TENSORQTL.out.combined_input,
               plink_genotype
             )
           }

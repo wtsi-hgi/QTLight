@@ -27,7 +27,7 @@ process GENOTYPE_PC_CALCULATION {
             pgen_or_bed = "--bfile"
         }
         """
-            plink2 --freq counts ${pgen_or_bed} ${plink_dir}/plink_genotypes --out tmp_gt_plink_freq
+            plink2 --freq counts ${pgen_or_bed} ${plink_dir}/plink_genotypes ${params.covariates.genotype_pc_filters} --out tmp_gt_plink_freq
             plink2 --pca ${params.covariates.nr_genotype_pcs} --read-freq tmp_gt_plink_freq.acount  ${pgen_or_bed} ${plink_dir}/plink_genotypes --out gtpca_plink
         """
 }
