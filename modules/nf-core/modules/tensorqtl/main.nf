@@ -246,7 +246,8 @@ workflow TENSORQTL_eqtls{
       }else{
           int_file = "$projectDir/assets/fake_file.fq"
       }
-
+      condition_bed.subscribe { println "condition_bed dist: $it" }
+      plink_genotype.subscribe { println "TENSORQTL dist: $it" }
       TENSORQTL(
           condition_bed,
           plink_genotype,
@@ -257,7 +258,7 @@ workflow TENSORQTL_eqtls{
           // TENSORQTL.out.pc_qtls_path.view()
           // Make sure all input files are available before running the optimisation
           
-          TENSORQTL.out.pc_qtls_path.collect().subscribe { println "TENSORQTL dist: $it" }
+          
           // Fix the format of the output from TENSORQTL
           prep_optim_pc_channel = TENSORQTL.out.pc_qtls_path.groupTuple().map { key, values -> [key, values.flatten()] }
           // Create symlinks to the output files
