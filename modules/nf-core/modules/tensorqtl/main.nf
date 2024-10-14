@@ -22,7 +22,7 @@ process TENSORQTL {
 
   output:
     tuple val(condition), path("${outpath}"), emit: pc_qtls_path
-    tuple val(condition), path("Covariates.tsv"), path("Expression_Data.sorted.bed"), path("${outpath}/Cis_eqtls_qval.tsv"),val(nr_phenotype_pcs) emit: combined_input, optional: true
+    tuple val(condition), path("Covariates.tsv"), path("Expression_Data.sorted.bed"), path("${outpath}/Cis_eqtls_qval.tsv"),val(nr_phenotype_pcs), emit: combined_input, optional: true
   script:
   // If a file with interaction terms is provided, use the interaction script otherwise use the standard script   
   if ("${interaction_file}" != 'fake_file.fq') {
@@ -151,7 +151,7 @@ process TRANS_BY_CIS {
     output:
         //path("${outpath}/trans-by-cis_bonf_fdr.tsv", emit: trans_res, optional: true)
         path("trans-by-cis_bonf_fdr.tsv", emit: trans_res, optional: true)
-        //path("trans-by-cis_all.tsv.gz", emit: trans_res_all, optional:true)
+        path("trans-by-cis_all.tsv.gz", emit: trans_res_all, optional:true)
 
     script:
       // Use dosage?
@@ -246,7 +246,8 @@ workflow TENSORQTL_eqtls{
       }else{
           int_file = "$projectDir/assets/fake_file.fq"
       }
-
+      condition_bed.subscribe { println "condition_bed dist: $it" }
+      plink_genotype.subscribe { println "TENSORQTL dist: $it" }
       TENSORQTL(
           condition_bed,
           plink_genotype,
@@ -257,7 +258,7 @@ workflow TENSORQTL_eqtls{
           // TENSORQTL.out.pc_qtls_path.view()
           // Make sure all input files are available before running the optimisation
           
-          TENSORQTL.out.pc_qtls_path.collect().subscribe { println "TENSORQTL dist: $it" }
+          
           // Fix the format of the output from TENSORQTL
           prep_optim_pc_channel = TENSORQTL.out.pc_qtls_path.groupTuple().map { key, values -> [key, values.flatten()] }
           // Create symlinks to the output files
