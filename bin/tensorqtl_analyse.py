@@ -217,7 +217,7 @@ def main():
 
     cis.map_nominal(genotype_df, variant_df,
                     phenotype_df.loc[phenotype_df1],
-                    phenotype_pos_df.loc[phenotype_df1],
+                    phenotype_pos_df.loc[phenotype_df1],window=int(options.window),
                     covariates_df=covariates_df,prefix='cis_nominal1',
                     output_dir=outdir, write_top=True, write_stats=True)
 

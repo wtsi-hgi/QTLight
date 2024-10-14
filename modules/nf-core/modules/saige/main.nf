@@ -70,9 +70,9 @@ process CONDITIONAL_QTL {
         if awk '\$2 == ${chr} {found=${chr}; exit} END {exit !found}' ${genome_regions}; then
             echo "The chromosome '${chr}' is found in the second column."
 
-            step1prefix=${output}/\${chr1}___nindep_100_ncell_100_lambda_2_tauIntraSample_0.5           
+            step1prefix=${output}/nindep_100_ncell_100_lambda_2_tauIntraSample_0.5           
             step2prefix=output_${name}___${chr}/\${chr1}___nindep_100_ncell_100_lambda_2_tauIntraSample_0.5_cis
-            mkdir output_${name}___${chr}
+            mkdir -p output_${name}___${chr}
             
             cat "${genome_regions}" | while IFS= read -r gene || [ -n "\$gene" ]
             do
@@ -122,7 +122,7 @@ process SAIGE_S1 {
     """
         # Execute with the bash executable in an array (one job per gene within level)
         #// Genome wide for this we send a list of genes in chunks 
-        mkdir output
+        mkdir -p output
         cat "${genes_list}" | while IFS= read -r i || [ -n "\$i" ]
         do
            {  # try
@@ -135,13 +135,13 @@ process SAIGE_S1 {
                 --sampleCovarColList=\$(sed -n '2p' ${cov})      \
                 --sampleIDColinphenoFile=${params.gt_id_column} \
                 --traitType=count \
-                --outputPrefix=./output/\${chr1}___nindep_100_ncell_100_lambda_2_tauIntraSample_0.5_\$i  \
+                --outputPrefix=./output/nindep_100_ncell_100_lambda_2_tauIntraSample_0.5_\$i  \
                 --skipVarianceRatioEstimation=FALSE  \
                 --isRemoveZerosinPheno=FALSE \
                 --isCovariateOffset=TRUE  \
                 --isCovariateTransform=TRUE  \
                 --skipModelFitting=FALSE  \
-                --tol=0.00001   \
+                --tol=0.00001 --traceCVcutoff 0.005 --nrun 15  \
                 --famFile ${plink_fam} \
                 --bimFile ${plink_bim} \
                 --bedFile ${plink_bed} \
@@ -156,7 +156,7 @@ process SAIGE_S1 {
         cat "${genes_list}" | while IFS= read -r i || [ -n "\$i" ]
         do
             echo \$i >> ./output/gene_string.tsv
-            step1prefix=./output/\${chr1}___nindep_100_ncell_100_lambda_2_tauIntraSample_0.5_\$i
+            step1prefix=./output/nindep_100_ncell_100_lambda_2_tauIntraSample_0.5_\$i
             echo -e "\${i} \${step1prefix}.rda \${step1prefix}.varianceRatio.txt" >> ./output/step1_output_formultigenes.txt
         done
     """
@@ -191,9 +191,9 @@ process SAIGE_S2 {
     
     """
         cp ${genes_list} regions_${genes_list}
-        step1prefix=${output}/\${chr1}___nindep_100_ncell_100_lambda_2_tauIntraSample_0.5           
+        step1prefix=${output}/nindep_100_ncell_100_lambda_2_tauIntraSample_0.5           
         step2prefix=output_${name}___${chr}/\${chr1}___nindep_100_ncell_100_lambda_2_tauIntraSample_0.5_cis
-        mkdir output_${name}___${chr}
+        mkdir -p output_${name}___${chr}
 
         run_step2_tests_qtl() {
             step2_tests_qtl.R       \
@@ -272,7 +272,7 @@ process SAIGE_S2_CIS {
 
     output:
         tuple val("${name}"),path("genes_list2.tsv"),path("output_${name}___*"),path(output),path(genome_regions),path(plink_bim), path(plink_bed), path(plink_fam),emit:output optional true
-        tuple val("${name}"),path("output_${name}___*/\${chr1}___nindep_100_ncell_100_lambda_2_tauIntraSample_0.5_cis_*"),emit:for_aggregation  optional true
+        tuple val("${name}"),path("output_${name}___*/*___nindep_100_ncell_100_lambda_2_tauIntraSample_0.5_cis_*"),emit:for_aggregation  optional true
 
     script:
         if (params.SAIGE.cis_trans_mode=='cis'){
@@ -298,10 +298,10 @@ process SAIGE_S2_CIS {
                     --SPAcutoff=${params.SAIGE.SPAcutoff} \
                     --markers_per_chunk=${params.SAIGE.markers_per_chunk} ${mode} 
 
-                #if [ \$? -ne 0 ]; then
-                #    echo "step2_tests_qtl.R command failed" >&2
-                #    exit 1  # Exit the script with a non-zero status
-                #fi
+                if [ \$? -ne 0 ]; then
+                    echo "step2_tests_qtl.R command failed" >&2
+                    return  # Skip the rest of the function and go to the next iteration
+                fi
 
                 line_count=\$(wc -l < output_${name}___\${chr1}/\${chr1}___nindep_100_ncell_100_lambda_2_tauIntraSample_0.5_cis_\${variable})        
                 if [ "\$line_count" -eq 1 ]; then
@@ -318,7 +318,7 @@ process SAIGE_S2_CIS {
         }
 
 
-        step1prefix=${output}/\${chr1}___nindep_100_ncell_100_lambda_2_tauIntraSample_0.5           
+        step1prefix=${output}/nindep_100_ncell_100_lambda_2_tauIntraSample_0.5           
         
         
         
@@ -513,14 +513,39 @@ process AGGREGATE_QTL_ALLVARS{
         """
 }
 
+process PHENOTYPE_PCs{
+    label 'process_medium'
+    tag { sanitized_columns }
+
+    if (workflow.containerEngine == 'singularity' && !params.singularity_pull_docker_container) {
+        container "${params.eqtl_container}"
+    } else {
+        container "${params.eqtl_docker}"
+    }   
+
+    memory { 
+        sizeInGB = saige_filt_expr_input.size() / 1e9 * 2 * task.attempt
+        return (sizeInGB ).toString() + 'GB' 
+    }   
+
+    input:
+        tuple val(sanitized_columns), path(saige_filt_expr_input),path(covariates)
+        val(phenotype_pcs)
+
+    output:
+        tuple val(sanitized_columns), path("${sanitized_columns}_with_pheno_pcs.tsv"),path("covariates_new.txt"), emit: output_pheno optional true
+
+    script:
+
+    """
+        saige_phenotype_pcs_and_other_covs.py ${saige_filt_expr_input} ${sanitized_columns}_with_pheno_pcs.tsv ${phenotype_pcs} ${covariates}
+    """
+}
 
 process H5AD_TO_SAIGE_FORMAT {
     label 'process_medium'
     tag { sanitized_columns }
-    memory { 
-            sizeInGB = h5ad.size() / 1e9 * task.attempt
-            return (sizeInGB ).toString() + 'GB' 
-        }
+
     // Specify the number of forks (10k)
     // maxForks 1000
 
@@ -528,8 +553,12 @@ process H5AD_TO_SAIGE_FORMAT {
         container "${params.eqtl_container}"
     } else {
         container "${params.eqtl_docker}"
-    }    
-    
+    }   
+
+    memory { 
+        sizeInGB = adata.size() / 1e9 * 1.25 * task.attempt
+        return (sizeInGB ).toString() + 'GB' 
+    }   
     publishDir  path: "${params.outdir}/Saige_eQTLS",
         saveAs: { filename ->
             if (filename.contains("covariates.txt")) {
@@ -554,6 +583,7 @@ process H5AD_TO_SAIGE_FORMAT {
         path(bridge)  
         val(aggregation_columns)
         path(genotype_pcs)
+        path(genome_annotation)
 
     output:
         tuple val(sanitized_columns), path("output_agg/*/*/saige_filt_expr_input.tsv"),path("output_agg/*/*/covariates.txt"),emit:output_pheno optional true
@@ -574,6 +604,13 @@ process H5AD_TO_SAIGE_FORMAT {
         cond1 = " --condition_col 'NULL' --condition 'NULL' "
     }else{
         cond1 = " --condition_col '${aggregation_columns}' --condition '${params.aggregation_subentry}' "
+    }
+
+    if ("${params.SAIGE.chromosomes_to_test}"!=''){
+        chromosomes_as_string = params.SAIGE.chromosomes_to_test.join(',')
+        cond2 = " --chr ${chromosomes_as_string} --genome ${genome_annotation}"
+    }else{
+        cond2 = " "
     }
 
     """
@@ -600,7 +637,7 @@ process H5AD_TO_SAIGE_FORMAT {
             --min ${params.n_min_cells} \
             --scale_covariates \$scale_covariates \
             --expression_pca \$expression_pca \
-            ${cov_col} ${cond1}
+            ${cov_col} ${cond1} ${cond2}
     """
 }
 
@@ -695,13 +732,16 @@ workflow SAIGE_qtls{
     main:
         log.info('------- Running SAIGE QTLs ------- ')
 
-        H5AD_TO_SAIGE_FORMAT(phenotype_file,params.genotype_phenotype_mapping_file,params.aggregation_columns,genotype_pcs)
-        pheno = H5AD_TO_SAIGE_FORMAT.out.output_pheno
+        H5AD_TO_SAIGE_FORMAT(phenotype_file,params.genotype_phenotype_mapping_file,params.aggregation_columns,genotype_pcs,genome_annotation)
+        PHENOTYPE_PCs(H5AD_TO_SAIGE_FORMAT.out.output_pheno,params.SAIGE.nr_expression_pcs)
+        pheno = PHENOTYPE_PCs.out.output_pheno
 
-        H5AD_TO_SAIGE_FORMAT.out.gene_chunk.subscribe { println "H5AD_TO_SAIGE_FORMAT.out.gene_chunk dist: $it" }
         CHUNK_GENES(H5AD_TO_SAIGE_FORMAT.out.gene_chunk,params.chunkSize)
         result = CHUNK_GENES.out.output_genes.flatMap { item ->
             def (first, second) = item
+            if (!(second instanceof Collection)) {
+                second = [second] // Wrap single value in a list
+            }
             return second.collect { [first, it] }
         }
 
@@ -732,8 +772,8 @@ workflow SAIGE_qtls{
         }
 
         // HERE WE either run the cis or trans qtl mapping. For cis we loop through each of the chunks whereas in trans we can run all together.
-        output_s2.subscribe { println "output_s2 dist: $it" }
-        agg_output.subscribe { println "agg_output dist: $it" }
+        // output_s2.subscribe { println "output_s2 dist: $it" }
+        // agg_output.subscribe { println "agg_output dist: $it" }
         SAIGE_QVAL_COR(output_s2)
         SAIGE_S3(SAIGE_QVAL_COR.out.output)
 

@@ -94,7 +94,7 @@ workflow EQTL {
         input_channel.splitCsv(header: true, sep: params.input_tables_column_delimiter)
             .map{row->tuple(row.Genotype)}.distinct()
             .set{channel_input_data_table}
-        channel_input_data_table = channel_input_data_table.collect().flatten().unique()
+        channel_input_data_table = channel_input_data_table.collect().flatten().distinct()
         input_channel.splitCsv(header: true, sep: params.input_tables_column_delimiter)
             .map{row->row.Sample_Category}.distinct().set{condition_channel}
         SPLIT_PHENOTYPE_DATA(genotype_phenotype_mapping_file,phenotype_file,condition_channel)
@@ -159,7 +159,7 @@ workflow EQTL {
         genotype_phenotype_mapping_file.splitCsv(header: true, sep: params.input_tables_column_delimiter)
             .map{row->tuple(row.Genotype)}.distinct()
             .set{channel_input_data_table2}
-        channel_input_data_table=channel_input_data_table2.collect().unique()
+        channel_input_data_table=channel_input_data_table2.collect()
     }
 
     
@@ -196,7 +196,7 @@ workflow EQTL {
             PGEN_CONVERT(plink_convert_input)
             plink_path = PGEN_CONVERT.out.plink_path
         }else{
-            plink_path = Channel.from(params.genotypes.preprocessed_bed_file)
+            plink_path = Channel.from(params.genotypes.preprocessed_pgen_file)
         }
 
         // Saige S1 needs bed file
@@ -314,10 +314,14 @@ workflow EQTL {
     //         plink_path = plink_path
     //     }
     // }
-
-    GENOTYPE_PC_CALCULATION(plink_path)
-
+    if (params.covariates.genotype_pcs_file==''){
+        GENOTYPE_PC_CALCULATION(plink_path)
+        genotype_pcs_file = GENOTYPE_PC_CALCULATION.out.gtpca_plink
+    }else{
+        genotype_pcs_file = Channel.fromPath(params.covariates.genotype_pcs_file)
+    }
     
+
     // condition_channel = condition_channel.unique() 
 
     // 4) Phenotype file preperation including PCs, normalisation
@@ -357,7 +361,7 @@ workflow EQTL {
     // TensorQTL QTL mapping method
     if (params.TensorQTL.run){
         for_bed_channel = SUBSET_PCS.out.for_bed.map { tuple ->  [tuple[3],[[tuple[0],tuple[1],tuple[2]]]].combinations()}.flatten().collate(4)
-        PREPERE_EXP_BED(for_bed_channel,genome_annotation,GENOTYPE_PC_CALCULATION.out.gtpca_plink)
+        PREPERE_EXP_BED(for_bed_channel,genome_annotation,genotype_pcs_file)
 
         TENSORQTL_eqtls(
             PREPERE_EXP_BED.out.exp_bed,
@@ -368,7 +372,7 @@ workflow EQTL {
     // SAIGE SCRNA QTL mapping method
     if (params.method=='single_cell'){
         if (params.SAIGE.run){
-            SAIGE_qtls(GENOTYPE_PC_CALCULATION.out.gtpca_plink,adata,bim_bed_fam,genome_annotation)
+            SAIGE_qtls(genotype_pcs_file,adata,bim_bed_fam,genome_annotation)
         }
     }
 

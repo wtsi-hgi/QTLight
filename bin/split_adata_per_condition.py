@@ -10,6 +10,40 @@ import argparse
 import os
 import re
 import gc
+import h5py
+import numpy as np
+def inc_write(adata,outname):
+    with h5py.File(outname, 'w') as f:
+        
+        # Create datasets for the essential AnnData components
+        # Initialize the datasets with the appropriate shape and dtype
+        X_shape = adata.X.shape
+        obs_shape = adata.obs.shape
+        var_shape = adata.var.shape
+        
+        # Assuming `adata.X` is a sparse matrix, you may want to convert it to dense or handle it differently.
+        # Here we create a dataset for `X`:
+        dset_X = f.create_dataset('X', shape=X_shape, dtype=adata.X.dtype)
+        
+        # Create datasets for `obs` and `var`
+        dset_obs = f.create_dataset('obs', shape=obs_shape, dtype=h5py.string_dtype())
+        dset_var = f.create_dataset('var', shape=var_shape, dtype=h5py.string_dtype())
+        
+        # Optionally, other components like `uns`, `obsm`, `varm` can also be created similarly.
+        
+        # Write the data in chunks
+        chunk_size = 1000  # Define your chunk size
+        
+        for i in range(0, X_shape[0], chunk_size):
+            end = i + chunk_size
+            # Write a chunk of X
+            dset_X[i:end, :] = adata.X[i:end, :].toarray() if hasattr(adata.X, "toarray") else adata.X[i:end, :]
+            
+            # Write a chunk of obs
+            dset_obs[i:end, :] = np.array(adata.obs.iloc[i:end, :], dtype=str)
+        
+        # Write var data once (if it's small enough to fit in memory)
+        dset_var[:, :] = np.array(adata.var, dtype=str)
 
 # def main():
 #     """Run CLI."""
@@ -127,6 +161,15 @@ def main():
         required=True,
         help=''
     )
+    
+    parser.add_argument(
+        '-conditions', '--conditions',
+        action='store',
+        dest='conditions',
+        required=False,
+        default=None,
+        help=''
+    )
 
     options = parser.parse_args()
 
@@ -134,6 +177,13 @@ def main():
     agg_columns = options.agg_columns
     agg_columns = agg_columns.split(",")
 
+    if options.conditions:
+        conditions=options.conditions.split(',')
+        type_analysis = 'split'
+    else:
+        conditions=[]
+        type_analysis = 'all'
+        
     print('Reading in data...')
     adata = sc.read_h5ad(filename=h5ad, backed='r')
     c=0
@@ -149,6 +199,30 @@ def main():
             continue
 
         for type in data_col.unique():
+            if type_analysis != 'all':
+                if type not in conditions:
+                    continue
+            # print(type)
+            # print("----------")
+            # cell_adata = adata[adata.obs[agg_col] == type]#.copy(filename='tmp.h5ad')  # can also use .to_memory() which will be faster but more memory consuming. This is a view, not a copy
+            # agg_col_cleaned = re.sub(r'\W+', '_', agg_col.replace(' ', '_'))
+            # tp2 = re.sub(r'\W+', '_', type.replace(' ', '_'))
+
+            # output_file = f'{agg_col_cleaned}__{tp2}__split.h5ad'
+            # print(f'Writing to {output_file}...')
+
+            # # Write directly from the view
+            # print(f"Final shape is: {cell_adata.obs.shape}") 
+            # # inc_write(cell_adata,output_file)
+            # cell_adata.write(output_file)
+            # cell_adata.file.close()
+
+            # # Remove the temporary file
+            # os.remove('tmp.h5ad')
+            # del cell_adata
+            # gc.collect()  # Force garbage collection to free up memory
+            
+            
             print(type)
             print("----------")
             if (c!=1):
