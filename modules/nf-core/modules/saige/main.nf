@@ -96,6 +96,40 @@ process CONDITIONAL_QTL {
     """
 }
 
+process CREATE_SPARSE_GRM {
+
+    label 'process_low'
+
+    // Specify the number of forks (10k)
+    maxForks 1000
+
+    if (workflow.containerEngine == 'singularity' && !params.singularity_pull_docker_container) {
+        container "${params.saige_container}"
+    } else {
+        container "${params.saige_docker}"
+    }    
+
+
+    input:
+        tuple path(plink_bim), path(plink_bed), path(plink_fam)
+        
+    // output:
+    //     tuple val(name),path(genes_list),path("output"),emit:output
+    //     path("*genes_droped_from_s1_due_to_error.tsv"), emit: dropped optional true
+
+    // Define the Bash script to run for each array job
+    script:
+    """
+        createSparseGRM.R \
+            --nThreads=${task.threads} \
+            --outputPrefix=sparseGRM_output \
+            --numRandomMarkerforSparseKin=2000 \
+            --relatednessCutoff=0.125 \
+            --famFile ${plink_fam} \
+            --bimFile ${plink_bim} \
+            --bedFile ${plink_bed} 
+    """  
+}
 
 process SAIGE_S1 {
     label 'process_low'
@@ -127,7 +161,7 @@ process SAIGE_S1 {
         do
            {  # try
             step1_fitNULLGLMM_qtl.R \
-                --useSparseGRMtoFitNULL=FALSE  \
+                --useSparseGRMtoFitNULL=TRUE  \
                 --useGRMtoFitNULL=FALSE \
                 --phenoFile=${pheno_file}	\
                 --phenoCol=\$i       \
@@ -276,37 +310,46 @@ process SAIGE_S2_CIS {
 
     script:
         if (params.SAIGE.cis_trans_mode=='cis'){
-            mode="--rangestoIncludeFile=regions_cis.tsv"
+            mode="--rangestoIncludeFile=regions_cis.tsv --chrom=\${chr1}"
         }else{
-            mode=""
+            mode="--chrom=20"
         }
     
     """
         run_step2_tests_qtl() {
             { 
-                step2_tests_qtl.R       \
+                warning_output=\$(step2_tests_qtl.R       \
                     --bedFile=${plink_bed}      \
                     --bimFile=${plink_bim}      \
                     --famFile=${plink_fam}      \
                     --SAIGEOutputFile=output_${name}___\${chr1}/\${chr1}___nindep_100_ncell_100_lambda_2_tauIntraSample_0.5_cis_\${variable}    \
-                    --chrom=\${chr1}     \
                     --minMAF=${params.SAIGE.minMAF} \
                     --minMAC=${params.SAIGE.minMAC} \
                     --LOCO=FALSE    \
                     --varianceRatioFile=\${step1prefix}_\${variable}.varianceRatio.txt    \
                     --GMMATmodelFile=\${step1prefix}_\${variable}.rda    \
                     --SPAcutoff=${params.SAIGE.SPAcutoff} \
-                    --markers_per_chunk=${params.SAIGE.markers_per_chunk} ${mode} 
+                    --markers_per_chunk=${params.SAIGE.markers_per_chunk} ${mode}   2>&1)
 
                 if [ \$? -ne 0 ]; then
                     echo "step2_tests_qtl.R command failed" >&2
                     return  # Skip the rest of the function and go to the next iteration
                 fi
 
+                if [[ \$? -eq 0 && "\$warning_output" != *"Input/output error"* ]]; then
+                    echo "proceed"
+                else
+                    echo "warning exists"
+                    return 1
+                fi
+
                 line_count=\$(wc -l < output_${name}___\${chr1}/\${chr1}___nindep_100_ncell_100_lambda_2_tauIntraSample_0.5_cis_\${variable})        
                 if [ "\$line_count" -eq 1 ]; then
                     echo "File has exactly one line"
                     rm output_${name}___\${chr1}/\${chr1}___nindep_100_ncell_100_lambda_2_tauIntraSample_0.5_cis_\${variable}
+                elif [ "\$line_count" -eq 0 ]; then
+                    echo "File has exactly zero lines"
+                    return 1
                 else
                     echo "\${variable}\t\${chr1}" >> genes_list2.tsv
                 fi
@@ -501,7 +544,7 @@ process AGGREGATE_QTL_ALLVARS{
     input:
         tuple val(group),path(qtl_q_results)
     output:
-        tuple val(group),path("chr${chr}__all_vars_genes.tsv"), emit: all
+        tuple val(group),path("chr${chr}__all_vars_genes.tsv.gz"), emit: all
 
     script:
         parts = group.split('___')
@@ -509,12 +552,12 @@ process AGGREGATE_QTL_ALLVARS{
         exp = parts[0]
 
         """
-            prepend_gene_large.py --pattern 'cis_*' --column 'gene' --outfile 'chr${chr}__all_vars_genes.tsv'
+            prepend_gene_large.py --pattern 'cis_*' --column 'gene' --outfile 'chr${chr}__all_vars_genes.tsv.gz'
         """
 }
 
 process PHENOTYPE_PCs{
-    label 'process_medium'
+    // label 'process_medium'
     tag { sanitized_columns }
 
     if (workflow.containerEngine == 'singularity' && !params.singularity_pull_docker_container) {
@@ -750,26 +793,26 @@ workflow SAIGE_qtls{
         
         Channel.fromList(params.SAIGE.chromosomes_to_test)
                 .set{chromosomes_to_test}        
-
+        // CREATE_SPARSE_GRM(bim_bed_fam)
         SAIGE_S1(pheno_chunk.combine(bim_bed_fam))
 
 
-        if(params.SAIGE.cis_trans_mode=='trans'){
-            SAIGE_S2(SAIGE_S1.out.output.combine(bim_bed_fam))
-            output_s2 = SAIGE_S2.out.output
-            agg_output = SAIGE_S2.out.for_aggregation
+        // if(params.SAIGE.cis_trans_mode=='trans'){
+        //     SAIGE_S2(SAIGE_S1.out.output.combine(bim_bed_fam))
+        //     output_s2 = SAIGE_S2.out.output
+        //     agg_output = SAIGE_S2.out.for_aggregation
 
-        }else if(params.SAIGE.cis_trans_mode=='cis'){
-            DETERMINE_TSS_AND_TEST_REGIONS(SAIGE_S1.out.output,genome_annotation)
-            for_cis_input = DETERMINE_TSS_AND_TEST_REGIONS.out.output_genes
-            SAIGE_S2_CIS(for_cis_input.combine(bim_bed_fam))
-            // there will be cases where the genes are across multiple chr. and this will emt two outputs. 
-            // they need to be standardised.
-            output_s2 = SAIGE_S2_CIS.out.output
-            agg_output = SAIGE_S2_CIS.out.for_aggregation
+        // }else if(params.SAIGE.cis_trans_mode=='cis'){
+        DETERMINE_TSS_AND_TEST_REGIONS(SAIGE_S1.out.output,genome_annotation)
+        for_cis_input = DETERMINE_TSS_AND_TEST_REGIONS.out.output_genes
+        SAIGE_S2_CIS(for_cis_input.combine(bim_bed_fam))
+        // there will be cases where the genes are across multiple chr. and this will emt two outputs. 
+        // they need to be standardised.
+        output_s2 = SAIGE_S2_CIS.out.output
+        agg_output = SAIGE_S2_CIS.out.for_aggregation
 
 
-        }
+        // }
 
         // HERE WE either run the cis or trans qtl mapping. For cis we loop through each of the chunks whereas in trans we can run all together.
         // output_s2.subscribe { println "output_s2 dist: $it" }

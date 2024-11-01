@@ -22,6 +22,7 @@ process TENSORQTL {
 
   output:
     tuple val(condition), path("${outpath}"), emit: pc_qtls_path
+    path("${outpath}/trans_all.tsv.gz"), emit: trans, optional: true
     tuple val(condition), path("Covariates.tsv"), path("Expression_Data.sorted.bed"), path("${outpath}/Cis_eqtls_qval.tsv"),val(nr_phenotype_pcs), emit: combined_input, optional: true
   script:
   // If a file with interaction terms is provided, use the interaction script otherwise use the standard script   
@@ -39,7 +40,7 @@ process TENSORQTL {
   }else{
     dosage = ""
   }
-    """ 
+    """
       bedtools sort -i ${aggrnorm_counts_bed} -header > Expression_Data.sorted.bed
       sed -i 's/^chr//' Expression_Data.sorted.bed
       ${tensor_qtl_script} --plink_prefix_path ${plink_files_prefix}/plink_genotypes --expression_bed Expression_Data.sorted.bed --covariates_file ${covariates_tsv} -window ${params.windowSize} ${dosage} --maf ${params.maf} --outdir ${outpath}
