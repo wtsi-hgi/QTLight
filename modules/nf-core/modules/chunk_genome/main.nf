@@ -11,7 +11,8 @@ process CHUNK_GENOME{
 
     input:
         each path(genome_annotation)
-        tuple(path(phenotype_pcs),val(condition),path(phenotype_file))
+        tuple path(phenotype_pcs),val(condition),path(mapping_file),path(phenotype_file)
+
     output:
         // path("Chunging_file.tsv"), emit: chunking_file_path
         // path('annotation_file_processed.tsv'), emit: annotation_file_processed
@@ -20,7 +21,7 @@ process CHUNK_GENOME{
     script:
         nr_phenotype_pcs = phenotype_pcs.getSimpleName()
         """
-            generate_chunking_file.py --genome_annotation ${genome_annotation} --chunk_size ${params.chunkSize} --phenotype_file ${phenotype_file} --covar_file ${phenotype_pcs} --condition ${condition}
+            generate_chunking_file.py --genome_annotation ${genome_annotation} --chunk_size ${params.chunkSize} --phenotype_file ${phenotype_file} --covar_file ${phenotype_pcs} --condition ${condition}  --genotype_phenotype_file ${mapping_file}
         """
     
 }

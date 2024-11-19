@@ -13,14 +13,20 @@ process PREPROCESS_GENOTYPES{
         container "${params.eqtl_docker}"
     }
 
+    publishDir  path: "${params.outdir}/genotypes",
+                mode: "${params.copy_mode}",
+                overwrite: "true"       
+                
     input:
         path(file__vcf)
     output:
         path("filtered_vcf.vcf.gz") , emit: filtered_vcf
     script:
         """
-            bcftools view --known ${params.bcftools_filters} --min-af ${params.maf}:minor ${file__vcf} -Oz -o filtered_vcf.vcf.gz
-            
+            bcftools index ${file__vcf} || echo 'exists'
+            bcftools view --known ${params.bcftools_filters} ${file__vcf} -Oz -o filtered_vcf.vcf.gz
+            #bcftools sort filtered_vcf.vcf.gz -Oz -o filtered_vcf2.vcf.gz
+            #rm filtered_vcf.vcf.gz
         """
     
 }

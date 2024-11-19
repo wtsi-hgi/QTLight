@@ -65,20 +65,13 @@ def main():
     pfile=options.pfile
     covariates_df = pd.read_csv(genotype_pcs, sep='\t', index_col=0)
 
-    if pfile:
-        covariates_df.index.names = ['Genotype']
-    else:
-        covariates_df=covariates_df.rename(columns={'IID':'Genotype'})
-        try:
-          covariates_df=covariates_df.set_index('Genotype')
-        except:
-          print('col already set')
-
-
-    if (options.sample_covariates):
-        print('yes')
-    else:
-        print('no')
+    covariates_df=covariates_df.rename(columns={'IID':'Genotype'})
+    covariates_df=covariates_df.rename(columns={'#IID':'Genotype'})
+    
+    try:
+        covariates_df=covariates_df.set_index('Genotype')
+    except:
+        print('col already set')
 
     phenotype_pcs=options.phenotype_pcs
     phenotype_pcs= pd.read_csv(phenotype_pcs, sep='\t', index_col=0)
@@ -90,7 +83,7 @@ def main():
     covariates_df = covariates_df.add_prefix('Genotype ')
     phenotype_pcs = phenotype_pcs.add_prefix('Phenotype ')
 
-    idx = set(phenotype_pcs.index).intersection(set(covariates_df.index))
+    idx = list(set(phenotype_pcs.index).intersection(set(covariates_df.index)))
     covariates_df = covariates_df.loc[idx]
     phenotype_pcs = phenotype_pcs.loc[list(idx)]
 
@@ -104,8 +97,15 @@ def main():
         # print()
     data = pd.DataFrame(all)
     data =data.T
-    data=data.set_index('id')
+    data=data.set_index('id').sort_index()
+    
     data =data.T
+    if (options.sample_covariates):
+        print('yes')
+        exctra_covs = pd.read_csv(options.sample_covariates,sep='\t',index_col=0)
+        data = pd.concat([data,exctra_covs])
+    else:
+        print('no')
     data.to_csv('Covariates.tsv',sep='\t')
 
 if __name__ == '__main__':

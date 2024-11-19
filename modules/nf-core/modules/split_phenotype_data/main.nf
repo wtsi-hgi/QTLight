@@ -7,7 +7,13 @@ process SPLIT_PHENOTYPE_DATA{
 
     tag{condition}
     scratch false      // use tmp directory
-    label 'process_medium_memory'
+    label 'process_medium'
+
+    memory { 
+        sizeInGB = phenotype_file.size() / 1e9 * 0.3 * task.attempt
+        return (sizeInGB ).toString() + 'GB' 
+    }
+
     if (workflow.containerEngine == 'singularity' && !params.singularity_pull_docker_container) {
         container "${params.eqtl_container}"
         
@@ -20,12 +26,12 @@ process SPLIT_PHENOTYPE_DATA{
         path(phenotype_file)
         val(condition)
     output:
-        tuple val(condition),path("*_phenotype.tsv"), emit: phenotye_file
-        
+        tuple val(condition),path("*_phenotype.tsv"),path(annotation_file), emit: phenotye_file
+
     script:
         
         """
-            split_phenotype_for_condition.py --condition '${condition}' --genome_phenotype ${annotation_file} --phenotype ${phenotype_file}
+            split_phenotype_for_condition.py --condition '${condition}' --genome_phenotype ${annotation_file} --phenotype ${phenotype_file} 
         """
     
 }

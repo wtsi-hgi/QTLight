@@ -1,0 +1,44 @@
+#/bin/bash
+
+SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
+bold=$(tput bold)
+normal=$(tput sgr0)
+
+if [[ "$QUEUE" == '' ]];
+    then
+        export QUEUE='long'
+    else
+        export QUEUE="$QUEUE"
+fi
+
+
+
+if [[ $1 == "-v" || $1 == "-info" ||  $1 == "info" || $1 == "-h" ]]; then
+    _=''
+else
+    
+    echo press ENTER to NOT fetch containers, otherwise provide writable path:
+    read varname
+    if ["$varname" = ''];
+        then
+            export NXF_SINGULARITY_CACHEDIR='/software/hgi/containers/yascp'
+            export SINGULARITY_DISABLE_CACHE=0
+        else
+            echo Yascp Will fetch the containers and place them in $varname
+            export NXF_SINGULARITY_CACHEDIR=$varname
+    fi
+fi
+
+if [[ $@ == "-v" ]]; then
+    command echo  -e "eqtl v=1.0; \n Available at https://github.com/wtsi-hgi/eqtl \n commit bd43f9baea487aa3811129bd2e01f0d682ce3a7d"
+elif [[ $@ == "test" ]]; then
+    command echo -e "Runing test code from OneK1k" && bash $SCRIPT_DIR/../../../assets/deploy_scripts/nohup_start_nextflow_lsf_test.sh
+elif [[ $@ == "sample_input" ]]; then
+    command cp -r $SCRIPT_DIR/../../../sample_input ./
+elif [[ $@ == "info" ]]; then
+    command cat "${SCRIPT_DIR}/help.info" | sed "s/\${bold}/$(echo -e "\033[1m")/g; s/\${normal}/$(echo -e "\033[0m")/g"    
+elif [[ $@ == "-h" ]]; then
+    command cat "${SCRIPT_DIR}/help.info" | sed "s/\${bold}/$(echo -e "\033[1m")/g; s/\${normal}/$(echo -e "\033[0m")/g"
+else
+    command bash $SCRIPT_DIR/../../../assets/deploy_scripts/nohup_start_nextflow_lsf.sh "$@"
+fi

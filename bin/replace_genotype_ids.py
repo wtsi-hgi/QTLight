@@ -42,5 +42,8 @@ genotype_phenotype_mapping = pd.read_csv(options.genotype_phenotype_mapping,sep=
 genotype_phenotype_mapping = genotype_phenotype_mapping.set_index('Genotype')
 genotype_phenotype_mapping.insert(0,'Genotype','')
 genotype_phenotype_mapping['Genotype']=Mapping_File['Genotype']
-genotype_phenotype_mapping.to_csv('remap_genotype_phenotype_mapping.tsv',sep='\t',index=False)
+if not list(set(genotype_phenotype_mapping['Genotype']))[0]==list(set(genotype_phenotype_mapping['Genotype']))[0]:
+    # genotype_phenotype_mapping = genotype_phenotype_mapping.drop(columns='Genotype').reset_index()
+    genotype_phenotype_mapping = genotype_phenotype_mapping[genotype_phenotype_mapping['Genotype']==genotype_phenotype_mapping['Genotype']]
+genotype_phenotype_mapping.to_csv(f'remap_{options.genotype_phenotype_mapping}',sep='\t',index=False)
 print('Done')

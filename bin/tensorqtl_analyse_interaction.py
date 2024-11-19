@@ -82,7 +82,7 @@ def main():
         help=''
     )
     parser.add_argument(
-        '-maf', '--interaction_maf',
+        '-maf_inter', '--interaction_maf',
         action='store',
         dest='inter_maf',
         required=True,
@@ -102,6 +102,15 @@ def main():
         action='store_true',
         dest='dosage',
         default=False,
+        help=''
+    )
+    
+    parser.add_argument(
+        '-maf', '--maf',
+        action='store',
+        dest='maf',
+        required=False,
+        default=0.05,
         help=''
     )
 
@@ -173,10 +182,10 @@ def main():
   #     genotype_df = pr.load_genotypes()    
   #     Directory = f'{outdir}/inter_output'
   #     os.mkdir(Directory)
-
+    phenotype_df1 = list(set(phenotype_pos_df[phenotype_pos_df['chr']!='chrY'].index))
     cis.map_nominal(genotype_df, variant_df, 
-                    phenotype_df.loc[phenotype_pos_df['chr']!='chrY'], 
-                    phenotype_pos_df.loc[phenotype_pos_df['chr']!='chrY'],
+                    phenotype_df.loc[phenotype_df1], 
+                    phenotype_pos_df.loc[phenotype_df1],
                     covariates_df=covariates_df,prefix='cis_inter1',
                     maf_threshold=interaction_maf, maf_threshold_interaction=interaction_maf, output_dir=outdir, write_top=True, write_stats=True,
                     interaction_df=interaction_df,

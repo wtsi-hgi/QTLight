@@ -1,9 +1,10 @@
 
 process PREPERE_EXP_BED {
-  label 'process_low'
+  label 'process_medium'
   tag "$condition, $nr_phenotype_pcs"
   if (workflow.containerEngine == 'singularity' && !params.singularity_pull_docker_container) {
       container "${params.eqtl_container}"
+      container "/software/hgi/containers/yascp/yascp.cog.sanger.ac.uk-public-singularity_images-eqtl_19_09_2023.img.img"
       
   } else {
       container "${params.eqtl_docker}"
@@ -20,10 +21,10 @@ process PREPERE_EXP_BED {
 
   script:
     nr_phenotype_pcs = phenotype_pcs.getSimpleName()
-    if(params.sample_covariates==''){
+    if(params.covariates.extra_covariates_file==''){
       sample_covar =''
     }else{
-      sample_covar ="--sample_covariates ${params.sample_covariates}"
+      sample_covar ="--sample_covariates ${params.covariates.extra_covariates_file}"
     }
     if (params.TensorQTL.use_gt_dosage && params.TensorQTL.run) {
       pfile = "-pfile"
