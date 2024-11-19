@@ -8,7 +8,7 @@ process NORMALISE_ANNDATA {
     }else{
         memory { 
             sizeInGB = adata.size() / 1e9 
-            return (sizeInGB * 2 * task.attempt).toString() + 'GB' 
+            return (sizeInGB * 6 * task.attempt).toString() + 'GB' 
         }
     }
 

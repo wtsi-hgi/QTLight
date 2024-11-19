@@ -159,18 +159,27 @@ process TRANS_BY_CIS {
       }else{
         dosage = ""
       }
+      if (params.TensorQTL.trans_by_cis_variant_list !='') {
+        command_subset_var_list = "grep -P 'variant_id\tcondition_name|${condition}' ${params.TensorQTL.trans_by_cis_variant_list} > var_list.tsv"
+        variant_list = "--variant_list var_list.tsv"
+      }else{
+		command_subset_var_list = ""
+        variant_list = ""
+      }
 
       """
+	  ${command_subset_var_list}
       tensor_analyse_trans_by_cis.py \
         --covariates_file ${covariates} \
         --phenotype_file ${phenotype_file} \
         --plink_prefix_path ${plink_files_prefix}/plink_genotypes \
         --outdir "./" \
-        --dosage ${dosage} \
+        ${dosage} \
         --maf ${params.maf} \
         --cis_qval_results ${cis_eqtls_qval} \
         --alpha ${params.TensorQTL.alpha} \
-        --window ${params.windowSize}
+        --window ${params.windowSize} \
+        ${variant_list}
         
       """
 
@@ -221,7 +230,7 @@ process TRANS_OF_CIS {
         --phenotype_file ${phenotype_file} \
         --plink_prefix_path ${plink_files_prefix}/plink_genotypes \
         --outdir "./" \
-        --dosage ${dosage} \
+        ${dosage} \
         --maf "0.05" \
         --cis_qval_results ${cis_eqtls_qval} \
         --alpha ${alpha} \
