@@ -114,8 +114,17 @@ def main():
         help=''
     )
 
+    parser.add_argument(
+        '-nom', '--map_nominal',
+        action='store_true',
+        dest='map_nominal',
+        default=False,
+        help=''
+    )
+
     options = parser.parse_args()
     maf=float(options.maf)
+    map_nominal=options.map_nominal
     # ValueError: The BED file must define the TSS/cis-window center, with start+1 == end.
     # --plink_prefix_path plink_genotypes/plink_genotypes --expression_bed Expression_Data.bed.gz --covariates_file gtpca_plink.eigenvec
     plink_prefix_path=options.plink_prefix_path
@@ -188,7 +197,7 @@ def main():
                     phenotype_df.loc[phenotype_df1], 
                     phenotype_pos_df.loc[phenotype_df1],
                     covariates_df=covariates_df,prefix='cis_inter1',
-                    maf_threshold=maf, maf_threshold_interaction=interaction_maf, output_dir=outdir, write_top=True, write_stats=True,
+                    maf_threshold=maf, maf_threshold_interaction=interaction_maf, output_dir=outdir, write_top=True, write_stats=map_nominal,
                     interaction_df=interaction_df,
                     run_eigenmt=True)
     

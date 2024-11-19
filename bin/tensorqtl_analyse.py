@@ -150,8 +150,17 @@ def main():
         help=''
     )
 
+    parser.add_argument(
+        '-nom', '--map_nominal',
+        action='store_true',
+        dest='map_nominal',
+        default=False,
+        help=''
+    )
+
     options = parser.parse_args()
     maf=float(options.maf)
+    map_nominal=options.map_nominal
     
     # ValueError: The BED file must define the TSS/cis-window center, with start+1 == end.
     # --plink_prefix_path plink_genotypes/plink_genotypes --expression_bed Expression_Data.bed.gz --covariates_file gtpca_plink.eigenvec
@@ -215,47 +224,23 @@ def main():
     except:
         print('exist')
 
-    cis.map_nominal(genotype_df, variant_df,
-                    phenotype_df.loc[phenotype_df1],
-                    phenotype_pos_df.loc[phenotype_df1],maf_threshold=maf,
-                    covariates_df=covariates_df,prefix='cis_nominal1',
-                    output_dir=outdir, write_top=True, write_stats=True)
+    if map_nominal:
+        cis.map_nominal(genotype_df, variant_df,
+                        phenotype_df.loc[phenotype_df1],
+                        phenotype_pos_df.loc[phenotype_df1],maf_threshold=maf,
+                        covariates_df=covariates_df,prefix='cis_nominal1',
+                        output_dir=outdir, write_top=write_nominal, write_stats=write_nominal)
 
-    #     try:
-    #         # Here we have Plink1 bin,bed,fam
-    #         pr = genotypeio.PlinkReader(plink_prefix_path)
-    #         variant_df = pr.bim.set_index('snp')[['chrom', 'pos']]
-    #     except:
-    #         # Here we have Plink2 psam,pgen,pvar
-    #         pr = pgen.PgenReader(plink_prefix_path)
-    #         variant_df2 = pr.variant_dfs
-    #         variant_df = pd.DataFrame()
-    #         for k1 in variant_df2.keys():
-    #             dic1=pd.DataFrame(variant_df2[k1])
-    #             dic1['chrom']=k1
-    #             variant_df=pd.concat([variant_df,dic1])
-    #         variant_df.index=variant_df.index.rename('snp')
-    #         variant_df=variant_df[['chrom', 'pos']]
-    #         del variant_df2
-    #     genotype_df = pr.load_genotypes()
-    #     Directory = './nom_output'
-    #     os.mkdir(Directory)
-    #     cis.map_nominal(genotype_df, variant_df,
-    #                     phenotype_df.loc[phenotype_pos_df['chr']!='chrY'],
-    #                     phenotype_pos_df.loc[phenotype_pos_df['chr']!='chrY'],maf_threshold=maf,
-    #                     covariates_df=covariates_df,window=int(options.window),prefix='cis_nominal1',
-    #                     output_dir=Directory, write_top=True, write_stats=True,run_eigenmt=True)
 
-    
-    all_files = glob.glob(f'{outdir}/cis_nominal*.parquet')
-    All_Data = pd.DataFrame()
-    count=0
-    for bf1 in all_files:
-        print(bf1)
-        df = pd.read_parquet(bf1)
-        df.to_csv(bf1.replace('.parquet','.tsv'),sep='\t',index=False)
-        os.remove(bf1) 
-        count+=1    
+        all_files = glob.glob(f'{outdir}/cis_nominal*.parquet')
+        All_Data = pd.DataFrame()
+        count=0
+        for bf1 in all_files:
+            print(bf1)
+            df = pd.read_parquet(bf1)
+            df.to_csv(bf1.replace('.parquet','.tsv'),sep='\t',index=False)
+            os.remove(bf1) 
+            count+=1    
 
 
     try:

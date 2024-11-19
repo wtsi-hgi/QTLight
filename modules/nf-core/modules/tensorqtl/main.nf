@@ -2,7 +2,7 @@ tensor_label = params.utilise_gpu ? 'gpu' : "process_medium"
 
 process TENSORQTL {  
     label "${tensor_label}"
-    tag "$condition, $nr_phenotype_pcs"
+    tag "$condition, $nr_phenotype_pcs, optim: $skip_nominal"
     
     publishDir  path: "${params.outdir}/TensorQTL_eQTLS/${condition}/",
                 overwrite: "true"
@@ -19,6 +19,7 @@ process TENSORQTL {
     tuple(val(condition),path(aggrnorm_counts_bed),path(covariates_tsv),val(nr_phenotype_pcs))
     each path(plink_files_prefix)
     path(interaction_file)
+    val(skip_nominal)
 
   output:
     tuple val(condition), path("${outpath}"), emit: pc_qtls_path
@@ -34,6 +35,12 @@ process TENSORQTL {
     outpath = "${nr_phenotype_pcs}/base_output/base"
   }
 
+  if (skip_nominal) {
+    map_nominal_flag = ""
+  } else {
+    map_nominal_flag = "--map_nominal"
+  }
+
   if (params.genotypes.use_gt_dosage) {
     dosage = "--dosage"
   }else{
@@ -42,7 +49,7 @@ process TENSORQTL {
     """ 
       bedtools sort -i ${aggrnorm_counts_bed} -header > Expression_Data.sorted.bed
       sed -i 's/^chr//' Expression_Data.sorted.bed
-      ${tensor_qtl_script} --plink_prefix_path ${plink_files_prefix}/plink_genotypes --expression_bed Expression_Data.sorted.bed --covariates_file ${covariates_tsv} -window ${params.windowSize} ${dosage} --maf ${params.maf} --outdir ${outpath}
+      ${tensor_qtl_script} --plink_prefix_path ${plink_files_prefix}/plink_genotypes --expression_bed Expression_Data.sorted.bed --covariates_file ${covariates_tsv} -window ${params.windowSize} ${dosage} --maf ${params.maf} --outdir ${outpath} ${write_nominal_flag}
       cd ${outpath} && ln ../../../${covariates_tsv} ./ && ln ../../../Expression_Data.sorted.bed
     """
 }
@@ -257,7 +264,8 @@ workflow TENSORQTL_eqtls{
       TENSORQTL(
           condition_bed,
           plink_genotype,
-          int_file
+          int_file,
+          params.TensorQTL.optimise_pcs
       )
 
       if (params.TensorQTL.optimise_pcs){
@@ -271,6 +279,13 @@ workflow TENSORQTL_eqtls{
           PREP_OPTIMISE_PCS(prep_optim_pc_channel)
           // Run the optimisation to get the eQTL output with the most eGenes
           OPTIMISE_PCS(PREP_OPTIMISE_PCS.out,int_file)
+
+          TENSORQTL(
+            OPTIMISE_PCS.out.combined_input,
+            plink_genotype,
+            int_file,
+            false
+          )
           
           if(params.TensorQTL.trans_by_cis){
             log.info 'Running trans-by-cis analysis on optimum nPCs'
