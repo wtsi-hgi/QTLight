@@ -197,7 +197,7 @@ def main():
                     phenotype_df.loc[phenotype_df1], 
                     phenotype_pos_df.loc[phenotype_df1],
                     covariates_df=covariates_df,prefix='cis_inter1',
-                    maf_threshold=maf, maf_threshold_interaction=interaction_maf, output_dir=outdir, write_top=True, write_stats=map_nominal,
+                    maf_threshold=interaction_maf, maf_threshold_interaction=interaction_maf, output_dir=outdir, write_top=True, write_stats=True,
                     interaction_df=interaction_df,
                     run_eigenmt=True)
     

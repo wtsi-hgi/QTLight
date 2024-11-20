@@ -1,6 +1,6 @@
 process PREPROCESS_GENOTYPES{
     
-    // Calulates bbknn neighbors and saves UMAPS of these
+    // Subsets genotypes
     // ------------------------------------------------------------------------
     //tag { output_dir }
     //cache false        // cache results from run
