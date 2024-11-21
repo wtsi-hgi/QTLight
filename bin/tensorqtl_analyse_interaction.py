@@ -197,9 +197,9 @@ def main():
                     phenotype_df.loc[phenotype_df1], 
                     phenotype_pos_df.loc[phenotype_df1],
                     covariates_df=covariates_df,prefix='cis_inter1',
-                    maf_threshold=interaction_maf, maf_threshold_interaction=interaction_maf, output_dir=outdir, write_top=True, write_stats=True,
+                    maf_threshold=interaction_maf, maf_threshold_interaction=interaction_maf, output_dir=outdir, write_top=True, write_stats=map_nominal,
                     interaction_df=interaction_df,
-                    run_eigenmt=True)
+                    run_eigenmt=True,seed=7)
     
     all_files = glob.glob(f'{outdir}/cis_inter*.parquet')
     All_Data = pd.DataFrame()
