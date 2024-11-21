@@ -2,7 +2,7 @@ tensor_label = params.utilise_gpu ? 'gpu' : "process_medium"
 
 process TENSORQTL {  
     label "${tensor_label}"
-    tag "$condition, $nr_phenotype_pcs, optim: $skip_nominal"
+    tag "$condition, $nr_phenotype_pcs"
     // cache false
     
     publishDir  path: "${params.outdir}/TensorQTL_eQTLS/${condition}/",
@@ -17,10 +17,16 @@ process TENSORQTL {
   
 
   input:
-    tuple(val(condition),path(aggrnorm_counts_bed),path(covariates_tsv),val(nr_phenotype_pcs))
+    tuple(
+        val(condition),
+        path(aggrnorm_counts_bed),
+        path(covariates_tsv),
+        val(nr_phenotype_pcs)
+    )
     each path(plink_files_prefix)
     path(interaction_file)
     val(skip_nominal)
+    val(preprocess_bed)
 
   output:
     tuple val(condition), path("${outpath}"), emit: pc_qtls_path
@@ -41,16 +47,20 @@ process TENSORQTL {
   } else {
     map_nominal_flag = "--map_nominal"
   }
+  if (preprocess_bed) {
+    preprocess_bed = "bedtools sort -i ${aggrnorm_counts_bed} -header > Expression_Data.sorted.bed; sed -i 's/^chr//' Expression_Data.sorted.bed"
+  } else {
+    preprocess_bed = ""
+  }
 
   if (params.genotypes.use_gt_dosage) {
     dosage = "--dosage"
   }else{
     dosage = ""
   }
-    """ 
-      bedtools sort -i ${aggrnorm_counts_bed} -header > Expression_Data.sorted.bed
-      sed -i 's/^chr//' Expression_Data.sorted.bed
-      ${tensor_qtl_script} --plink_prefix_path ${plink_files_prefix}/plink_genotypes --expression_bed Expression_Data.sorted.bed --covariates_file ${covariates_tsv} -window ${params.windowSize} ${dosage} --maf ${params.maf} --outdir ${outpath} ${write_nominal_flag}
+    """
+      ${preprocess_bed}
+      ${tensor_qtl_script} --plink_prefix_path ${plink_files_prefix}/plink_genotypes --expression_bed Expression_Data.sorted.bed --covariates_file ${covariates_tsv} -window ${params.windowSize} ${dosage} --maf ${params.maf} --outdir ${outpath} ${map_nominal_flag}
       cd ${outpath} && ln ../../../${covariates_tsv} ./ && ln ../../../Expression_Data.sorted.bed
     """
 }
