@@ -337,7 +337,16 @@ def main():
         cis_df_dropped = cis_df.loc[sv]
         # r = stats.pearsonr(cis_df_dropped['pval_perm'], cis_df_dropped['pval_beta'])[0]
         calculate_qvalues(cis_df_dropped, qvalue_lambda=0.85)
+        cis_df_dropped.to_csv(f"{outdir}/Cis_eqtls_qval.tsv", sep='\t')
+        # Perform conditional analysis
+        indep_df = cis.map_independent(genotype_df, variant_df, cis_df_dropped,
+                                       phenotype_df.loc[phenotype_pos_df['chr']!='chrY'],       
+                                       phenotype_pos_df.loc[phenotype_pos_df['chr']!='chrY'],
+                                       nperm=int(options.nperm), window=int(options.window),
+                                       covariates_df=covariates_df,maf_threshold=maf,seed=7)
         
+        indep_df.to_csv(f"{outdir}/Cis_eqtls_independent.tsv",sep="\t",index=False)
+
     except:
         # The beta aproximation sometimes doesnt work and results in a failure of the qtl mapping. 
         # This seems to be caused by failure to aproximate the betas
@@ -348,7 +357,6 @@ def main():
                             phenotype_pos_df.loc[phenotype_df1],nperm=int(options.nperm),
                             window=int(options.window),
                             covariates_df=covariates_df,maf_threshold=maf,seed=7,beta_approx=False)
-            
         print('----cis eQTLs processed ------')
         cis_df.head()
         cis_df.to_csv(f"{outdir}/Cis_eqtls.tsv",sep="\t")
