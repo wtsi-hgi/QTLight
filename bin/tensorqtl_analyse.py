@@ -360,13 +360,16 @@ def main():
         # calculate_qvalues(cis_df_dropped, qvalue_lambda=0.85)
         # Perform conditional analysis
     #######################
-    indep_df = cis.map_independent(genotype_df, variant_df, cis_df_dropped,
-                                    phenotype_df.loc[phenotype_df1],       
-                                    phenotype_pos_df.loc[phenotype_df1],
-                                    nperm=int(options.nperm), window=int(options.window),
-                                    covariates_df=covariates_df,maf_threshold=maf,seed=7)
+    try:
+        indep_df = cis.map_independent(genotype_df, variant_df, cis_df_dropped,
+                                        phenotype_df.loc[phenotype_df1],       
+                                        phenotype_pos_df.loc[phenotype_df1],
+                                        nperm=int(options.nperm), window=int(options.window),
+                                        covariates_df=covariates_df,maf_threshold=maf,seed=7)
+        indep_df.to_csv(f"{outdir}/Cis_eqtls_independent.tsv",sep="\t",index=False)
+    except:
+        print("No significant phenotypes for cis.map_independent")
     
-    indep_df.to_csv(f"{outdir}/Cis_eqtls_independent.tsv",sep="\t",index=False)
     if 'qvals' not in cis_df_dropped.columns:
         # Add 'qvals' column with None values
         cis_df_dropped['qvals'] = None
