@@ -199,7 +199,7 @@ def main():
                     covariates_df=covariates_df,prefix='cis_inter1',
                     maf_threshold=interaction_maf, maf_threshold_interaction=interaction_maf, output_dir=outdir, write_top=True, write_stats=map_nominal,
                     interaction_df=interaction_df,
-                    run_eigenmt=True,seed=7)
+                    run_eigenmt=True)
     
     all_files = glob.glob(f'{outdir}/cis_inter*.parquet')
     All_Data = pd.DataFrame()
