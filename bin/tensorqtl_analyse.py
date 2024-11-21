@@ -229,7 +229,7 @@ def main():
                         phenotype_df.loc[phenotype_df1],
                         phenotype_pos_df.loc[phenotype_df1],maf_threshold=maf,
                         covariates_df=covariates_df,prefix='cis_nominal1',
-                        output_dir=outdir, write_top=map_nominal, write_stats=map_nominal,seed=7)
+                        output_dir=outdir, write_top=map_nominal, write_stats=map_nominal)
 
 
         all_files = glob.glob(f'{outdir}/cis_nominal*.parquet')

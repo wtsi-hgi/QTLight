@@ -2,7 +2,7 @@ tensor_label = params.utilise_gpu ? 'gpu' : "process_medium"
 
 process TENSORQTL {  
     label "${tensor_label}"
-    tag "$condition, ß$nr_phenotype_pcs"
+    tag "$condition, $nr_phenotype_pcs"
     // cache false
     
     publishDir  path: "${params.outdir}/TensorQTL_eQTLS/${condition}/",
