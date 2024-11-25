@@ -11,7 +11,7 @@ import torch
 import pandas as pd
 import sys
 import tensorqtl
-from tensorqtl import read_phenotype_bed, cis, calculate_qvalues,pgen 
+from tensorqtl import read_phenotype_bed, cis, calculate_qvalues,pgen,trans
 import threading
 import numpy as np
 import scipy.stats as stats
@@ -19,7 +19,7 @@ import glob
 import argparse
 import os
 import genotypeio
-
+import gzip
 class BackgroundGenerator(threading.Thread):
     # Adapted from https://github.com/justheuristic/prefetch_generator
     def __init__(self, generator, max_prefetch=10):
@@ -242,7 +242,6 @@ def main():
             os.remove(bf1) 
             count+=1    
 
-
     try:
         cis_df = cis.map_cis(genotype_df, variant_df, 
                             phenotype_df.loc[phenotype_df1],
@@ -258,14 +257,7 @@ def main():
         # r = stats.pearsonr(cis_df_dropped['pval_perm'], cis_df_dropped['pval_beta'])[0]
         calculate_qvalues(cis_df_dropped, qvalue_lambda=0.85)
         cis_df_dropped.to_csv(f"{outdir}/Cis_eqtls_qval.tsv", sep='\t')
-        # Perform conditional analysis
-        indep_df = cis.map_independent(genotype_df, variant_df, cis_df_dropped,
-                                       phenotype_df.loc[phenotype_pos_df['chr']!='chrY'],       
-                                       phenotype_pos_df.loc[phenotype_pos_df['chr']!='chrY'],
-                                       nperm=int(options.nperm), window=int(options.window),
-                                       covariates_df=covariates_df,maf_threshold=maf,seed=7)
-        
-        indep_df.to_csv(f"{outdir}/Cis_eqtls_independent.tsv",sep="\t",index=False)
+
 
     except:
         # The beta aproximation sometimes doesnt work and results in a failure of the qtl mapping. 
@@ -285,9 +277,21 @@ def main():
         cis_df_dropped = cis_df.loc[sv]
         # r = stats.pearsonr(cis_df_dropped['pval_perm'], cis_df_dropped['pval_beta'])[0]
         # calculate_qvalues(cis_df_dropped, qvalue_lambda=0.85)
-    if 'qval' not in cis_df_dropped.columns:
+        # Perform conditional analysis
+    #######################
+    try:
+        indep_df = cis.map_independent(genotype_df, variant_df, cis_df_dropped,
+                                        phenotype_df.loc[phenotype_df1],       
+                                        phenotype_pos_df.loc[phenotype_df1],
+                                        nperm=int(options.nperm), window=int(options.window),
+                                        covariates_df=covariates_df,maf_threshold=maf,seed=7)
+        indep_df.to_csv(f"{outdir}/Cis_eqtls_independent.tsv",sep="\t",index=False)
+    except:
+        print("No significant phenotypes for cis.map_independent")
+    
+    if 'qvals' not in cis_df_dropped.columns:
         # Add 'qvals' column with None values
-        cis_df_dropped['qval'] = None
+        cis_df_dropped['qvals'] = None
     cis_df_dropped.to_csv(f"{outdir}/Cis_eqtls_qval.tsv", sep='\t')
 
 

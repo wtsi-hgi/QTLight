@@ -241,8 +241,8 @@ def main():
         print("Saved the corrected results")
         
         # Save all results
-        #print("Saving all trans results")
-        #trans_df.to_csv(f"{outdir}/trans-by-cis_all.tsv.gz", compression='gzip', sep = "\t", index=False)
+        print("Saving all trans results")
+        trans_df.to_csv(f"{outdir}/trans-by-cis_all.tsv.gz", compression='gzip', sep = "\t", index=False)
     
     else:
        print("No variants to test for this condition") 

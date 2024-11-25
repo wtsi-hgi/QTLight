@@ -18,17 +18,21 @@ def main(pattern, column, outfile):
     except:
         name = first_file.split(pattern_pre[0])[-1]
     d1.insert(loc=0, column=column, value=name)
-    d1.to_csv(outfile, sep='\t', index=False, mode='w')
+    d1.to_csv(outfile, sep='\t', index=False, mode='w', compression='gzip')
 
     # Iterate over the remaining files and append their content
     for f1 in all_files[1:]:
-        d1 = pd.read_csv(f1, sep='\t')
         try:
-            name = f1.split(pattern_pre[0])[-1].split(pattern_pre[1], '')[0]
+            d1 = pd.read_csv(f1, sep='\t')
+            try:
+                name = f1.split(pattern_pre[0])[-1].split(pattern_pre[1], '')[0]
+            except:
+                name = f1.split(pattern_pre[0])[-1]
+            d1.insert(loc=0, column=column, value=name)
+            
+            d1.to_csv(outfile, sep='\t', index=False, mode='a', header=False, compression='gzip')
         except:
-            name = f1.split(pattern_pre[0])[-1]
-        d1.insert(loc=0, column=column, value=name)
-        d1.to_csv(outfile, sep='\t', index=False, mode='a', header=False)
+            print(f'issue arrised with this File - {f1}')
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Aggregate files with an additional column.")
