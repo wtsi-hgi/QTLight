@@ -6,21 +6,20 @@ include { TENSORQTL as TENSORQTL_OPTIM } from './processes.nf'
 // PREP_OPTIMISE_PCS process to create symlinks
 process PREP_OPTIMISE_PCS {
     label 'process_low'
-    tag { condition }
+    tag "$condition, $interaction"
     input:
-    tuple val(condition), val(paths)
-
+    tuple val(condition), val(interaction), val(paths)
     output:
-    tuple val(condition), path("${condition}_symlink")
+    tuple val(condition), val(interaction), path("${condition}_${interaction}_symlink")
 
     script:
     paths_str = paths.join(" ")
     """
-    mkdir ${condition}_symlink
-    cd ${condition}_symlink
+    mkdir ${condition}_${interaction}_symlink
+    cd ${condition}_${interaction}_symlink
     for path in ${paths_str}; do
          unique_name=\$(echo \$path | awk -F/ '{print \$(NF-2)"__"\$(NF-1)"__"\$NF}')
-        ln -s \$path \$unique_name || echo 'already liked'
+        ln -s \$path \$unique_name || echo 'already linked'
     done
     """
 }
@@ -29,7 +28,7 @@ process OPTIMISE_PCS{
      
     // Choose the best eQTL results based on most eGenes found over a number of PCs
     // ------------------------------------------------------------------------
-    tag { condition }
+    tag "$condition, $interaction"
     scratch false      // use tmp directory
     label 'process_low'
     errorStrategy 'ignore'
@@ -46,37 +45,33 @@ process OPTIMISE_PCS{
     }
 
     input:
-        tuple(val(condition),path(eqtl_dir))
-        path(interaction_file)
-        
+        tuple(val(condition),val(interaction),path(eqtl_dir))
     output:
         path("${outpath}/optimise_nPCs-FDR${alpha_text}.pdf"), emit: optimise_nPCs_plot
         path("${outpath}/optimise_nPCs-FDR${alpha_text}.txt"), emit: optimise_nPCs
-        path("${outpath}/Cis_eqtls.tsv"), emit: optim_qtl_bin, optional: true
-        path("${outpath}/Cis_eqtls_qval.tsv"), emit: optim_q_qtl_bin, optional: true
-        path("${outpath}/Cis_eqtls_independent.tsv"), emit: optim_independent_qtl_bin, optional: true
-        path("${outpath}/cis_inter1.cis_qtl_top_assoc.txt.gz "), emit: optim_int_qtl_bin, optional: true
-        tuple val(condition), path("${outpath}/Expression_Data.sorted.bed"), path("${outpath}/Covariates.tsv"), val('OPTIM_pcs'), emit: cis_input, optional: true
-        tuple val(condition), path("${outpath}/Expression_Data.sorted.bed"), path("${outpath}/Covariates.tsv"), path("${outpath}/Cis_eqtls_qval.tsv"), emit: trans_input, optional: true
+        tuple val(condition), path("${tensor_input_path}/Expression_Data.sorted.bed"), path("${tensor_input_path}/Covariates.tsv"), val('OPTIM_pcs'), path("${tensor_input_path}/${interaction_file}"), emit: cis_input, optional: true
+        tuple val(condition), path("${tensor_input_path}/Expression_Data.sorted.bed"), path("${tensor_input_path}/Covariates.tsv"), path("${tensor_input_path}/Cis_eqtls_qval.tsv"), emit: trans_input, optional: true
         path(outpath)
         
 
     script:
       sumstats_path = "${params.outdir}/TensorQTL_eQTLS/${condition}/"
-      if ("${interaction_file}" != 'fake_file.fq') {
-          inter_name = file(interaction_file).baseName
-          outpath_end = "interaction_output__${inter_name}"
+      if ("${interaction}" != 'base') {
+          interaction_file = "${interaction}.tsv"
+          outpath_end = "interaction_output__${interaction}"
       } else {
-          inter_name = "NA"
+          interaction_file = "fake_file.fq"
           outpath_end = "base_output__base"
           }
-        alpha = "0.05"
+        alpha = "0.5"
         alpha_text = alpha.replaceAll("\\.", "pt")
         outpath = "./OPTIM_pcs/${outpath_end}"
+        tensor_input_path = "./OPTIM_input/${outpath_end}"
         """  
           mkdir -p ${outpath}
-          tensorqtl_optimise_pcs.R ./ ${alpha} ${inter_name} ${condition} ${outpath}
-          var=\$(grep TRUE ${outpath}/optimise_nPCs-FDR${alpha_text}.txt | cut -f 1) && cp -r ${condition}_symlink/"\$var"pcs__${outpath_end}/* ${outpath}
+          mkdir -p ${tensor_input_path}
+          tensorqtl_optimise_pcs.R ./ ${alpha} ${interaction} ${condition} ${outpath}
+          var=\$(grep TRUE ${outpath}/optimise_nPCs-FDR${alpha_text}.txt | cut -f 1) && cp -r ${condition}_${interaction}_symlink/"\$var"pcs__${outpath_end}/* ${tensor_input_path}
           echo \${var} >> ${outpath}/optim_pcs.txt
         """
 }
@@ -199,24 +194,60 @@ process TRANS_OF_CIS {
       //"""
 }
 
+process SPLIT_INTERACTIONS {
+    label 'process_small'
+    if (workflow.containerEngine == 'singularity' && !params.singularity_pull_docker_container) {
+      container "${params.eqtl_container}"
+    } else {
+      container "${params.eqtl_docker}"
+    }
+
+    input:
+        path multi_interaction_file
+    output:
+        path("interaction_files/*.tsv", emit: interactions_files)
+    script:
+        """
+        mkdir -p interaction_files
+        num_columns=\$(head -1 ${multi_interaction_file} | awk -F '\\t' '{print NF}')
+        if [ "\$num_columns" -eq 2 ]; then
+            # Two columns, copy the file as is, retaining its original name
+            cp ${multi_interaction_file} interaction_files/
+        elif [ "\$num_columns" -ge 3 ]; then
+            # Three or more columns, run the Python script to split
+            split_interactions.py -i ${multi_interaction_file} -o interaction_files
+        else
+            echo "Error: Input file must have at least two columns."
+            exit 1
+        fi
+        """
+}
+
+
 workflow TENSORQTL_eqtls{
     take:
         condition_bed
         plink_genotype
         
     main:
-  
-      if(params.TensorQTL.interaction_file !=''){
-          int_file = params.TensorQTL.interaction_file
-      }else{
-          int_file = "$projectDir/assets/fake_file.fq"
+      if (params.TensorQTL.interaction_file != '') {
+          SPLIT_INTERACTIONS(params.TensorQTL.interaction_file)
+          interaction_files = SPLIT_INTERACTIONS.out.interactions_files.flatten()
+
+          condition_bed = condition_bed.combine(interaction_files)
+          
+      } else {
+          interaction_files = Channel.of("$projectDir/assets/fake_file.fq")
+          condition_bed = condition_bed.map { cond_bed_item ->
+              cond_bed_item + ["$projectDir/assets/fake_file.fq"]
+          }
       }
-      condition_bed.subscribe { println "condition_bed dist: $it" }
-      plink_genotype.subscribe { println "TENSORQTL dist: $it" }
+      
+      // condition_bed.view { "condition_bed item: $it" }
+      // plink_genotype.subscribe { println "TENSORQTL dist: $it" }
       TENSORQTL(
           condition_bed,
           plink_genotype,
-          int_file,
           params.TensorQTL.optimise_pcs,
           true
       )
@@ -227,16 +258,15 @@ workflow TENSORQTL_eqtls{
           
           
           // Fix the format of the output from TENSORQTL
-          prep_optim_pc_channel = TENSORQTL.out.pc_qtls_path.groupTuple().map { key, values -> [key, values.flatten()] }
+          prep_optim_pc_channel = TENSORQTL.out.pc_qtls_path.groupTuple(by: [0,1]).map { key1, key2, values -> [key1, key2, values.flatten()]}
           // Create symlinks to the output files
           PREP_OPTIMISE_PCS(prep_optim_pc_channel)
           // Run the optimisation to get the eQTL output with the most eGenes
-          OPTIMISE_PCS(PREP_OPTIMISE_PCS.out,int_file)
+          OPTIMISE_PCS(PREP_OPTIMISE_PCS.out)
 
           TENSORQTL_OPTIM(
             OPTIMISE_PCS.out.cis_input,
             plink_genotype,
-            int_file,
             false,
             false
           )
