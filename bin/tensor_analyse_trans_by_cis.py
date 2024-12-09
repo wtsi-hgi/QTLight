@@ -116,6 +116,14 @@ def main():
     )
 
     parser.add_argument(
+        '-vl', '--variant_list',
+        action='store',
+        dest='variant_list',
+        required=False,
+        help=''
+    )
+
+    parser.add_argument(
         '-a', '--alpha',
         action='store',
         dest='alpha',
@@ -151,10 +159,14 @@ def main():
     print(f"dosage: {dosage}")
     maf=float(options.maf)
     print(f"maf: {str(maf)}")
-    cis_qval_results=options.cis_qval_results
-    print(f"cis_qval_results: {cis_qval_results}")
     alpha = float(options.alpha)
     print(f"alpha: {str(alpha)}")
+    if options.variant_list:
+        variant_list=options.variant_list
+        print(f"variant_list: {variant_list}")
+    else:
+        cis_qval_results=options.cis_qval_results
+        print(f"cis_qval_results: {cis_qval_results}")
 
     # Read in the phenotype file (for this test)
     # phenotype_df_pre = pd.read_csv(phenotype_file, sep = "\t")
@@ -164,74 +176,76 @@ def main():
     print("Loaded phenotypes")
 
     # Load in the cis-qval significant results
-    cis_q = pd.read_csv(cis_qval_results, sep = "\t")
-    if 'qval' in cis_q.columns:
-        sig_variants = cis_q[cis_q['qval'] < alpha]['variant_id']
+    if options.variant_list:
+        test_variants = pd.read_csv(variant_list, sep = "\t")['variant_id']
+    else:
+        cis_q = pd.read_csv(cis_qval_results, sep = "\t")
+        test_variants = cis_q[cis_q['qval'] < alpha]['variant_id']
     
-        if sig_variants.shape[0] > 0:
-            # Load in the genotypes / dosages - Need to make sure this is adjusted to incorporate whether or not we want to limit to the variants only with a cis-effect
-            genotype_df, variant_df = genotypeio.load_genotypes(plink_prefix_path, dosages = dosage)
-            # Subset for the cis-only
-            genotype_df = genotype_df[genotype_df.index.isin(sig_variants)]
-            variant_df = variant_df[variant_df.index.isin(sig_variants)]
-            print(f"Variants being tested = {genotype_df.shape[0]}")
-            covariates_df = pd.read_csv(covariates_file, sep='\t', index_col=0)
-            #phenotype_df = phenotype_df.loc[:,phenotype_df.columns.isin(covariates_df.columns)]
-            #covariates_df = covariates_df.loc[:,covariates_df.columns.isin(phenotype_df.columns)]
-            phenotype_df = phenotype_df[covariates_df.columns]
-            # have to drop dublicate rownames. and average the repeated measures.
-            phenotype_df.columns = phenotype_df.columns.str.split('.').str[0]
-            covariates_df.columns = covariates_df.columns.str.split('.').str[0]
-            print(f"Shape of phenotype_df:{phenotype_df.shape}")
-            print(f"Shape of covariates_df:{covariates_df.shape}")
-            print("Loaded genotypes, filtered genotypes and loaded covariates")
+    if test_variants.shape[0] > 0:
+        # Load in the genotypes / dosages - Need to make sure this is adjusted to incorporate whether or not we want to limit to the variants only with a cis-effect
+        genotype_df, variant_df = genotypeio.load_genotypes(plink_prefix_path, dosages = dosage)
+        # Subset for the cis-only
+        genotype_df = genotype_df[genotype_df.index.isin(test_variants)]
+        variant_df = variant_df[variant_df.index.isin(test_variants)]
+        print(f"Variants being tested = {genotype_df.shape[0]}")
+        covariates_df = pd.read_csv(covariates_file, sep='\t', index_col=0)
+        #phenotype_df = phenotype_df.loc[:,phenotype_df.columns.isin(covariates_df.columns)]
+        #covariates_df = covariates_df.loc[:,covariates_df.columns.isin(phenotype_df.columns)]
+        phenotype_df = phenotype_df[covariates_df.columns]
+        # have to drop dublicate rownames. and average the repeated measures.
+        phenotype_df.columns = phenotype_df.columns.str.split('.').str[0]
+        covariates_df.columns = covariates_df.columns.str.split('.').str[0]
+        print(f"Shape of phenotype_df:{phenotype_df.shape}")
+        print(f"Shape of covariates_df:{covariates_df.shape}")
+        print("Loaded genotypes, filtered genotypes and loaded covariates")
 
-            covariates_df=covariates_df.loc[:,~covariates_df.columns.duplicated()]
-            # this can be adjusted to take an average. TQTL can not account for repeated measures.
-            phenotype_df=phenotype_df.loc[:,~phenotype_df.columns.duplicated()]
+        covariates_df=covariates_df.loc[:,~covariates_df.columns.duplicated()]
+        # this can be adjusted to take an average. TQTL can not account for repeated measures.
+        phenotype_df=phenotype_df.loc[:,~phenotype_df.columns.duplicated()]
 
-            covariates_df=covariates_df.T
-            # Run test
-            print("Running trans analysis")
-            trans_df_all = trans.map_trans(genotype_df, phenotype_df.loc[phenotype_pos_df['chr']!='chrY'],
-                                covariates_df = covariates_df, batch_size=10000,
-                                return_sparse=True, pval_threshold=1, maf_threshold=0.05)
+        covariates_df=covariates_df.T
+        # Run test
+        print("Running trans analysis")
+        trans_df_all = trans.map_trans(genotype_df, phenotype_df.loc[phenotype_pos_df['chr']!='chrY'],
+                            covariates_df = covariates_df, batch_size=10000,
+                            return_sparse=True, pval_threshold=1, maf_threshold=maf)
 
-            # Filter the trans for distance (1Mb)
+        # Filter the trans for distance (1Mb)
 
-            trans_df = trans.filter_cis(trans_df_all, phenotype_pos_df, variant_df, window=window)
-            print("Filtered to remove cis- effects")
+        trans_df = trans.filter_cis(trans_df_all, phenotype_pos_df, variant_df, window=window)
+        print("Filtered to remove cis- effects")
 
-            # Perform some correction of these results
-            # Bonferoni correct, within gene. This corrected for the number of independent variants tested per gene (which differs slightly)
-            trans_df['pval_bonf'] = trans_df.groupby('phenotype_id')['pval'].transform(lambda x: x * len(x))
-            print("Bonferroni corrected")
+        # Perform some correction of these results
+        # Bonferoni correct, within gene. This corrected for the number of independent variants tested per gene (which differs slightly)
+        trans_df['pval_bonf'] = trans_df.groupby('phenotype_id')['pval'].transform(lambda x: x * len(x))
+        print("Bonferroni corrected")
 
-            # Subset for top hit/gene 
-            trans_df_bonf = trans_df.loc[trans_df.groupby('phenotype_id')['pval_bonf'].idxmin()]
+        # Subset for top hit/gene 
+        trans_df_bonf = trans_df.loc[trans_df.groupby('phenotype_id')['pval_bonf'].idxmin()]
 
-            ## Subset for significant effects within gene
-            #trans_df_bonf = trans_df.loc[trans_df['pval_bonf'] < alpha]
+        ## Subset for significant effects within gene
+        #trans_df_bonf = trans_df.loc[trans_df['pval_bonf'] < alpha]
 
-            # Ceiling the bonf before fdr
-            trans_df_bonf['pval_bonf'] = trans_df_bonf['pval_bonf'].apply(lambda x: 1 if x > 1 else x)
+        # Ceiling the bonf before fdr
+        trans_df_bonf['pval_bonf'] = trans_df_bonf['pval_bonf'].apply(lambda x: 1 if x > 1 else x)
 
-            # FDR across genes (This ccounts for the number of genes tested and allows results to be comparable across the conditions with different nGenes)
-            trans_df_bonf['pval_bonf_fdr'] = fdrcorrection(trans_df_bonf['pval_bonf'])[1]
-            # Sort
-            trans_df_bonf_sorted = trans_df_bonf.sort_values(by='pval_bonf_fdr')
-            print("FDR corrected and sorted")
+        # FDR across genes (This ccounts for the number of genes tested and allows results to be comparable across the conditions with different nGenes)
+        trans_df_bonf['pval_bonf_fdr'] = fdrcorrection(trans_df_bonf['pval_bonf'])[1]
+        # Sort
+        trans_df_bonf_sorted = trans_df_bonf.sort_values(by='pval_bonf_fdr')
+        print("FDR corrected and sorted")
 
-            # Save the bonferoni/FDR corrected results
-            trans_df_bonf_sorted.to_csv(f"{outdir}/trans-by-cis_bonf_fdr.tsv", sep = "\t", index=False)
-            print("Saved the corrected results")
-            
-            # Save all results
-            print("Saving all trans results")
-            trans_df.to_csv(f"{outdir}/trans-by-cis_all.tsv.gz", compression='gzip', sep = "\t", index=False)
+        # Save the bonferoni/FDR corrected results
+        trans_df_bonf_sorted.to_csv(f"{outdir}/trans-by-cis_bonf_fdr.tsv", sep = "\t", index=False)
+        print("Saved the corrected results")
+        
+        # Save all results
+        print("Saving all trans results")
+        trans_df.to_csv(f"{outdir}/trans-by-cis_all.tsv.gz", compression='gzip', sep = "\t", index=False)
     
     else:
-       print("No significant variants at this nPC") 
+       print("No variants to test for this condition") 
 
 if __name__ == '__main__':
     main()
