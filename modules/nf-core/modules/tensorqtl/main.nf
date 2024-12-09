@@ -63,7 +63,7 @@ process OPTIMISE_PCS{
           interaction_file = "fake_file.fq"
           outpath_end = "base_output__base"
           }
-        alpha = "0.5"
+        alpha = "${params.TensorQTL.alpha}"
         alpha_text = alpha.replaceAll("\\.", "pt")
         outpath = "./OPTIM_pcs/${outpath_end}"
         tensor_input_path = "./OPTIM_input/${outpath_end}"
@@ -175,7 +175,7 @@ process TRANS_OF_CIS {
         dosage = ""
       }
 
-      alpha = "0.05"
+      alpha = "${params.TensorQTL.alpha}"
 
       """
       tensor_analyse_trans_of_cis.py \
@@ -256,7 +256,6 @@ process RUN_GSEA {
         sumstats_path = "${sumstats_dir}/cis_inter1.cis_qtl_top_assoc.txt.gz"
         outfile = "${condition}__${interaction}"
         """
-        module load HGI/softpack/users/oa3/ieqtl_gsea/1
         fgsea_ieQTLs.R \
             --iegenes ${sumstats_path} \
             --ranking_var b_gi \
@@ -319,7 +318,8 @@ workflow TENSORQTL_eqtls{
             false
           )
 
-        if (params.TensorQTL.interaction_file != '') {
+        if (params.TensorQTL.interaction_file != '' && params.TensorQTL.run_gsea)
+         {
           RUN_GSEA(TENSORQTL_OPTIM.out.pc_qtls_path)
         }
 
