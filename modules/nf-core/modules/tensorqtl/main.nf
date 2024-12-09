@@ -224,6 +224,54 @@ process SPLIT_INTERACTIONS {
 }
 
 
+process RUN_GSEA {
+    // Run fGSEA for each interaction result
+    // ------------------------------------------------------------------------
+    
+    label "process_medium"
+    tag "$condition, $interaction"
+    // cache false
+
+    publishDir  path: "${params.outdir}/TensorQTL_eQTLS/${condition}/OPTIM_pcs/interaction_output/${interaction}/fgsea",
+                overwrite: "true"
+
+    input:
+        tuple(
+          val(condition), 
+          val(interaction), 
+          path(sumstats_dir)
+        )
+
+    output:
+        tuple(
+            val(condition),
+            val(interaction),
+            path("${outfile}-gsea_results.tsv.gz"),
+            val(outdir),
+            emit: gsea_results
+        )
+
+    script:
+        outdir = "./fgsea"
+        sumstats_path = "${sumstats_dir}/cis_inter1.cis_qtl_top_assoc.txt.gz"
+        outfile = "${condition}__${interaction}"
+        """
+        module load HGI/softpack/users/oa3/ieqtl_gsea/1
+        fgsea_ieQTLs.R \
+            --iegenes ${sumstats_path} \
+            --ranking_var b_gi \
+            --eps 0 \
+            --unsigned_ranking \
+            --gsets_gene_matrix ${projectDir}/assets/data/gene_set_genes.tsv.gz \
+            --gsets_info_file ${projectDir}/assets/data/gene_set_info.tsv.gz \
+            --database c2.cp.reactome \
+            --n_cores ${task.cpus} \
+            --output_file ${outfile} \
+            --verbose 
+        """
+}
+
+
 workflow TENSORQTL_eqtls{
     take:
         condition_bed
@@ -270,7 +318,11 @@ workflow TENSORQTL_eqtls{
             false,
             false
           )
-          
+
+        if (params.TensorQTL.interaction_file != '') {
+          RUN_GSEA(TENSORQTL_OPTIM.out.pc_qtls_path)
+        }
+
           if(params.TensorQTL.trans_by_cis){
             log.info 'Running trans-by-cis analysis on optimum nPCs'
             TRANS_BY_CIS(
