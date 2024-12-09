@@ -218,7 +218,10 @@ def main():
     print("Running trans analysis")
     
     batch_size = 200
-    chrom_to_map = '20'
+    chrom_to_map = '2'
+    
+    
+    
     # filter down to only chr20 for calibration purposes to get all the nominal values for each gene agains the chr20 variants
     sig_variants = list(variant_df[variant_df['chrom']==chrom_to_map].index)
     genotype_df_trans = genotype_df[genotype_df.index.isin(sig_variants)]

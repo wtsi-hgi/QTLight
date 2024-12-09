@@ -40,7 +40,8 @@ process TENSORQTL {
   }else{
     dosage = ""
   }
-    """
+    """ 
+      
       bedtools sort -i ${aggrnorm_counts_bed} -header > Expression_Data.sorted.bed
       sed -i 's/^chr//' Expression_Data.sorted.bed
       ${tensor_qtl_script} --plink_prefix_path ${plink_files_prefix}/plink_genotypes --expression_bed Expression_Data.sorted.bed --covariates_file ${covariates_tsv} -window ${params.windowSize} ${dosage} --maf ${params.maf} --outdir ${outpath}

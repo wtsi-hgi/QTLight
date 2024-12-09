@@ -12,15 +12,6 @@ import sys
 import scipy
 
 
-def PF(X):
-    cd=np.asarray(X.sum(1)).ravel()
-    avg_cd=cd.mean()
-    
-    return scipy.sparse.diags(avg_cd/cd).dot(X)
-
-def log1p(X):
-    return X.log1p()
-
 def quantile_normalize_vector(x):
     """
     Perform quantile normalization on a vector with random tie-breaking.
@@ -83,12 +74,11 @@ def run_pca_and_save(file_path, output_file, n_pcs, covs):
     # 
     # Convert to AnnData object
     adata = sc.AnnData(X=counts)
-    pheno_id = counts.index.name
+
     adata.var_names = counts.columns
     adata.obs_names = counts.index
     
     counts_orig = counts.copy()
-    # counts_orig = pd.DataFrame(PF(counts), index=counts.index, columns= counts.columns)
     # counts_orig= pd.DataFrame(sc.pp.log1p(sc.pp.normalize_total(adata,
     #                                                         target_sum=1e4,
     #                                                         exclude_highly_expressed=False,
@@ -148,7 +138,7 @@ def run_pca_and_save(file_path, output_file, n_pcs, covs):
     # Append the PCs to the original expression data
     
     combined_data = pd.concat([counts_orig, loadings, genotype_pcs], axis=1)
-    combined_data = combined_data.set_index(pheno_id)
+    combined_data = combined_data.set_index('pheno_id')
     # Save the combined data to the specified output file
     combined_data.to_csv(output_file, sep='\t', index=True, chunksize=50000)
     s1 = ",".join(genotype_pcs.columns)

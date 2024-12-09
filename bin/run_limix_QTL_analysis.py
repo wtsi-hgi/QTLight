@@ -25,6 +25,19 @@ from qtl_snp_qc import do_snp_qc
 import time
 #V0.2.0
 
+def _impute_mean(genotypes):
+    """Impute missing genotypes to mean"""
+    m = genotypes == -9
+    if genotypes.ndim == 1 and any(m):
+        genotypes[m] = genotypes[~m].mean()
+    else:  # genotypes.ndim == 2
+        ix = np.nonzero(m)[0]
+        if len(ix) > 0:
+            a = genotypes.sum(1)
+            b = m.sum(1)
+            mu = (a + 9*b) / (genotypes.shape[1] - b)
+            genotypes[m] = mu[ix]
+
 def run_QTL_analysis(pheno_filename, anno_filename, geno_prefix, plinkGenotype, output_dir, window_size=250000,
                      min_maf=0.05, min_hwe_P=0.001, min_call_rate=None, blocksize=1000, cis_mode=True,
                      skipAutosomeFiltering = False, gaussianize_method=None, minimum_test_samples= 10,
@@ -58,7 +71,7 @@ def run_QTL_analysis(pheno_filename, anno_filename, geno_prefix, plinkGenotype, 
         print(relatedness_score)
         fun_start = time.time()
     [phenotype_df, kinship_df, randomeff_df, covariate_df, sample2individual_df,complete_annotation_df, annotation_df, snp_filter_df,
-     snp_feature_filter_df, geneticaly_unique_individuals, minimum_test_samples, feature_list, bim, fam, bed, bgen,
+     snp_feature_filter_df, geneticaly_unique_individuals, minimum_test_samples, feature_list, bim, fam, bed, bgen,pgen,
      chromosome, selectionStart, selectionEnd, feature_variant_covariate_df]=\
     utils.run_QTL_analysis_load_intersect_phenotype_covariates_kinship_sample_mapping(pheno_filename=pheno_filename,
                     anno_filename=anno_filename, geno_prefix=geno_prefix, plinkGenotype=plinkGenotype, cis_mode=cis_mode,
@@ -67,6 +80,21 @@ def run_QTL_analysis(pheno_filename, anno_filename, geno_prefix, plinkGenotype, 
                     snp_feature_filename=snp_feature_filename, selection=genetic_range,covariates_filename=covariates_filename,
                     randomeff_filename=randomeff_filename, sample_mapping_filename=sample_mapping_filename,
                     extended_anno_filename=extended_anno_filename, feature_variant_covariate_filename=feature_variant_covariate_filename)
+    
+    print('load1 done')
+    
+    # [phenotype_df2, kinship_df2, randomeff_df2, covariate_df2, sample2individual_df2,complete_annotation_df2, annotation_df2, snp_filter_df2,
+    #  snp_feature_filter_df2, geneticaly_unique_individuals2, minimum_test_samples2, feature_list2, bim2, fam2, bed2, bgen2,pgen2,
+    #  chromosome2, selectionStart2, selectionEnd2, feature_variant_covariate_df2]=\
+    # utils.run_QTL_analysis_load_intersect_phenotype_covariates_kinship_sample_mapping(pheno_filename=pheno_filename,
+    #                 anno_filename=anno_filename, geno_prefix="/lustre/scratch127/humgen/teams/hgi/mo11/tmp_projects127/cardinal_QTLs/ELGH/shuangs_annotations_genomeWide/test/results/genotypes/plink_genotypes_bgen/plink_genotypes", plinkGenotype=plinkGenotype, cis_mode=cis_mode,
+    #                 skipAutosomeFiltering = skipAutosomeFiltering, minimum_test_samples= minimum_test_samples,
+    #                 relatedness_score=relatedness_score, snps_filename=snps_filename, feature_filename=feature_filename,
+    #                 snp_feature_filename=snp_feature_filename, selection=genetic_range,covariates_filename=covariates_filename,
+    #                 randomeff_filename=randomeff_filename, sample_mapping_filename=sample_mapping_filename,
+    #                 extended_anno_filename=extended_anno_filename, feature_variant_covariate_filename=feature_variant_covariate_filename)
+    
+    
     if debugger:
         fun_end = time.time()
         print(" Intersecting files took {}".format(fun_end-fun_start))
@@ -169,6 +197,8 @@ def run_QTL_analysis(pheno_filename, anno_filename, geno_prefix, plinkGenotype, 
         # SNP selection based on gene location and window size
         if debugger:
             fun_start = time.time()
+            
+        # To test all genes against all SNPs of chr20 here we can forcibly state that gene is on chr20 and select a very large window size. 
         snpQuery = utils.do_snp_selection(feature_id, complete_annotation_df, bim, cis_mode, window_size, skipAutosomeFiltering)
         if debugger:
             fun_end = time.time()
@@ -473,7 +503,10 @@ def run_QTL_analysis(pheno_filename, anno_filename, geno_prefix, plinkGenotype, 
                 #Fix seed at the start of the first chunker so all permutations are based on the same random first split.
                 np.random.seed(seed)
                 #print(snpGroup)
-                snp_idxs = snpGroup['i'].values
+                try:
+                    snp_idxs = snpGroup['i'].values
+                except:
+                    snp_idxs = snpGroup.index.values
                 snp_names = snpGroup['snp'].values
 
                 tested_snp_ids.extend(snp_names)
@@ -483,7 +516,31 @@ def run_QTL_analysis(pheno_filename, anno_filename, geno_prefix, plinkGenotype, 
                 ##########################################################################################################################################################
                 # SNP dataframe creation
                 if(plinkGenotype):
-                    snp_df = pd.DataFrame(data=bed[snp_idxs,:].compute().transpose(),index=fam.index,columns=snp_names)
+                    if bed is not None:
+                        # print('yes')
+                        snp_df = pd.DataFrame(data=bed[snp_idxs,:].compute().transpose(),index=fam.index,columns=snp_names)
+                        # snp_df2 = pd.DataFrame(data=bed2.compute().transpose(),index=fam2.index,columns=snp_names)
+                    else:
+                        # plink2 format
+                        num_variants = len(snp_names)
+                        num_samples = pgen.get_raw_sample_ct()
+                        snp_df_dosage = np.zeros([num_variants, num_samples], dtype=np.float32)
+                        pgen.read_dosages_list(np.array(snp_idxs, dtype=np.uint32),snp_df_dosage)
+                        genotypes = np.zeros([num_variants, num_samples], dtype=np.int8)
+                        pgen.read_list(np.array(snp_idxs, dtype=np.uint32), genotypes)
+                        _impute_mean(genotypes)
+                        snp_df = pd.DataFrame(genotypes, index = snp_names,columns=fam.index).T
+                        # bim2_2 = bim2.reset_index().set_index('snp')
+                        # snp_idxs2 = bim2_2.loc[snp_names]['index']
+                        # num_variants = len(snp_names)
+                        # num_samples = pgen2.get_raw_sample_ct()
+                        # snp_df_dosage = np.zeros([num_variants, num_samples], dtype=np.float32)
+                        # pgen2.read_dosages_list(np.array(snp_idxs2, dtype=np.uint32),snp_df_dosage)
+                        # genotypes = np.zeros([num_variants, num_samples], dtype=np.int8)
+                        # genotypes=genotypes -1
+                        # pgen2.read_list(np.array(snp_idxs2, dtype=np.uint32), genotypes)
+                        # _impute_mean(genotypes)
+                        # snp_df2 = pd.DataFrame(genotypes, index = snp_idxs2.index,columns=fam2.index).T                        
                 else :
                     snp_df_dosage = pd.DataFrame(np.nan,index=fam.index, columns = snp_names)
                     snp_df = pd.DataFrame(np.nan,index=fam.index, columns = snp_names)

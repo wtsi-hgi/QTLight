@@ -74,12 +74,12 @@ def main():
     )
     options = parser.parse_args()
 
-    genes = int(options.chunk_size)
+    # genes = int(options.chunk_size)
 
     try:
         df = read_gtf(options.genome_annotation)
         df2 = df[df.feature == 'gene']
-        Gene_Chr_Start_End_Data =df2[['gene_id','start','end','seqname']]
+        Gene_Chr_Start_End_Data =df2[['gene_id','start','end','seqname','strand']]
     except:
         Gene_Chr_Start_End_Data = pd.read_csv(options.genome_annotation,index_col=None,sep='\t')
         
@@ -94,7 +94,6 @@ def main():
         prot_version=False
     Phenotype_file_index = list(Phenotype_file.index)
 
-    Phenotype_file_index
     Data2=Data.set_index('feature_id')
    
     idx_overlap = list(set(Data2.index).intersection(set(Phenotype_file_index)))
@@ -104,41 +103,64 @@ def main():
     chroms.extend(['X','Y','MT'])
     data_to_export=[]
 
-    for chr in chroms:    
-        chr=str(chr)
-        chr_genes = Data[Data.chromosome == chr]
-        chr_genes = chr_genes.sort_values('start')
-        chr_genes = chr_genes.reset_index()
-        nr_total_genes = chr_genes.shape[0]
-        nr_itterations = int(nr_total_genes/genes)
-        for i in range(0,math.ceil(nr_itterations)+1):
-            start_pos = i*genes
-            end_pos=start_pos+genes
+    BED_Data = Data.copy()
+    # + strand
+    idx1 = Data[Data.strand =='+'].index
+    BED_Data.loc[idx1,"start"]=Data.loc[idx1,"start"]-1
+    BED_Data.loc[idx1,"end"]=Data.loc[idx1,"start"]
+
+    # - strand
+    idx1 = Data[Data.strand =='-'].index
+    BED_Data.loc[idx1,"start"]=Data.loc[idx1,"end"]-1
+    BED_Data.loc[idx1,"end"]=Data.loc[idx1,"end"]
+    
+    BED_Data = BED_Data.drop('strand',axis=1)
+
+    def split_dataframe(df, chunk_size):
+        return [df.iloc[i:i + chunk_size] for i in range(0, len(df), chunk_size)]
+
+    # Splitting the DataFrame into chunks of 20 rows
+    chunks = split_dataframe(BED_Data, int(options.chunk_size))
+
+    for i, chunk in enumerate(chunks, start=1):
+        variable_name = f"df_chunk_{i}"
+        chunk.to_csv(f'Chunging_file__{options.condition}__{i}.tsv',header=True,index=None,sep='\t')
+        
+    # for chr in chroms:    
+    #     chr=str(chr)
+    #     chr_genes = Data[Data.chromosome == chr]
+    #     chr_genes = chr_genes.sort_values('start')
+    #     chr_genes = chr_genes.reset_index()
+    #     nr_total_genes = chr_genes.shape[0]
+    #     nr_itterations = int(nr_total_genes/genes)
+    #     for i in range(0,math.ceil(nr_itterations)+1):
+    #         start_pos = i*genes
+    #         end_pos=start_pos+genes
 
         
-            if end_pos>nr_total_genes:
-                end_pos=nr_total_genes
-            if start_pos==end_pos:
-                continue
-            chr_genes_set = chr_genes[start_pos:end_pos+1]
-            st_st=list(chr_genes_set.start)+list(chr_genes_set.end)
-            min_pos = min(st_st)
-            max_pos = max(st_st)
-            data_to_export.append(f'{chr}:{min_pos}-{max_pos}')
+    #         if end_pos>nr_total_genes:
+    #             end_pos=nr_total_genes
+    #         if start_pos==end_pos:
+    #             continue
+    #         chr_genes_set = chr_genes[start_pos:end_pos+1]
+    #         st_st=list(chr_genes_set.start)+list(chr_genes_set.end)
+    #         min_pos = min(st_st)
+    #         max_pos = max(st_st)
+    #         data_to_export.append(f'{chr}:{min_pos}-{max_pos}')
             
-    data_to_export = pd.DataFrame(data_to_export)
-    data_to_export.to_csv('Chunging_file.tsv',header=None,index=None)
+    # data_to_export = pd.DataFrame(data_to_export)
+    # data_to_export.to_csv('Chunging_file.tsv',header=None,index=None)
     
-    data_to_export2=data_to_export.rename(columns={0:'Range'})
-    data_to_export2['condition']=options.condition
-    data_to_export2['phenotypeFile']=f"{os.getcwd()}/{options.phenotype_file}"
-    data_to_export2['covars']=f"{os.getcwd()}/{options.covar_file}"
-    data_to_export2['genotype_phenotype_file']=f"{os.getcwd()}/{options.genotype_phenotype_file}"
-    data_to_export2['anotation_file']=f"{os.getcwd()}/annotation_file_processed.tsv"
+    # data_to_export2=data_to_export.rename(columns={0:'Range'})
+    # data_to_export2['condition']=options.condition
+    # data_to_export2['phenotypeFile']=f"{os.getcwd()}/{options.phenotype_file}"
+    # data_to_export2['covars']=f"{os.getcwd()}/{options.covar_file}"
+    # data_to_export2['genotype_phenotype_file']=f"{os.getcwd()}/{options.genotype_phenotype_file}"
+    # data_to_export2['anotation_file']=f"{os.getcwd()}/annotation_file_processed.tsv"
     
-    data_to_export2.to_csv('limix_chunking.tsv',sep='\t',index=None)
+    # data_to_export2.to_csv('limix_chunking.tsv',sep='\t',index=None)
     
-    Data.to_csv('annotation_file_processed.tsv',index=None,sep='\t')
+    # Data.to_csv('annotation_file_processed.tsv',index=None,sep='\t')
     print('Done')
 
 

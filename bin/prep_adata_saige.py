@@ -23,9 +23,10 @@ import kneed as kd
 from sklearn.preprocessing import StandardScaler
 import argparse
 import gc
+import scipy
 import sys
 import gc
-
+# from pysctransform import vst, get_hvg_residuals, SCTransform
 # Define covariate process function
 def preprocess_covariates(df, scale_covariates):
     processed_df = pd.get_dummies(df, drop_first=True)  # One-hot encode all categorical columns
@@ -34,6 +35,57 @@ def preprocess_covariates(df, scale_covariates):
         for column in processed_df.select_dtypes(include=['float64']).columns:
             processed_df[column] = scaler.fit_transform(processed_df[[column]])
     return processed_df
+
+
+def quantile_normalize_vector(x):
+    """
+    Perform quantile normalization on a vector with random tie-breaking.
+    """
+    # Add random noise to break ties, scaled down to be very small
+    random_noise = np.random.uniform(low=-1e-10, high=1e-10, size=len(x))
+    ranks = scipy.stats.rankdata(x + random_noise, method='average')  # Add noise and rank
+    return scipy.stats.norm.ppf(ranks / (len(x) + 1))
+
+def quantile_normalize_matrix(matrix):
+    """
+    Perform quantile normalization on each column of a pandas DataFrame or NumPy array.
+    Returns a DataFrame if input is a DataFrame.
+    """
+    is_dataframe = isinstance(matrix, pd.DataFrame)
+    
+    if is_dataframe:
+        matrix_values = matrix.values  # Extract underlying NumPy array
+    else:
+        matrix_values = matrix
+    
+    quantile_matrix = np.zeros_like(matrix_values)
+    for i in range(matrix_values.shape[1]):  # Iterate over columns
+        quantile_matrix[:, i] = quantile_normalize_vector(matrix_values[:, i])
+    
+    if is_dataframe:
+        return pd.DataFrame(quantile_matrix, index=matrix.index, columns=matrix.columns)
+    else:
+        return quantile_matrix
+
+def quantile_normalize_rows(matrix):
+    """
+    Perform quantile normalization across rows for a pandas DataFrame or NumPy array.
+    Returns a DataFrame if input is a DataFrame.
+    """
+    is_dataframe = isinstance(matrix, pd.DataFrame)
+    
+    if is_dataframe:
+        matrix_values = matrix.values  # Extract underlying NumPy array
+    else:
+        matrix_values = matrix
+    
+    quantile_matrix = quantile_normalize_matrix(matrix_values.T).T  # Transpose for row normalization
+    
+    if is_dataframe:
+        return pd.DataFrame(quantile_matrix, index=matrix.index, columns=matrix.columns)
+    else:
+        return quantile_matrix
+
 
 def parse_options():    
     parser = argparse.ArgumentParser(description="Prepping files for the SAIGEQTL analysis")
@@ -77,9 +129,11 @@ def main():
     if (inherited_options.chr):
         # Here we subset down to the genes available on determined chr.
         from gtfparse import read_gtf
+        # df = read_gtf(inherited_options.genome)
+        # df = df.filter(df["feature"] == "gene")
         df = read_gtf(inherited_options.genome)
         df = df[df.feature == 'gene']
-        Gene_Chr_Start_End_Data =df[['gene_id','start','end','strand','seqname']]
+        Gene_Chr_Start_End_Data =df[['gene_id','start','end','strand','seqname']]#.to_pandas()
         Gene_Chr_Start_End_Data.rename(columns={'gene_id':'feature_id','seqname':'chromosome'},inplace=True)
         chrs = inherited_options.chr.split(',')
         all_genes = set(Gene_Chr_Start_End_Data[Gene_Chr_Start_End_Data['chromosome'].isin(chrs)]['feature_id'])
@@ -98,6 +152,9 @@ def main():
     #     adata = adata[adata.obs[condition_col].isin(conditions),genes].copy(filename='tmp.h5ad')
     #     gc.collect()
 
+    
+    
+    
     if len(adata.obs)==0:
         print('The final subset adata is empty, hence we do not perform analysis')
         sys.exit()
@@ -129,6 +186,11 @@ def main():
         print("Filtering anndata")
 
         temp = adata[adata.obs[aggregate_on] == level,genes].to_memory()  # Use copy to avoid modifying original data
+        try:
+            temp.X = temp.layers['counts'] # Sige needs raw counts. Please make sure correct layer is used!
+        except:
+            _='not existant'
+
         if (l1==1):
             del adata
             gc.collect() 
@@ -177,10 +239,11 @@ def main():
             # Use NumPy slicing for efficient selection
             filtered_counts = counts.iloc[:, keep_genes].copy()
             # Reattach genotype_id
-            filtered_counts[genotype_id] = genotype_ids
+            # filtered_counts[genotype_id] = genotype_ids
             counts = filtered_counts
             del counts_data, summed_counts, genotype_ids, unique_genotypes, count_per_column  # Free memory
-            
+        
+        print('Applying inverse normal transformation')    
         
         print(f"Final shape is: {counts.shape}") 
         if (any(np.array(counts.shape) < 2)):
@@ -194,8 +257,6 @@ def main():
             counts = counts.join(to_add)
             covariates_string = ','+inherited_options.covariates
         
-
-        
         counts.index = counts.index + counts.index.duplicated().cumsum().astype(str)
         temp.obs.index = temp.obs.index + temp.obs.index.duplicated().cumsum().astype(str)
         
@@ -208,23 +269,10 @@ def main():
         
         with open(f"{savedir}/test_genes.txt", 'w') as file:
             file.write("\n".join(counts.columns))
-            
-        # if expression_pca > 0:
-        #     print("Computing expression PCs")
-        #     sc.pp.normalize_total(temp, target_sum=1e4)
-        #     sc.pp.log1p(temp)
-        #     sc.pp.highly_variable_genes(temp, flavor="seurat", n_top_genes=2000)
-        #     sc.pp.scale(temp, max_value=10)
-        #     sc.tl.pca(temp, svd_solver='arpack')
-        #     pca_variance = pd.DataFrame({'x': range(1, 51), 'y': temp.uns['pca']['variance']})
-        #     knee = kd.KneeLocator(x=pca_variance['x'], y=pca_variance['y'], curve="convex", direction="decreasing")
-        #     knee_point = knee.knee
-        #     np.savetxt(f"{savedir}/knee.txt", [knee_point], delimiter=',', fmt='%s')
-        #     loadings = pd.DataFrame(temp.obsm['X_pca'][:, :expression_pca], index=temp.obs.index)
-        #     loadings.columns = [f'xPC{i+1}' for i in range(expression_pca)]
-        #     counts = counts.join(loadings)
-        #     covariates_string = covariates_string+','+','.join(loadings.columns.values)
+
         
+        
+
         print("Saving")
         with open(f"{savedir}/covariates.txt", 'w') as file:
                 file.write(f"{covariates_string}\n")  

@@ -55,7 +55,6 @@ multiqc_options.args += params.multiqc_title ? Utils.joinModuleArgs(["--title \"
 include {PREPROCESS_GENOTYPES} from '../modules/nf-core/modules/preprocess_genotypes/main' 
 include {PLINK_CONVERT;PGEN_CONVERT} from '../modules/nf-core/modules/plink_convert/main' 
 include {SUBSET_GENOTYPE} from '../modules/nf-core/modules/subset_genotype/main' 
-include {KINSHIP_CALCULATION} from '../modules/nf-core/modules/kinship_calculation/main' 
 include {GENOTYPE_PC_CALCULATION} from '../modules/nf-core/modules/genotype_pc_calculation/main' 
 include {SPLIT_PHENOTYPE_DATA} from '../modules/nf-core/modules/split_phenotype_data/main' 
 include {NORMALISE_and_PCA_PHENOTYPE} from '../modules/nf-core/modules/normalise_and_pca/main' 
@@ -63,7 +62,6 @@ include {LIMIX_eqtls} from '../modules/nf-core/modules/limix/main'
 include {PREPROCESS_SAMPLE_MAPPING} from '../modules/nf-core/modules/preprocess_sample_mapping/main'
 include {NORMALISE_ANNDATA; REMAP_GENOTPE_ID} from '../modules/nf-core/modules/normalise_anndata/main'
 include {AGGREGATE_UMI_COUNTS; SPLIT_AGGREGATION_ADATA} from '../modules/nf-core/modules/aggregate_UMI_counts/main'
-include {CHUNK_GENOME} from '../modules/nf-core/modules/chunk_genome/main'
 include {PREPERE_EXP_BED} from '../modules/nf-core/modules/prepere_exp_bed/main'
 include {TENSORQTL_eqtls} from '../modules/nf-core/modules/tensorqtl/main'
 include {H5AD_TO_SAIGE_FORMAT} from '../modules/nf-core/modules/saige/main'
@@ -223,7 +221,7 @@ workflow EQTL {
         }else{
             // here we dont use dosage for analysis
             PLINK_CONVERT(plink_convert_input)
-            plink_path = plink_path
+            plink_path = PLINK_CONVERT.out.plink_path
             bim_bed_fam = PLINK_CONVERT.out.bim_bed_fam
         }         
 
@@ -342,18 +340,16 @@ workflow EQTL {
     // LIMIX QTL mapping method
     if (params.LIMIX.run){
         // 3) Generate the kinship matrix and genotype PCs
-        KINSHIP_CALCULATION(plink_path)
+        
         filtered_pheno_channel =SUBSET_PCS.out.for_bed.map { tuple ->  [tuple[3],[[tuple[0],tuple[1],tuple[2]]]].combinations()}.flatten().collate(4)
-        CHUNK_GENOME(genome_annotation,filtered_pheno_channel)
-        limix_cunks_for_each_cond = CHUNK_GENOME.out.limix_condition_chunking.take(2)
+        
         // limix pipeline is curently not correctly chunked. 
         // Genes should be batched and the regions that they need to be tested on also chunked. 
         // Curently we are testing all the genes for all the possible gene cis windoes.
         LIMIX_eqtls(
-            limix_cunks_for_each_cond,
+            filtered_pheno_channel,
             plink_path,
-            KINSHIP_CALCULATION.out.kinship_matrix,
-            CHUNK_GENOME.out.filtered_chunking_file
+            genome_annotation
         )
     }
 
