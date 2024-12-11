@@ -52,7 +52,87 @@ class BackgroundGenerator(threading.Thread):
     def __iter__(self):
         return self
     
+
+def gwas_trans_mapping(batch_size = 200,chrom_to_map =2):
     
+    chrom_to_map = str(chrom_to_map)
+    # filter down to only chr20 for calibration purposes to get all the nominal values for each gene agains the chr20 variants
+    sig_variants = list(variant_df[variant_df['chrom']==chrom_to_map].index)
+    genotype_df_trans = genotype_df[genotype_df.index.isin(sig_variants)]
+    variant_df_trans = variant_df[variant_df.index.isin(sig_variants)]
+    
+    chr20_genes = list(phenotype_pos_df[phenotype_pos_df['chr']==chrom_to_map].index)
+    phenotype_batch_chr20 = phenotype_df.loc[chr20_genes]
+    phenotype_pos_batch_chr20 = phenotype_pos_df.loc[phenotype_batch_chr20.index]
+    
+    chr20_genes = list(phenotype_pos_df[phenotype_pos_df['chr']!=chrom_to_map].index)  
+    phenotype_batch_NOTchr20 = phenotype_df.loc[chr20_genes]
+    phenotype_pos_batch_NOTchr20 = phenotype_pos_df.loc[phenotype_batch_NOTchr20.index]
+    # Open the output file for writing
+    with gzip.open(f"{outdir}/trans_all__{chrom_to_map}.tsv.gz", "wt") as outfile:
+        header_written = False
+        # Divide the phenotype dataframe into batches of 10 genes
+        # I think this is asking whether these 10 genes are having any trans effects, and if nothing is available it doesnt give the results.
+        for i in range(0, len(phenotype_batch_chr20), batch_size):
+            # Subset the phenotype data for the current batch of 10 genes
+            phenotype_batch_df = phenotype_batch_chr20.iloc[i:i + batch_size]
+            phenotype_pos_batch_df = phenotype_pos_batch_chr20.loc[phenotype_batch_df.index]
+            # With this we are producing all SNPs against all Genes on a chromosome defined in the that the gene is on. 
+            # For the purpose of producing nominal values across all chromosomes we could modify the phenotype pos_df to the chromosome of interest and do this iteratevely.
+            cis.map_nominal(genotype_df_trans, variant_df_trans,
+                            phenotype_batch_df,
+                            phenotype_pos_batch_df,window=3000000000,
+                            covariates_df=covariates_df,prefix='cis_nominal1_30',
+                            output_dir=outdir, write_top=True, write_stats=True)
+            all_files = glob.glob(f'{outdir}/cis_nominal1_30*.parquet')
+            All_Data = pd.DataFrame()
+            for bf1 in all_files:
+                bf1 = all_files[0]
+                df = pd.read_parquet(bf1)
+                # Append the results to the file incrementally
+                if not header_written:
+                    df.to_csv(outfile, sep="\t", index=False, header=True)
+                    header_written = True
+                else:
+                    df.to_csv(outfile, sep="\t", index=False, header=False)
+                os.remove(bf1) 
+            print(f"Processed batch {i // batch_size + 1}")       
+    
+    # Open the output file for appending        
+    with gzip.open(f"{outdir}/trans_all__{chrom_to_map}.tsv.gz", "a") as outfile:
+        # header_written = True
+        # Divide the phenotype dataframe into batches of 10 genes
+        # I think this is asking whether these 10 genes are having any trans effects, and if nothing is available it doesnt give the results.
+        for i in range(0, len(phenotype_batch_NOTchr20), batch_size):
+            # Subset the phenotype data for the current batch of 10 genes
+            phenotype_batch_df = phenotype_batch_NOTchr20.iloc[i:i + batch_size]
+            phenotype_pos_batch_df = phenotype_pos_batch_NOTchr20.loc[phenotype_batch_df.index]
+            phenotype_pos_batch_df['chr2']=phenotype_pos_batch_df['chr']
+            phenotype_pos_batch_df['chr']=chrom_to_map
+            # With this we are producing all SNPs against all Genes on a chromosome defined in the that the gene is on. 
+            # For the purpose of producing nominal values across all chromosomes we could modify the phenotype pos_df to the chromosome of interest and do this iteratevely.
+            cis.map_nominal(genotype_df_trans, variant_df_trans,
+                            phenotype_batch_df,
+                            phenotype_pos_batch_df,window=3000000000,
+                            covariates_df=covariates_df,prefix='cis_nominal1_30',
+                            output_dir=outdir, write_top=True, write_stats=True)
+            all_files = glob.glob(f'{outdir}/cis_nominal1_30*.parquet')
+            All_Data = pd.DataFrame()
+            for bf1 in all_files:
+                bf1 = all_files[0]
+                df = pd.read_parquet(bf1)
+                df.index = df['phenotype_id']
+                df['chr2']= phenotype_pos_batch_df['chr2']
+                df['start_distance']= df['chr2']+'_vs_'+chrom_to_map
+                del df['chr2']
+                # Append the results to the file incrementally
+                if not header_written:
+                    df.to_csv(outfile, sep="\t", index=False, header=True)
+                    header_written = True
+                else:
+                    df.to_csv(outfile, sep="\t", index=False, header=False)
+                os.remove(bf1) 
+            print(f"Processed batch {i // batch_size + 1}")    
     
 
 def main():
@@ -150,6 +230,15 @@ def main():
         help=''
     )
 
+    parser.add_argument(
+        '-chmt', '--chrom_to_map_trans',
+        action='store',
+        dest='chrom_to_map_trans',
+        required=False,
+        default=False,
+        help='can contain a str such as 2,3,5 - indicating chromosomes against which we want to run gwas analysis'
+    )
+
     options = parser.parse_args()
     maf=float(options.maf)
     
@@ -217,89 +306,11 @@ def main():
 
     print("Running trans analysis")
     
-    batch_size = 200
-    chrom_to_map = '2'
+    if options.chrom_to_map_trans:
+        for chr1 in options.chrom_to_map_trans.split(','):
+            gwas_trans_mapping(chrom_to_map = chrom_to_map_trans) ## Map all the genes across genome against all SNPs indicated as chrom_to_map parameter. For example if 2 then wil map all the genes across chromosomes against chr2 NPs.
+        
     
-    
-    
-    # filter down to only chr20 for calibration purposes to get all the nominal values for each gene agains the chr20 variants
-    sig_variants = list(variant_df[variant_df['chrom']==chrom_to_map].index)
-    genotype_df_trans = genotype_df[genotype_df.index.isin(sig_variants)]
-    variant_df_trans = variant_df[variant_df.index.isin(sig_variants)]
-    
-    chr20_genes = list(phenotype_pos_df[phenotype_pos_df['chr']==chrom_to_map].index)
-    phenotype_batch_chr20 = phenotype_df.loc[chr20_genes]
-    phenotype_pos_batch_chr20 = phenotype_pos_df.loc[phenotype_batch_chr20.index]
-    
-    chr20_genes = list(phenotype_pos_df[phenotype_pos_df['chr']!=chrom_to_map].index)  
-    phenotype_batch_NOTchr20 = phenotype_df.loc[chr20_genes]
-    phenotype_pos_batch_NOTchr20 = phenotype_pos_df.loc[phenotype_batch_NOTchr20.index]
-    # Open the output file for writing
-    with gzip.open(f"{outdir}/trans_all.tsv.gz", "wt") as outfile:
-        header_written = False
-        # Divide the phenotype dataframe into batches of 10 genes
-        # I think this is asking whether these 10 genes are having any trans effects, and if nothing is available it doesnt give the results.
-        for i in range(0, len(phenotype_batch_chr20), batch_size):
-            # Subset the phenotype data for the current batch of 10 genes
-            phenotype_batch_df = phenotype_batch_chr20.iloc[i:i + batch_size]
-            phenotype_pos_batch_df = phenotype_pos_batch_chr20.loc[phenotype_batch_df.index]
-            # With this we are producing all SNPs against all Genes on a chromosome defined in the that the gene is on. 
-            # For the purpose of producing nominal values across all chromosomes we could modify the phenotype pos_df to the chromosome of interest and do this iteratevely.
-            cis.map_nominal(genotype_df_trans, variant_df_trans,
-                            phenotype_batch_df,
-                            phenotype_pos_batch_df,window=3000000000,
-                            covariates_df=covariates_df,prefix='cis_nominal1_30',
-                            output_dir=outdir, write_top=True, write_stats=True)
-            all_files = glob.glob(f'{outdir}/cis_nominal1_30*.parquet')
-            All_Data = pd.DataFrame()
-            for bf1 in all_files:
-                bf1 = all_files[0]
-                df = pd.read_parquet(bf1)
-                # Append the results to the file incrementally
-                if not header_written:
-                    df.to_csv(outfile, sep="\t", index=False, header=True)
-                    header_written = True
-                else:
-                    df.to_csv(outfile, sep="\t", index=False, header=False)
-                os.remove(bf1) 
-            print(f"Processed batch {i // batch_size + 1}")       
-    
-    # Open the output file for appending        
-    with gzip.open(f"{outdir}/trans_all.tsv.gz", "a") as outfile:
-        # header_written = True
-        # Divide the phenotype dataframe into batches of 10 genes
-        # I think this is asking whether these 10 genes are having any trans effects, and if nothing is available it doesnt give the results.
-        for i in range(0, len(phenotype_batch_NOTchr20), batch_size):
-            # Subset the phenotype data for the current batch of 10 genes
-            phenotype_batch_df = phenotype_batch_NOTchr20.iloc[i:i + batch_size]
-            phenotype_pos_batch_df = phenotype_pos_batch_NOTchr20.loc[phenotype_batch_df.index]
-            phenotype_pos_batch_df['chr2']=phenotype_pos_batch_df['chr']
-            phenotype_pos_batch_df['chr']=chrom_to_map
-            # With this we are producing all SNPs against all Genes on a chromosome defined in the that the gene is on. 
-            # For the purpose of producing nominal values across all chromosomes we could modify the phenotype pos_df to the chromosome of interest and do this iteratevely.
-            cis.map_nominal(genotype_df_trans, variant_df_trans,
-                            phenotype_batch_df,
-                            phenotype_pos_batch_df,window=3000000000,
-                            covariates_df=covariates_df,prefix='cis_nominal1_30',
-                            output_dir=outdir, write_top=True, write_stats=True)
-            all_files = glob.glob(f'{outdir}/cis_nominal1_30*.parquet')
-            All_Data = pd.DataFrame()
-            for bf1 in all_files:
-                bf1 = all_files[0]
-                df = pd.read_parquet(bf1)
-                df.index = df['phenotype_id']
-                df['chr2']= phenotype_pos_batch_df['chr2']
-                df['start_distance']= df['chr2']+'_vs_'+chrom_to_map
-                del df['chr2']
-                # Append the results to the file incrementally
-                if not header_written:
-                    df.to_csv(outfile, sep="\t", index=False, header=True)
-                    header_written = True
-                else:
-                    df.to_csv(outfile, sep="\t", index=False, header=False)
-                os.remove(bf1) 
-            print(f"Processed batch {i // batch_size + 1}")    
-
     cis.map_nominal(genotype_df, variant_df,
                     phenotype_df.loc[phenotype_df1],
                     phenotype_pos_df.loc[phenotype_df1],window=int(options.window),

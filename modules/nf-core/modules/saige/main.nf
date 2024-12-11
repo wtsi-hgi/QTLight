@@ -459,7 +459,7 @@ process AGGREGATE_QTL_ALLVARS{
     output:
         tuple val(group),path("${chr}__${exp}__all_vars_genes.tsv.gz"), emit: all  optional true
         tuple val(group),path("p_vals_lambd*"), emit: lambda optional true
-        tuple val(group),path("cell_lambdas.tsv"), emit: lambda_vals optional true
+        tuple val(group),path("*gene_lambdas.tsv"), emit: lambda_vals optional true
     script:
         parts = group.split('__')
         chr = parts[-1]
@@ -468,6 +468,7 @@ process AGGREGATE_QTL_ALLVARS{
         """
             prepend_gene_large.py --pattern 'cis_*' --column 'gene' --outfile '${chr}__${exp}__all_vars_genes.tsv'
             gzip ${chr}__${exp}__all_vars_genes.tsv
+            mv cell_lambdas.tsv ${chr}__${exp}__gene_lambdas.tsv || echo 'not existant'
         """
 }
 

@@ -25,26 +25,36 @@ process TENSORQTL {
     path("${outpath}/trans_all.tsv.gz"), emit: trans, optional: true
     tuple val(condition), path("Covariates.tsv"), path("Expression_Data.sorted.bed"), path("${outpath}/Cis_eqtls_qval.tsv"),val(nr_phenotype_pcs), emit: combined_input, optional: true
   script:
-  // If a file with interaction terms is provided, use the interaction script otherwise use the standard script   
-  if ("${interaction_file}" != 'fake_file.fq') {
-    tensor_qtl_script = "tensorqtl_analyse_interaction.py -inter ${interaction_file} --interaction_maf ${params.TensorQTL.interaction_maf}"
-    inter_name = file(interaction_file).baseName
-    outpath = "${nr_phenotype_pcs}/interaction_output/${inter_name}"
-  } else {
-    tensor_qtl_script = "tensorqtl_analyse.py -nperm ${params.numberOfPermutations}"
-    outpath = "${nr_phenotype_pcs}/base_output/base"
-  }
+    // If a file with interaction terms is provided, use the interaction script otherwise use the standard script   
+    if ("${interaction_file}" != 'fake_file.fq') {
+      tensor_qtl_script = "tensorqtl_analyse_interaction.py -inter ${interaction_file} --interaction_maf ${params.TensorQTL.interaction_maf}"
+      inter_name = file(interaction_file).baseName
+      outpath = "${nr_phenotype_pcs}/interaction_output/${inter_name}"
+      chrom_to_map_trans = ""
+    } else {
+      tensor_qtl_script = "tensorqtl_analyse.py -nperm ${params.numberOfPermutations}"
+      outpath = "${nr_phenotype_pcs}/base_output/base"
 
-  if (params.genotypes.use_gt_dosage) {
-    dosage = "--dosage"
-  }else{
-    dosage = ""
-  }
+      if (params.TensorQTL.chrom_to_map_trans == ''){
+        chrom_to_map_trans = ""
+      }else{
+        chrom_to_map_trans = "--chrom_to_map_trans ${params.TensorQTL.chrom_to_map_trans} "
+      }
+
+    }
+
+    if (params.genotypes.use_gt_dosage) {
+      dosage = "--dosage"
+    }else{
+      dosage = ""
+    }
+
+
     """ 
       
       bedtools sort -i ${aggrnorm_counts_bed} -header > Expression_Data.sorted.bed
       sed -i 's/^chr//' Expression_Data.sorted.bed
-      ${tensor_qtl_script} --plink_prefix_path ${plink_files_prefix}/plink_genotypes --expression_bed Expression_Data.sorted.bed --covariates_file ${covariates_tsv} -window ${params.windowSize} ${dosage} --maf ${params.maf} --outdir ${outpath}
+      ${tensor_qtl_script} --plink_prefix_path ${plink_files_prefix}/plink_genotypes --expression_bed Expression_Data.sorted.bed --covariates_file ${covariates_tsv} -window ${params.windowSize} ${dosage} --maf ${params.maf} --outdir ${outpath} ${chrom_to_map_trans}
       cd ${outpath} && ln ../../../${covariates_tsv} ./ && ln ../../../Expression_Data.sorted.bed
     """
 }

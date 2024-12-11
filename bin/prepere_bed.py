@@ -75,11 +75,13 @@ def main():
     try:
         df = read_gtf(annotation_file)
         if (gtf_type=='gene'):
-            df2 = df[df.feature == 'gene']
-            Gene_Chr_Start_End_Data =df2[['gene_id','start','end','strand','seqname']]
+            # df2 = df[df.feature == 'gene'] #Old way, also old way doesnt need .to_pandas()
+            df2 = df.filter(df["feature"] == "gene")
+            Gene_Chr_Start_End_Data =df2[['gene_id','start','end','strand','seqname']].to_pandas()
         elif (gtf_type=='transcript'):
-            df2 = df[df.feature == 'transcript']
-            Gene_Chr_Start_End_Data =df2[['transcript_id','start','end','strand','seqname']]
+            # df2 = df[df.feature == 'transcript'] #Old way, also old way doesnt need .to_pandas()
+            df2 = df.filter(df["feature"] == "transcript")
+            Gene_Chr_Start_End_Data =df2[['transcript_id','start','end','strand','seqname']].to_pandas()
         else:
             _ = 'you havent specified which type of analysis you are performing'
             # 
