@@ -238,9 +238,18 @@ def main():
         default=False,
         help='can contain a str such as 2,3,5 - indicating chromosomes against which we want to run gwas analysis'
     )
+    
+    parser.add_argument(
+        '-nom', '--map_nominal',
+        action='store_true',
+        dest='map_nominal',
+        default=False,
+        help=''
+    )
 
     options = parser.parse_args()
     maf=float(options.maf)
+    map_nominal=options.map_nominal
     
     # ValueError: The BED file must define the TSS/cis-window center, with start+1 == end.
     # --plink_prefix_path plink_genotypes/plink_genotypes --expression_bed Expression_Data.bed.gz --covariates_file gtpca_plink.eigenvec
@@ -311,38 +320,30 @@ def main():
             gwas_trans_mapping(chrom_to_map = chrom_to_map_trans) ## Map all the genes across genome against all SNPs indicated as chrom_to_map parameter. For example if 2 then wil map all the genes across chromosomes against chr2 NPs.
         
     
-    cis.map_nominal(genotype_df, variant_df,
-                    phenotype_df.loc[phenotype_df1],
-                    phenotype_pos_df.loc[phenotype_df1],window=int(options.window),
-                    covariates_df=covariates_df,prefix='cis_nominal1',
-                    output_dir=outdir, write_top=True, write_stats=True)
-
-    # trans_df_all = trans.map_trans(genotype_df, phenotype_df.loc[phenotype_pos_df['chr']!='chrY'],
-    #                     covariates_df = covariates_df, batch_size=1000,
-    #                     return_sparse=True, pval_threshold=1, maf_threshold=maf)
-    # # Save all results
-    # print("Saving all trans results")
+    if map_nominal:
+        cis.map_nominal(genotype_df, variant_df,
+                        phenotype_df.loc[phenotype_df1],
+                        phenotype_pos_df.loc[phenotype_df1],maf_threshold=maf,
+                        covariates_df=covariates_df,prefix='cis_nominal1',
+                        output_dir=outdir, write_top=map_nominal, write_stats=map_nominal)
     
-    # trans_df_all.to_csv(f"{outdir}/trans_all.tsv.gz", compression='gzip', sep = "\t", index=False)    
-    # del trans_df_all
-    
-    all_files = glob.glob(f'{outdir}/cis_nominal*.parquet')
-    All_Data = pd.DataFrame()
-    count=0
-    for bf1 in all_files:
-        print(bf1)
-        df = pd.read_parquet(bf1)
-        df.to_csv(bf1.replace('.parquet','.tsv'),sep='\t',index=False)
-        os.remove(bf1) 
-        count+=1    
-
+        all_files = glob.glob(f'{outdir}/cis_nominal*.parquet')
+        All_Data = pd.DataFrame()
+        count=0
+        for bf1 in all_files:
+            print(bf1)
+            df = pd.read_parquet(bf1)
+            df.to_csv(bf1.replace('.parquet','.tsv'),sep='\t',index=False)
+            os.remove(bf1) 
+            count+=1    
+  
 
     try:
         cis_df = cis.map_cis(genotype_df, variant_df, 
                             phenotype_df.loc[phenotype_df1],
                             phenotype_pos_df.loc[phenotype_df1],nperm=int(options.nperm),
                             window=int(options.window),
-                            covariates_df=covariates_df,maf_threshold=maf)
+                            covariates_df=covariates_df,maf_threshold=maf,seed=7)
         print('----cis eQTLs processed ------')
         cis_df.head()
         cis_df.to_csv(f"{outdir}/Cis_eqtls.tsv",sep="\t")
@@ -351,7 +352,9 @@ def main():
         cis_df_dropped = cis_df.loc[sv]
         # r = stats.pearsonr(cis_df_dropped['pval_perm'], cis_df_dropped['pval_beta'])[0]
         calculate_qvalues(cis_df_dropped, qvalue_lambda=0.85)
-        
+        cis_df_dropped.to_csv(f"{outdir}/Cis_eqtls_qval.tsv", sep='\t')
+
+
     except:
         # The beta aproximation sometimes doesnt work and results in a failure of the qtl mapping. 
         # This seems to be caused by failure to aproximate the betas
@@ -362,7 +365,6 @@ def main():
                             phenotype_pos_df.loc[phenotype_df1],nperm=int(options.nperm),
                             window=int(options.window),
                             covariates_df=covariates_df,maf_threshold=maf,seed=7,beta_approx=False)
-            
         print('----cis eQTLs processed ------')
         cis_df.head()
         cis_df.to_csv(f"{outdir}/Cis_eqtls.tsv",sep="\t")
@@ -371,6 +373,18 @@ def main():
         cis_df_dropped = cis_df.loc[sv]
         # r = stats.pearsonr(cis_df_dropped['pval_perm'], cis_df_dropped['pval_beta'])[0]
         # calculate_qvalues(cis_df_dropped, qvalue_lambda=0.85)
+        # Perform conditional analysis
+    #######################
+    try:
+        indep_df = cis.map_independent(genotype_df, variant_df, cis_df_dropped,
+                                        phenotype_df.loc[phenotype_df1],       
+                                        phenotype_pos_df.loc[phenotype_df1],
+                                        nperm=int(options.nperm), window=int(options.window),
+                                        covariates_df=covariates_df,maf_threshold=maf,seed=7)
+        indep_df.to_csv(f"{outdir}/Cis_eqtls_independent.tsv",sep="\t",index=False)
+    except:
+        print("No significant phenotypes for cis.map_independent")
+    
     if 'qvals' not in cis_df_dropped.columns:
         # Add 'qvals' column with None values
         cis_df_dropped['qvals'] = None
