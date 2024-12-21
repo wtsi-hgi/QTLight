@@ -104,7 +104,7 @@ process CREATE_SPARSE_GRM {
     maxForks 1000
 
     if (workflow.containerEngine == 'singularity' && !params.singularity_pull_docker_container) {
-        container "${params.saige_container}"
+        container "${params.saige_grm_container}"
     } else {
         container "${params.saige_docker}"
     }    
@@ -113,18 +113,19 @@ process CREATE_SPARSE_GRM {
     input:
         tuple path(plink_bim), path(plink_bed), path(plink_fam)
         
-    // output:
-    //     tuple val(name),path(genes_list),path("output"),emit:output
-    //     path("*genes_droped_from_s1_due_to_error.tsv"), emit: dropped optional true
+    output:
+        // tuple val(name),path(genes_list),path("output"),emit:output
+        path("sparseGRM_*.mtx"), emit: sparseGRM
+        path("sparseGRM_*.sampleIDs.txt"), emit: sparseGRM_sample
 
     // Define the Bash script to run for each array job
     script:
     """
         createSparseGRM.R \
-            --nThreads=${task.threads} \
+            --nThreads=${task.cpus} \
             --outputPrefix=sparseGRM_output \
             --numRandomMarkerforSparseKin=2000 \
-            --relatednessCutoff=0.125 \
+            --relatednessCutoff=0.05 \
             --famFile ${plink_fam} \
             --bimFile ${plink_bim} \
             --bedFile ${plink_bed} 
@@ -146,7 +147,8 @@ process SAIGE_S1 {
 
     input:
         tuple val(name),path(genes_list),path(pheno_file),path(cov),path(plink_bim), path(plink_bed), path(plink_fam)
-        
+        each path(sparseGRM)
+        each path(sparseGRM_samples)
     output:
         tuple val(name),path(genes_list),path("output"),emit:output
         path("*genes_droped_from_s1_due_to_error.tsv"), emit: dropped optional true
@@ -162,6 +164,7 @@ process SAIGE_S1 {
            {  # try
             step1_fitNULLGLMM_qtl.R \
                 --useSparseGRMtoFitNULL=TRUE  \
+                --sparseGRMFile ${sparseGRM} --sparseGRMSampleIDFile ${sparseGRM_samples} \
                 --useGRMtoFitNULL=FALSE \
                 --phenoFile=${pheno_file}	\
                 --phenoCol=\$i       \
@@ -210,7 +213,9 @@ process SAIGE_S2_CIS {
     }    
 
     input:
-        tuple val(name),path(genes_list),path(output),path(genome_regions),path(plink_bim), path(plink_bed), path(plink_fam)
+        tuple (val(name),path(genes_list),path(output),path(genome_regions),path(plink_bim), path(plink_bed), path(plink_fam))
+        each path(sparseGRM)
+        each path(sparseGRM_samples)
 
     output:
         tuple val("${name}"),path("genes_list2.tsv"),path("output_${name}___*"),path(output),path(genome_regions),path(plink_bim), path(plink_bed), path(plink_fam),emit:output optional true
@@ -235,6 +240,7 @@ process SAIGE_S2_CIS {
                     --bedFile=${plink_bed}      \
                     --bimFile=${plink_bim}      \
                     --famFile=${plink_fam}      \
+                    --sparseGRMFile ${sparseGRM} --sparseGRMSampleIDFile ${sparseGRM_samples} \
                     --SAIGEOutputFile=output_${name}___\${chr1}/\${chr1}___nindep_100_ncell_100_lambda_2_tauIntraSample_0.5_cis_\${variable}    \
                     --minMAF=${params.SAIGE.minMAF} \
                     --minMAC=${params.SAIGE.minMAC} \
@@ -736,8 +742,10 @@ workflow SAIGE_qtls{
         
         Channel.fromList(params.SAIGE.chromosomes_to_test)
                 .set{chromosomes_to_test}        
-        // CREATE_SPARSE_GRM(bim_bed_fam)
-        SAIGE_S1(pheno_chunk.combine(bim_bed_fam))
+        CREATE_SPARSE_GRM(bim_bed_fam)
+        sparseGRM = CREATE_SPARSE_GRM.out.sparseGRM
+        sparseGRM_sample = CREATE_SPARSE_GRM.out.sparseGRM_sample
+        SAIGE_S1(pheno_chunk.combine(bim_bed_fam),sparseGRM,sparseGRM_sample)
 
 
         // if(params.SAIGE.cis_trans_mode=='trans'){
@@ -748,7 +756,7 @@ workflow SAIGE_qtls{
         // }else if(params.SAIGE.cis_trans_mode=='cis'){
         DETERMINE_TSS_AND_TEST_REGIONS(SAIGE_S1.out.output,genome_annotation)
         for_cis_input = DETERMINE_TSS_AND_TEST_REGIONS.out.output_genes
-        SAIGE_S2_CIS(for_cis_input.combine(bim_bed_fam))
+        SAIGE_S2_CIS(for_cis_input.combine(bim_bed_fam),sparseGRM,sparseGRM_sample)
         // there will be cases where the genes are across multiple chr. and this will emt two outputs. 
         // they need to be standardised.
         output_s2 = SAIGE_S2_CIS.out.output
