@@ -364,7 +364,10 @@ workflow EQTL {
             plink_path,
         )
     }
-
+    genotype_pcs_file.subscribe { println "genotype_pcs_file.out.adata: $it" }
+    adata.subscribe { println "adata.out.adata: $it" }
+    bim_bed_fam.subscribe { println "bim_bed_fam.out.adata: $it" }
+    genome_annotation.subscribe { println "genome_annotation.out.adata: $it" }
     // SAIGE SCRNA QTL mapping method
     if (params.method=='single_cell'){
         if (params.SAIGE.run){

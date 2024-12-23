@@ -110,7 +110,7 @@ def parse_options():
 def main():
     inherited_options = parse_options()
     phenotype__file = inherited_options.phenotype__file
-    aggregate_on = inherited_options.aggregate_on
+    aggregate_on_all = inherited_options.aggregate_on
     genotype_pc_file = inherited_options.genotype_pc__file
     genotype_id = inherited_options.genotype_id
     general_file_dir = inherited_options.general_file_dir
@@ -172,130 +172,131 @@ def main():
     geno_pcs.rename(columns={"#FID": genotype_id,"IID": genotype_id}, inplace=True)
     geno_pcs = geno_pcs.set_index(genotype_id)
 
-    levels = set(adata.obs[aggregate_on].unique())
-    l1 = len(levels)
-    conditions=set(condition.split(','))
-    if list(conditions)[0]!='NULL':
-        levels=levels.intersection(conditions)
-    
-    for level in levels:
-        print(f"~~~~~~~~~~~~Working on: {level}~~~~~~~~~~~~~~~~")
-        savedir = f"{general_file_dir}/{aggregate_on}/{level}"
+    for aggregate_on in aggregate_on_all.split(','):
+        levels = set(adata.obs[aggregate_on].unique())
+        l1 = len(levels)
+        conditions=set(condition.split(','))
+        if list(conditions)[0]!='NULL':
+            levels=levels.intersection(conditions)
         
-        os.makedirs(savedir, exist_ok=True)
-        print("Filtering anndata")
-
-        temp = adata[adata.obs[aggregate_on] == level,genes].to_memory()  # Use copy to avoid modifying original data
-        try:
-            temp.X = temp.layers['counts'] # Sige needs raw counts. Please make sure correct layer is used!
-        except:
-            _='not existant'
-
-        if (l1==1):
-            del adata
-            gc.collect() 
+        for level in levels:
+            print(f"~~~~~~~~~~~~Working on: {level}~~~~~~~~~~~~~~~~")
+            savedir = f"{general_file_dir}/{aggregate_on}/{level}"
             
-        if bridge:
-            br1 = pd.read_csv(bridge, sep='\t').set_index('RNA')
-            br2 = temp.obs[genotype_id].map(br1['Genotype'])
-            temp.obs[genotype_id] = br2
-            del br1
-        temp = temp[temp.obs[genotype_id].isin(geno_pcs.index)]        
+            os.makedirs(savedir, exist_ok=True)
+            print("Filtering anndata")
+
+            temp = adata[adata.obs[aggregate_on] == level,genes].to_memory()  # Use copy to avoid modifying original data
+            try:
+                temp.X = temp.layers['counts'] # Sige needs raw counts. Please make sure correct layer is used!
+            except:
+                _='not existant'
+
+            if (l1==1):
+                del adata
+                gc.collect() 
+                
+            if bridge:
+                br1 = pd.read_csv(bridge, sep='\t').set_index('RNA')
+                br2 = temp.obs[genotype_id].map(br1['Genotype'])
+                temp.obs[genotype_id] = br2
+                del br1
+            temp = temp[temp.obs[genotype_id].isin(geno_pcs.index)]        
+
+                
+            print("Filtering lowly expressed genes")
+            counts = pd.DataFrame.sparse.from_spmatrix(temp.X, index=temp.obs.index, columns=temp.var.index)
+            counts = counts.loc[:, counts.sum(axis=0) > 0]
+            counts[genotype_id] = temp.obs[genotype_id].values.astype(str)
+            
+            if min_cells:
+                print(f"Working on min cells/sample of {min_cells}")
+                cells_per_sample = counts[genotype_id].value_counts()
+                keep_samples = cells_per_sample[cells_per_sample > min_cells].index
+                counts = counts[counts[genotype_id].isin(keep_samples)]
+                del cells_per_sample
+            
+            temp = temp[temp.obs[genotype_id].isin(keep_samples)]
+            del keep_samples
+            if nperc > 0:
+                # counts_per_sample = counts.groupby(genotype_id).sum()
+                # min_samples = int(np.ceil(len(np.unique(genotype_ids)) * (nperc / 100)))
+                # count_per_column = np.count_nonzero(counts_per_sample.values, axis=0)
+                # keep_genes = np.where(count_per_column > min_samples)[0]
+                # counts2 = counts.iloc[:, keep_genes]
+                
+                # Precompute unique genotypes and minimum samples needed
+                genotype_ids = counts[genotype_id].values  # Extract genotype IDs
+                unique_genotypes = np.unique(genotype_ids)  # Get unique genotypes
+                min_samples = int(np.ceil(len(unique_genotypes) * (nperc / 100)))
+                counts_data = counts.drop(columns=[genotype_id]).values  # Convert counts (excluding genotype_id) to NumPy array
+                summed_counts = np.zeros((len(unique_genotypes), counts_data.shape[1]))
+                # Accumulate sums directly on the NumPy array
+                for i, genotype in enumerate(unique_genotypes):
+                    mask = (genotype_ids == genotype)
+                    summed_counts[i, :] = counts_data[mask, :].sum(axis=0)
+                count_per_column = np.count_nonzero(summed_counts, axis=0)
+                keep_genes = np.where(count_per_column > min_samples)[0]
+                # Use NumPy slicing for efficient selection
+                filtered_counts = counts.iloc[:, keep_genes].copy()
+                # Reattach genotype_id
+                # filtered_counts[genotype_id] = genotype_ids
+                counts = filtered_counts
+                del counts_data, summed_counts, genotype_ids, unique_genotypes, count_per_column  # Free memory
+            
+            print('Applying inverse normal transformation')    
+            
+            print(f"Final shape is: {counts.shape}") 
+            if (any(np.array(counts.shape) < 2)):
+                print(f"Final shape is not acceptable, skipping this phenotype: {counts.shape}")
+                continue
+            
+            covariates_string=''
+            if covariates:
+                print("Extracting and sorting covariates")
+                to_add = preprocess_covariates(temp.obs[covariates], scale_covariates)
+                counts = counts.join(to_add)
+                covariates_string = ','+inherited_options.covariates
+            
+            counts.index = counts.index + counts.index.duplicated().cumsum().astype(str)
+            temp.obs.index = temp.obs.index + temp.obs.index.duplicated().cumsum().astype(str)
+            
+            counts[genotype_id] = temp.obs[genotype_id]
+            counts = counts.merge(geno_pcs.reset_index(), on=genotype_id, how='left').set_index(counts.index)
+            counts.columns = counts.columns.str.replace(':', '_')
+            
+            covariates_string = ','.join(geno_pcs.columns.values)+covariates_string
+            sample_covariates = ','.join(geno_pcs.columns.values)
+            
+            with open(f"{savedir}/test_genes.txt", 'w') as file:
+                file.write("\n".join(counts.columns))
 
             
-        print("Filtering lowly expressed genes")
-        counts = pd.DataFrame.sparse.from_spmatrix(temp.X, index=temp.obs.index, columns=temp.var.index)
-        counts = counts.loc[:, counts.sum(axis=0) > 0]
-        counts[genotype_id] = temp.obs[genotype_id].values.astype(str)
-        
-        if min_cells:
-            print(f"Working on min cells/sample of {min_cells}")
-            cells_per_sample = counts[genotype_id].value_counts()
-            keep_samples = cells_per_sample[cells_per_sample > min_cells].index
-            counts = counts[counts[genotype_id].isin(keep_samples)]
-            del cells_per_sample
-        
-        temp = temp[temp.obs[genotype_id].isin(keep_samples)]
-        del keep_samples
-        if nperc > 0:
-            # counts_per_sample = counts.groupby(genotype_id).sum()
-            # min_samples = int(np.ceil(len(np.unique(genotype_ids)) * (nperc / 100)))
-            # count_per_column = np.count_nonzero(counts_per_sample.values, axis=0)
-            # keep_genes = np.where(count_per_column > min_samples)[0]
-            # counts2 = counts.iloc[:, keep_genes]
             
-            # Precompute unique genotypes and minimum samples needed
-            genotype_ids = counts[genotype_id].values  # Extract genotype IDs
-            unique_genotypes = np.unique(genotype_ids)  # Get unique genotypes
-            min_samples = int(np.ceil(len(unique_genotypes) * (nperc / 100)))
-            counts_data = counts.drop(columns=[genotype_id]).values  # Convert counts (excluding genotype_id) to NumPy array
-            summed_counts = np.zeros((len(unique_genotypes), counts_data.shape[1]))
-            # Accumulate sums directly on the NumPy array
-            for i, genotype in enumerate(unique_genotypes):
-                mask = (genotype_ids == genotype)
-                summed_counts[i, :] = counts_data[mask, :].sum(axis=0)
-            count_per_column = np.count_nonzero(summed_counts, axis=0)
-            keep_genes = np.where(count_per_column > min_samples)[0]
-            # Use NumPy slicing for efficient selection
-            filtered_counts = counts.iloc[:, keep_genes].copy()
-            # Reattach genotype_id
-            # filtered_counts[genotype_id] = genotype_ids
-            counts = filtered_counts
-            del counts_data, summed_counts, genotype_ids, unique_genotypes, count_per_column  # Free memory
-        
-        print('Applying inverse normal transformation')    
-        
-        print(f"Final shape is: {counts.shape}") 
-        if (any(np.array(counts.shape) < 2)):
-            print(f"Final shape is not acceptable, skipping this phenotype: {counts.shape}")
-            continue
-        
-        covariates_string=''
-        if covariates:
-            print("Extracting and sorting covariates")
-            to_add = preprocess_covariates(temp.obs[covariates], scale_covariates)
-            counts = counts.join(to_add)
-            covariates_string = ','+inherited_options.covariates
-        
-        counts.index = counts.index + counts.index.duplicated().cumsum().astype(str)
-        temp.obs.index = temp.obs.index + temp.obs.index.duplicated().cumsum().astype(str)
-        
-        counts[genotype_id] = temp.obs[genotype_id]
-        counts = counts.merge(geno_pcs.reset_index(), on=genotype_id, how='left').set_index(counts.index)
-        counts.columns = counts.columns.str.replace(':', '_')
-        
-        covariates_string = ','.join(geno_pcs.columns.values)+covariates_string
-        sample_covariates = ','.join(geno_pcs.columns.values)
-        
-        with open(f"{savedir}/test_genes.txt", 'w') as file:
-            file.write("\n".join(counts.columns))
 
-        
-        
+            print("Saving")
+            with open(f"{savedir}/covariates.txt", 'w') as file:
+                    file.write(f"{covariates_string}\n")  
+                    file.write(f"{sample_covariates}")  
+            # gene_savdir = f"{savedir}/per_gene_input_files"
+            # os.makedirs(gene_savdir, exist_ok=True)
+            counts.set_index(genotype_id).to_csv(f"{savedir}/saige_filt_expr_input.tsv", sep="\t", index=True, chunksize=50000)
 
-        print("Saving")
-        with open(f"{savedir}/covariates.txt", 'w') as file:
-                file.write(f"{covariates_string}\n")  
-                file.write(f"{sample_covariates}")  
-        # gene_savdir = f"{savedir}/per_gene_input_files"
-        # os.makedirs(gene_savdir, exist_ok=True)
-        counts.set_index(genotype_id).to_csv(f"{savedir}/saige_filt_expr_input.tsv", sep="\t", index=True, chunksize=50000)
-
-        del counts
-        del temp
-        gc.collect()  # Clean up memory
-        try:
-            os.remove('tmp.h5ad')
-        except:
-            _=''
-        try:
-            os.remove('tmp2.h5ad')
-        except:
-            _=''
-        try:
-            os.remove('tmp3.h5ad')
-        except:
-            _=''
+            del counts
+            del temp
+            gc.collect()  # Clean up memory
+            try:
+                os.remove('tmp.h5ad')
+            except:
+                _=''
+            try:
+                os.remove('tmp2.h5ad')
+            except:
+                _=''
+            try:
+                os.remove('tmp3.h5ad')
+            except:
+                _=''
 
 
 if __name__ == '__main__':

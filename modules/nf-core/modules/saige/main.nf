@@ -703,6 +703,7 @@ workflow SAIGE_qtls{
         gene =  Channel.of()
         // Check if aggregation_subentry is provided
         if (params.SAIGE.aggregation_subentry != '') {
+            log.info("------- Analysing ${params.SAIGE.aggregation_subentry} celltypes ------- ")
             // Split the aggregation_subentry parameter into a list of patterns
                 valid_files = phenotype_file.filter { file ->
                     params.SAIGE.aggregation_subentry.split(',').any { pattern -> "${file}".contains("__${pattern}__") }
@@ -720,6 +721,7 @@ workflow SAIGE_qtls{
         
 
         } else {
+            log.info('------- Analysing all celltypes ------- ')
             H5AD_TO_SAIGE_FORMAT(phenotype_file,params.genotype_phenotype_mapping_file,params.aggregation_columns,genotype_pcs,genome_annotation)
             pheno = H5AD_TO_SAIGE_FORMAT.out.output_pheno
             gene = H5AD_TO_SAIGE_FORMAT.out.gene_chunk

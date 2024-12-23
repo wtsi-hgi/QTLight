@@ -12,6 +12,7 @@ import numpy as np
 np.random.seed(42)
 import argparse
 import scipy as sp
+import sys
 
 def PF(X):
     cd=np.asarray(X.sum(1)).ravel()
@@ -57,6 +58,11 @@ def main():
     adata = sc.read_h5ad(filename=h5ad)
     method = options.method
     
+    if adata.X.shape[0] > 1:  # Ensure there are at least 2 rows
+        print("Second row sum is an integer.")
+    else:
+        print("Matrix has less than 2 rows.")
+        sys.exit(0)  # Exit the script gracefully
 
     available_methods = ['cp10k', 'scT','NONE','pf_log1p_pf']
     if method not in list(adata.layers.keys()) + available_methods:

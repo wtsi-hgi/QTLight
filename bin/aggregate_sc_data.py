@@ -178,7 +178,7 @@ def main():
                 # del cell_adata
                 # gc.collect()  # Force garbage collection to free up memory
                 genotype_phenotype_mapping = pd.DataFrame(genotype_phenotype_mapping)
-                if(len(genotype_phenotype_mapping)!=0):
+                if(len(genotype_phenotype_mapping)>=10):
                     genotype_phenotype_mapping.to_csv(f'{method}__{modified_agg_col}___genotype_phenotype_mapping.tsv',sep='\t',index=False)
                     aggregated_data.to_csv(f'{method}__{modified_agg_col}___phenotype_file.tsv',sep='\t',index=True)
     print('Successfully Finished')
