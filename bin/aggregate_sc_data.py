@@ -100,11 +100,6 @@ def main():
     sample_column = options.sample_column
     n_individ = int(options.n_individ)
     n_cells = int(options.n_cells)
-    # if options.genotype_phenotype:
-    #     genotype_phenotype = options.genotype_phenotype
-    #     genotype_phenotype = pd.read_csv(genotype_phenotype)
-    # else:
-        # here we estimate the genotype phenotype interaction file from the genotype, since the IDs are the same. 
     print('Reading in data...')
     adata = sc.read_h5ad(filename=h5ad, backed='r')
     adata.strings_to_categoricals()
@@ -114,9 +109,11 @@ def main():
     for method in methods:
 
         if (method =='dMean'):
-            try:
+            if 'dMean_normalised' in adata.layers:
+                adata = adata.to_memory()
                 adata.X = adata.layers['dMean_normalised']
-            except:
+                print("adata.X has been updated with 'dMean_normalised'.")
+            else:
                 print('probably already normalised since no layer added')
         for agg_col in agg_columns:
 
@@ -173,10 +170,7 @@ def main():
                     if (len(aggregated_data_pre.columns)>=n_individ):
                         aggregated_data=pd.concat([aggregated_data,aggregated_data_pre],axis=1)
                         genotype_phenotype_mapping= genotype_phenotype_mapping+ genotype_phenotype_mapping_pre
-                        # f = pd.DataFrame(individual_1_adata.X.mean(axis=0))
-                # os.remove('tmp.h5ad')
-                # del cell_adata
-                # gc.collect()  # Force garbage collection to free up memory
+
                 genotype_phenotype_mapping = pd.DataFrame(genotype_phenotype_mapping)
                 if(len(genotype_phenotype_mapping)>=10):
                     genotype_phenotype_mapping.to_csv(f'{method}__{modified_agg_col}___genotype_phenotype_mapping.tsv',sep='\t',index=False)
