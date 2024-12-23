@@ -182,7 +182,7 @@ process SAIGE_S1 {
                 --famFile ${plink_fam} \
                 --bimFile ${plink_bim} \
                 --bedFile ${plink_bed} \
-                --IsOverwriteVarianceRatioFile=TRUE 
+                --IsOverwriteVarianceRatioFile=TRUE ${params.SAIGE.step1_extra_flags}
             } || {
                 # catch
                 sed -i '/\$i/d' ${genes_list}
@@ -399,7 +399,7 @@ process AGGREGATE_ACAT_RESULTS{
     }    
     
 
-    publishDir  path: "${params.outdir}/Saige_eQTLS/${group}",
+    publishDir  path: "${params.outdir}/Saige_eQTLS/${exp}",
                 mode: "${params.copy_mode}",
                 overwrite: "true"
 
@@ -408,7 +408,9 @@ process AGGREGATE_ACAT_RESULTS{
     output:
         tuple val(group),path("ACAT_all.tsv"), emit: acat_all
     script:
-        
+        parts = group.split('__')
+        chr = parts[-1]
+        exp = parts[-2] 
         """
             head -n 1 \$(find . -name "*_cis_genePval" | head -n 1)  >> ACAT_all.tsv
             find . -name "*_cis_genePval" -print0 | xargs -0 -I {} sh -c 'tail -n +2 "\$1"' sh {} >> ACAT_all.tsv
@@ -427,7 +429,7 @@ process AGGREGATE_QTL_RESULTS{
     }    
     
 
-    publishDir  path: "${params.outdir}/Saige_eQTLS/${group}",
+    publishDir  path: "${params.outdir}/Saige_eQTLS/${exp}",
                 mode: "${params.copy_mode}",
                 overwrite: "true"
 
@@ -438,7 +440,9 @@ process AGGREGATE_QTL_RESULTS{
         tuple val(group),path("minimum_q_all_genes.tsv"), emit: all
 
     script:
-        
+        parts = group.split('__')
+        chr = parts[-1]
+        exp = parts[-2] 
         """
             prepend_gene.py --pattern 'cis_*_minimum_q.txt' --column 'gene' --outfile 'minimum_q_all_genes.tsv'
             qvalue_correction.py -f minimum_q_all_genes.tsv -c "18" -n "qvalues_across_genes" -w "FALSE"
