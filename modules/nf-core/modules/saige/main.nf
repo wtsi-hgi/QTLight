@@ -125,7 +125,7 @@ process CREATE_SPARSE_GRM {
             --nThreads=${task.cpus} \
             --outputPrefix=sparseGRM_output \
             --numRandomMarkerforSparseKin=2000 \
-            --relatednessCutoff=0.05 \
+            --relatednessCutoff ${params.SAIGE.relatednessCutoff} \
             --famFile ${plink_fam} \
             --bimFile ${plink_bim} \
             --bedFile ${plink_bed} 
@@ -164,7 +164,7 @@ process SAIGE_S1 {
            {  # try
             step1_fitNULLGLMM_qtl.R \
                 --useSparseGRMtoFitNULL=TRUE  \
-                --sparseGRMFile ${sparseGRM} --sparseGRMSampleIDFile ${sparseGRM_samples} \
+                --sparseGRMFile ${sparseGRM} --sparseGRMSampleIDFile ${sparseGRM_samples} --relatednessCutoff ${params.SAIGE.relatednessCutoff} \
                 --useGRMtoFitNULL=FALSE \
                 --phenoFile=${pheno_file}	\
                 --phenoCol=\$i       \
@@ -240,7 +240,7 @@ process SAIGE_S2_CIS {
                     --bedFile=${plink_bed}      \
                     --bimFile=${plink_bim}      \
                     --famFile=${plink_fam}      \
-                    --sparseGRMFile ${sparseGRM} --sparseGRMSampleIDFile ${sparseGRM_samples} \
+                    --sparseGRMFile ${sparseGRM} --sparseGRMSampleIDFile ${sparseGRM_samples} --relatednessCutoff=${params.SAIGE.relatednessCutoff} \
                     --SAIGEOutputFile=output_${name}___\${chr1}/\${chr1}___nindep_100_ncell_100_lambda_2_tauIntraSample_0.5_cis_\${variable}    \
                     --minMAF=${params.SAIGE.minMAF} \
                     --minMAC=${params.SAIGE.minMAC} \
