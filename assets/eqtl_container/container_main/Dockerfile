@@ -1,8 +1,49 @@
-FROM ubuntu:20.04
-RUN cat /etc/os-release
+# Use the latest available Miniforge image
+FROM condaforge/miniforge3:latest
 
-# RUN wget https://repo.anaconda.com/miniconda/Miniconda3-py39_4.11.0-Linux-x86_64.sh && bash Miniconda3-latest-Linux-x86_64.sh
-ARG DEBIAN_FRONTEND=noninteractive
+# Set environment variables
+ENV PATH="/opt/conda/bin:${PATH}" \
+    DEBIAN_FRONTEND=noninteractive \
+    TZ=Etc/UTC \
+    NB_USER=container_user
+
+# Update and install base system dependencies
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+    build-essential \
+    wget \
+    unzip \
+    libcurl4-openssl-dev \
+    libssl-dev \
+    libxml2-dev \
+    libgit2-dev \
+    libgsl-dev \
+    libboost-all-dev \
+    dirmngr \
+    apt-transport-https \
+    ca-certificates \
+    software-properties-common \
+    gnupg2 \
+    curl \
+    git \
+    g++ \
+    gcc \
+    gfortran \
+    make \
+    autoconf \
+    automake \
+    libtool \
+    zlib1g-dev \
+    liblzma-dev \
+    libbz2-dev \
+    lbzip2 \
+    libblas-dev \
+    libx11-dev \
+    libreadline-dev \
+    libxt-dev \
+    libpcre2-dev && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/*
 RUN apt-get update && \
     apt-get install --yes -y --no-install-recommends dirmngr apt-transport-https ca-certificates software-properties-common gnupg2 \
     build-essential curl git \ 
@@ -11,85 +52,147 @@ RUN apt-get update && \
     libblas-dev libx11-dev \
     libreadline-dev libxt-dev libpcre2-dev libcurl4-openssl-dev && \
     rm -rf /var/lib/apt/lists/*
-ENV NB_USER container_user
-# RUN apt-get install wget
-ENV HOME /home/${NB_USER}
-RUN apt-key adv --keyserver keyserver.ubuntu.com --recv-keys E298A3A825C0D65DFD57CBB651716619E084DAB9
-RUN add-apt-repository 'deb https://cloud.r-project.org/bin/linux/ubuntu bionic-cran40/'
-# RUN which R && R --version
-RUN apt-get install wget
-RUN wget https://repo.anaconda.com/miniconda/Miniconda3-py39_4.11.0-Linux-x86_64.sh -O /tmp/miniconda.sh && chmod +x  /tmp/miniconda.sh && bash /tmp/miniconda.sh -b -p ${HOME}/conda
-# RUN bash Miniconda3-latest-Linux-x86_64.sh
-ENV PATH ${HOME}/conda/bin:$PATH
-
-
-
-# set up the user directory structure
-RUN mkdir ${HOME}/tmp2 && \
-    mkdir ${HOME}/analysis
-    
-WORKDIR ${HOME}
-
-RUN git clone https://github.com/single-cell-genetics/limix_qtl.git
-RUN ls -lh ${HOME}
-RUN chmod +x ${HOME}/limix_qtl/Limix_QTL/run_QTL_analysis.py
-RUN chmod +x ${HOME}/limix_qtl/Limix_QTL/post_processing/minimal_postprocess.py
-RUN chmod +x ${HOME}/limix_qtl/Limix_QTL/run_QTL_analysis.py
-RUN ln -s ${HOME}/limix_qtl/Limix_QTL/run_QTL_analysis.py /usr/bin/limix_run
-RUN ln -s ${HOME}/limix_qtl/Limix_QTL/post_processing/minimal_postprocess.py /usr/bin/limix_aggregate
-
-RUN which limix_run
-
+# RUN apt install libcurl4-gnutls-dev --yes
+# install.packages(c("devtools", "roxygen2", "pkgdown", "covr")); devtools::install_dev_deps()
+# RUN apt install r-cran-ragg r-cran-xml2
+# RUN apt install libtiff-dev  --yes
+# RUN apt-get install libharfbuzz-dev libfribidi-dev libfreetype6-dev libpng-dev libtiff5-dev libjpeg-dev build-essential libcurl4-openssl-dev libxml2-dev libssl-dev libfontconfig1-dev --yes
+# Copy environment.yml and create the Conda environment
+COPY environment.yml /tmp/environment.yml
 RUN conda config --set always_yes yes --set changeps1 no && \
-    conda list --name root && \
-    conda clean -atipy 
-RUN which conda    
-RUN pip install glimix-core
-RUN git clone https://github.com/broadinstitute/tensorqtl.git
-RUN cd tensorqtl && pip install -r install/requirements.txt .
-RUN pip install Pgenlib
-RUN apt install zip --yes
-RUN wget https://github.com/arq5x/bedtools2/releases/download/v2.30.0/bedtools.static.binary && mv bedtools.static.binary /usr/bin/bedtools && chmod a+x /usr/bin/bedtools
-RUN cd /usr/bin/ && wget https://s3.amazonaws.com/plink1-assets/plink_linux_x86_64_20231211.zip && unzip plink_linux_x86_64_20231211.zip
-RUN rm -r tensorqtl
-RUN ls
-RUN rm -r tmp2 analysis
-RUN rm -r /tmp/miniconda.sh
-RUN pip install gtfparse==1.2.1
-RUN pip install pandas==1.1.3
-RUN which python
-RUN conda install -c conda-forge r-base=4.4.0   
-RUN which R
-RUN pip install h5py numpy pip install pandas-plink bgen-reader bgen matplotlib-venn
-RUN pip install anndata seaborn
-RUN pip install -U scikit-learn
-RUN pip install statsmodels==0.12.2
-RUN pip install numba==0.53.1 scanpy debugpy tensorqtl numpy_sugar
-RUN pip install tables igraph leidenalg glimix-core==3.1.12
-RUN pip install rpy2
-RUN wget https://s3.amazonaws.com/plink2-assets/plink2_linux_x86_64_20240704.zip && unzip plink2_linux_x86_64_20240704.zip
-RUN mv ./plink2 /usr/bin/
-RUN R --no-echo -e "install.packages('ggfortify',repos = 'http://cran.us.r-project.org')"
-RUN R --no-echo -e "install.packages('dplyr',repos = 'http://cran.us.r-project.org')"
-RUN R --no-echo -e "install.packages('readr',repos = 'http://cran.us.r-project.org')"
-RUN R --no-echo -e "install.packages('RColorBrewer',repos = 'http://cran.us.r-project.org')"
-RUN R --no-echo -e "install.packages('devtools',repos = 'http://cran.us.r-project.org')"
-RUN R --no-echo -e "install.packages('rlang',repos = 'http://cran.us.r-project.org')"
-RUN pip install pandas==1.5 
-RUN R --no-echo -e "install.packages('BiocManager',repos = 'http://cran.us.r-project.org')"
-RUN R --no-echo -e "BiocManager::install('edgeR')"
-RUN R --no-echo -e "BiocManager::install('pcatools')"
-RUN R --no-echo -e "BiocManager::install('multtest')"
-RUN R --no-echo -e "BiocManager::install('rhdf5')"
-RUN R --no-echo -e "BiocManager::install('DESeq2')"
-RUN R --no-echo -e "BiocManager::install('PCAtools')"
-RUN R --no-echo -e 'install.packages("Matrix", repos = "https://cran.r-project.org")'
-RUN R --no-echo -e "remotes::install_version('matrixStats', repos = 'http://cran.us.r-project.org')"
-RUN R --no-echo -e "BiocManager::install('qvalue')"
-RUN pip install --upgrade scanpy
+    conda env create -f /tmp/environment.yml && \
+    conda clean -afy && \
+    echo "conda activate eqtl-env" >> ~/.bashrc
+
+# Activate the Conda environment
+ENV PATH="/opt/conda/envs/eqtl-env/bin:$PATH"
+SHELL ["conda", "run", "-n", "eqtl-env", "/bin/bash", "-c"]
+
+# Install Python libraries
+RUN pip install --no-cache-dir \
+    Pgenlib \
+    git+https://github.com/saketkc/pysctransform.git
+
+# Install R packages
+RUN R --no-echo -e "install.packages(c(  'remotes'), repos='http://cran.us.r-project.org')"
+RUN R --no-echo -e "remotes::install_version('matrixStats', repos='http://cran.us.r-project.org')"
+RUN apt-get update && apt-get install -y \
+    gfortran \
+    build-essential \
+    libreadline-dev \
+    libncurses-dev \
+    libbz2-dev \
+    liblzma-dev \
+    zlib1g-dev \
+    wget
+RUN pip install matplotlib==3.5.3
+RUN pip install --upgrade scanpy seaborn pandas
+RUN R --no-echo -e "devtools::install_version('spam', version = '2.9-0', repos = 'http://cran.us.r-project.org')"
+# # Install BCFtools
 RUN wget https://github.com/samtools/bcftools/releases/download/1.19/bcftools-1.19.tar.bz2 \
   && tar jxvf bcftools-1.19.tar.bz2 \
   && cd bcftools-1.19 \
   && ./configure \
   && make \
   && make install
+
+# Install HTSlib
+RUN mkdir -p /opt/htslib && \
+    cd /opt/htslib && \
+    wget -q https://github.com/samtools/htslib/releases/download/1.3.1/htslib-1.3.1.tar.bz2 && \
+    tar -xjf htslib-1.3.1.tar.bz2 && \
+    cd htslib-1.3.1 && make && \
+    rm -f /opt/htslib/htslib-1.3.1.tar.bz2
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential \
+    libcurl4-openssl-dev \
+    libssl-dev \
+    libxml2-dev \
+    libgit2-dev \
+    libgsl-dev \
+    libboost-all-dev \
+    libx11-dev \
+    libxt-dev \
+    libreadline-dev \
+    libpcre2-dev && \
+    apt-get clean && rm -rf /var/lib/apt/lists/*
+
+# Install Rmath library
+RUN mkdir -p /opt/rmath && \
+    cd /opt/rmath && \
+    wget https://cran.r-project.org/src/base/R-3/R-3.2.2.tar.gz && \
+    tar xzvf R-3.2.2.tar.gz && \
+    cd R-3.2.2 && \
+    ./configure --without-x --enable-R-shlib && \
+    cd src/nmath/standalone && \
+    make
+
+RUN mkdir -p /opt/rmath && \
+    cd /opt/rmath && \
+    wget https://cran.r-project.org/src/base/R-3/R-3.2.2.tar.gz && \
+    tar xzvf R-3.2.2.tar.gz && \
+    cd R-3.2.2 && \
+    ./configure && \
+    cd src/nmath/standalone && \
+    make
+
+RUN apt-get update && \
+    apt-get install -y software-properties-common && \
+    add-apt-repository ppa:ubuntu-toolchain-r/test && \
+    apt-get update && \
+    apt-get install -y gcc-11 g++-11
+
+
+RUN R --no-echo -e "install.packages(c(  'SeuratObject'), repos='http://cran.us.r-project.org')"
+RUN R --no-echo -e 'library(remotes); remotes::install_github("satijalab/seurat", "seurat5", quiet = TRUE)'
+RUN R --no-echo -e "remotes::install_github(c('mojaveazure/seurat-disk'), dependencies = TRUE)"
+
+# Install QTLtools
+RUN mkdir -p /opt/qtltools && \
+    cd /opt/qtltools && \
+    wget -q https://qtltools.github.io/qtltools/binaries/QTLtools_1.3.1_source.tar.gz && \
+    tar -xzf QTLtools_1.3.1_source.tar.gz && \
+    cd qtltools && \
+    sed -i 's|BOOST_INC=.*|BOOST_INC=/usr/include|' Makefile && \
+    sed -i 's|BOOST_LIB=.*|BOOST_LIB=/usr/lib/x86_64-linux-gnu|' Makefile && \
+    sed -i 's|RMATH_INC=.*|RMATH_INC=/opt/rmath/R-3.2.2/src/include|' Makefile && \
+    sed -i 's|RMATH_LIB=.*|RMATH_LIB=/opt/rmath/R-3.2.2/src/nmath/standalone|' Makefile && \
+    sed -i 's|HTSLD_INC=.*|HTSLD_INC=/opt/htslib/htslib-1.3.1|' Makefile && \
+    sed -i 's|HTSLD_LIB=.*|HTSLD_LIB=/opt/htslib/htslib-1.3.1|' Makefile && \
+    make && \
+    rm -rf /opt/qtltools/QTLtools_1.3.1_source.tar.gz
+
+ENV PATH="/opt/qtltools/qtltools/bin:${PATH}"
+
+
+# Set library paths
+ENV RMATH_INC=/opt/rmath/R-3.2.2/src/include \
+    RMATH_LIB=/opt/rmath/R-3.2.2/src/nmath/standalone \
+    HTSLD_INC=/opt/htslib/htslib-1.3.1 \
+    HTSLD_LIB=/opt/htslib/htslib-1.3.1
+RUN QTLtools --help 
+# Clean up temporary files
+RUN rm -rf /opt/htslib/htslib-1.3.1.tar.bz2 /opt/rmath/R-3.2.2.tar.gz
+
+# Set default command
+# RUN apt-get update
+# RUN apt-get update && \
+#     apt-get install -y software-properties-common && \
+#     add-apt-repository ppa:ubuntu-toolchain-r/test && \
+#     apt-get update && \
+#     apt-get install -y gcc-11 g++-11
+RUN strings /usr/lib/x86_64-linux-gnu/libstdc++.so.6 | grep GLIBCXX
+
+RUN apt-get autoremove -y && apt-get clean
+ENV LD_LIBRARY_PATH="/opt/libstdc++-old:$LD_LIBRARY_PATH"
+
+
+RUN strings /usr/lib/x86_64-linux-gnu/libstdc++.so.6 | grep GLIBCXX
+RUN strings /usr/lib/x86_64-linux-gnu/libstdc++.so.6 | grep CXXABI
+
+RUN R --no-echo -e "if (!requireNamespace('BiocManager', quietly = TRUE)) install.packages('BiocManager', repos='http://cran.us.r-project.org')"
+RUN R --no-echo -e "BiocManager::install(c('org.Hs.eg.db', 'AnnotationDbi', 'fgsea', 'biomaRt'))"
+RUN R --no-echo -e "install.packages('https://cran.r-project.org/src/contrib/Archive/Matrix/Matrix_1.6-5.tar.gz', repos = NULL, type = 'source')"
+
+CMD ["bash"]
