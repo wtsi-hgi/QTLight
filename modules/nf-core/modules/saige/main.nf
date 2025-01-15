@@ -204,7 +204,7 @@ process SAIGE_S2_CIS {
     label 'process_low'
 
     // Specify the number of forks (10k)
-    // maxForks 1000
+    maxForks 1000
 
     if (workflow.containerEngine == 'singularity' && !params.singularity_pull_docker_container) {
         container "${params.saige_container}"
@@ -304,7 +304,7 @@ process SAIGE_QVAL_COR {
     label 'process_low'
 
     // Specify the number of forks (10k)
-    // maxForks 1000
+    maxForks 1000
 
     if (workflow.containerEngine == 'singularity' && !params.singularity_pull_docker_container) {
         container "https://yascp.cog.sanger.ac.uk/public/singularity_images/wtsihgi_nf_scrna_qc_6bb6af5-2021-12-23-3270149cf265.sif"
@@ -671,7 +671,7 @@ process DETERMINE_TSS_AND_TEST_REGIONS {
     label 'process_low'
 
     // Specify the number of forks (10k)
-    // maxForks 1000
+    maxForks 200
 
     if (workflow.containerEngine == 'singularity' && !params.singularity_pull_docker_container) {
         container "${params.eqtl_container}"
@@ -709,28 +709,25 @@ workflow SAIGE_qtls{
         if (params.SAIGE.aggregation_subentry != '') {
             log.info("------- Analysing ${params.SAIGE.aggregation_subentry} celltypes ------- ")
             // Split the aggregation_subentry parameter into a list of patterns
-                valid_files = phenotype_file.filter { file ->
-                    params.SAIGE.aggregation_subentry.split(',').any { pattern -> "${file}".contains("__${pattern}__") }
-                }
-
-                H5AD_TO_SAIGE_FORMAT(
-                    valid_files,
-                    params.genotype_phenotype_mapping_file,
-                    params.aggregation_columns,
-                    genotype_pcs,
-                    genome_annotation
-                )
-                pheno = H5AD_TO_SAIGE_FORMAT.out.output_pheno
-                gene = H5AD_TO_SAIGE_FORMAT.out.gene_chunk
-        
-
+            valid_files = phenotype_file.filter { file ->
+                params.SAIGE.aggregation_subentry.split(',').any { pattern -> "${file}".contains("__${pattern}__") }
+            }
         } else {
             log.info('------- Analysing all celltypes ------- ')
-            H5AD_TO_SAIGE_FORMAT(phenotype_file,params.genotype_phenotype_mapping_file,params.aggregation_columns,genotype_pcs,genome_annotation)
-            pheno = H5AD_TO_SAIGE_FORMAT.out.output_pheno
-            gene = H5AD_TO_SAIGE_FORMAT.out.gene_chunk
+            valid_files = phenotype_file
         }
 
+        H5AD_TO_SAIGE_FORMAT(
+            valid_files,
+            params.genotype_phenotype_mapping_file,
+            params.aggregation_columns,
+            genotype_pcs,
+            genome_annotation
+        )
+        pheno = H5AD_TO_SAIGE_FORMAT.out.output_pheno
+        gene = H5AD_TO_SAIGE_FORMAT.out.gene_chunk
+
+        gene.subscribe { println "gene: $it" }
         PHENOTYPE_PCs(pheno,params.SAIGE.nr_expression_pcs)
         pheno = PHENOTYPE_PCs.out.output_pheno
 

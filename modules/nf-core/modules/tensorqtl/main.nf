@@ -289,8 +289,21 @@ workflow TENSORQTL_eqtls{
               cond_bed_item + ["$projectDir/assets/fake_file.fq"]
           }
       }
-      
-      // condition_bed.view { "condition_bed item: $it" }
+
+
+      // if (params.TensorQTL.aggregation_subentry != '') {
+      //     log.info("------- Analysing ${params.SAIGE.aggregation_subentry} celltypes ------- ")
+      //     // Split the aggregation_subentry parameter into a list of patterns
+      //     valid_files = phenotype_file.filter { file ->
+      //         params.SAIGE.aggregation_subentry.split(',').any { pattern -> "${file}".contains("__${pattern}__") }
+      //     }
+      // } else {
+      //     log.info('------- Analysing all celltypes ------- ')
+      //     valid_files = phenotype_file
+      // }
+
+      condition_bed.view { "condition_bed item: $it" }
+      // dMean__CD4_Naive_all, /lustre/scratch127/humgen/teams/hgi/mo11/tmp_projects127/sle_project/8.eqtl_analysis/work/6b/2a35dfd61dcea16e2a43d45eaffd0d/Expression_Data.bed.gz, /lustre/scratch127/humgen/teams/hgi/mo11/tmp_projects127/sle_project/8.eqtl_analysis/work/6b/2a35dfd61dcea16e2a43d45eaffd0d/Covariates.tsv, 20pcs, /software/hgi/pipelines/QTLight/QTLight_v1.41/assets/fake_file.fq
       // plink_genotype.subscribe { println "TENSORQTL dist: $it" }
       TENSORQTL(
           condition_bed,

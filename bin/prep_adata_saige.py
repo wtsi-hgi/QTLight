@@ -26,6 +26,7 @@ import gc
 import scipy
 import sys
 import gc
+import re
 # from pysctransform import vst, get_hvg_residuals, SCTransform
 # Define covariate process function
 def preprocess_covariates(df, scale_covariates):
@@ -124,6 +125,10 @@ def main():
     bridge = inherited_options.bridge
 
     print("Loading object")
+    for f1 in aggregate_on_all.split(","):
+        if re.sub(r'\W+', '_', f1.replace(' ', '_')) == phenotype__file.split("__")[0]:
+            aggregate_on_all = f1
+            
     adata = ad.read_h5ad(phenotype__file,backed='r')
     genes=list(adata.var.index)
     if (inherited_options.chr):

@@ -198,10 +198,10 @@ workflow EQTL {
         }
 
         // Saige S1 needs bed file
-        if (params.SAIGE.run){
-            PLINK_CONVERT(plink_convert_input)
-            bim_bed_fam = PLINK_CONVERT.out.bim_bed_fam
-        }
+        
+        PLINK_CONVERT(plink_convert_input)
+        bim_bed_fam = PLINK_CONVERT.out.bim_bed_fam
+        
 
     }else{
         if(params.genotypes.preprocessed_bed_file!=''){
