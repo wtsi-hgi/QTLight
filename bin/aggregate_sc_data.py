@@ -139,8 +139,7 @@ def main():
                     aggregated_data_pre=pd.DataFrame()
                     genotype_phenotype_mapping_pre = []
                     for individual_1 in cell_adata.obs['adata_phenotype_id'].unique():
-                        # individual_indices = cell_adata.obs['adata_phenotype_id'] == individual_1
-                        individual_1_adata = adata[adata.obs['adata_phenotype_id']==individual_1]
+                        individual_1_adata = cell_adata[adata.obs['adata_phenotype_id']==individual_1]
                         if(individual_1_adata.obs.shape[0]>n_cells):
                             print(individual_1)
                             Genotype = individual_1_adata.obs[gt_id_column].unique()[0]
