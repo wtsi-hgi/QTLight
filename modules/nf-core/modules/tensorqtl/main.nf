@@ -55,18 +55,20 @@ process OPTIMISE_PCS{
         
 
     script:
-      sumstats_path = "${params.outdir}/TensorQTL_eQTLS/${condition}/"
-      if ("${interaction}" != 'base') {
-          interaction_file = "${interaction}.tsv"
-          outpath_end = "interaction_output__${interaction}"
-      } else {
+        sumstats_path = "${params.outdir}/TensorQTL_eQTLS/${condition}/"
+        if ("${interaction}" != 'base') {
+            interaction_file = "${interaction}.tsv"
+            outpath_end = "interaction_output__${interaction}"
+            outpath_end_to = outpath_end
+        } else {
           interaction_file = "fake_file.fq"
           outpath_end = "base_output__base"
-          }
+          outpath_end_to = "base_output/base"
+        }
         alpha = "${params.TensorQTL.alpha}"
         alpha_text = alpha.replaceAll("\\.", "pt")
-        outpath = "./OPTIM_pcs/${outpath_end}"
-        tensor_input_path = "./OPTIM_input/${outpath_end}"
+        outpath = "./OPTIM_pcs/${outpath_end_to}"
+        tensor_input_path = "./OPTIM_input/${outpath_end_to}"
         """  
           mkdir -p ${outpath}
           mkdir -p ${tensor_input_path}
@@ -86,7 +88,7 @@ process TRANS_BY_CIS {
       container "${params.eqtl_docker}"
     }
 
-    publishDir  path: "${params.outdir}/TensorQTL_eQTLS/${condition}/${pcs}",
+    publishDir  path: "${params.outdir}/TensorQTL_eQTLS/${condition}/OPTIM_pcs",
                 mode: "${params.copy_mode}",
                 overwrite: "true"
 
@@ -149,7 +151,7 @@ process TRANS_OF_CIS {
       container "${params.eqtl_docker}"
     }
 
-    publishDir  path: "${params.outdir}/TensorQTL_eQTLS/${condition}/${pcs}",
+    publishDir  path: "${params.outdir}/TensorQTL_eQTLS/${condition}/TRANS_BY_CIS",
                 mode: "${params.copy_mode}",
                 overwrite: "true"
 
@@ -280,7 +282,6 @@ workflow TENSORQTL_eqtls{
       if (params.TensorQTL.interaction_file != '') {
           SPLIT_INTERACTIONS(params.TensorQTL.interaction_file)
           interaction_files = SPLIT_INTERACTIONS.out.interactions_files.flatten()
-
           condition_bed = condition_bed.combine(interaction_files)
           
       } else {
@@ -315,8 +316,6 @@ workflow TENSORQTL_eqtls{
       if (params.TensorQTL.optimise_pcs){
           // TENSORQTL.out.pc_qtls_path.view()
           // Make sure all input files are available before running the optimisation
-          
-          
           // Fix the format of the output from TENSORQTL
           prep_optim_pc_channel = TENSORQTL.out.pc_qtls_path.groupTuple(by: [0,1]).map { key1, key2, values -> [key1, key2, values.flatten()]}
           // Create symlinks to the output files
@@ -331,10 +330,9 @@ workflow TENSORQTL_eqtls{
             false
           )
 
-        if (params.TensorQTL.interaction_file != '' && params.TensorQTL.run_gsea)
-         {
-          RUN_GSEA(TENSORQTL_OPTIM.out.pc_qtls_path)
-        }
+          if (params.TensorQTL.interaction_file != '' && params.TensorQTL.run_gsea){
+            RUN_GSEA(TENSORQTL_OPTIM.out.pc_qtls_path)
+          }
 
           if(params.TensorQTL.trans_by_cis){
             log.info 'Running trans-by-cis analysis on optimum nPCs'

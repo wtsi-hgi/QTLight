@@ -130,7 +130,30 @@ workflow EQTL {
         }
 
         AGGREGATE_UMI_COUNTS(splits_h5ad,params.aggregation_columns,params.gt_id_column,params.sample_column,params.n_min_cells,params.n_min_individ)
-        out2 = AGGREGATE_UMI_COUNTS.out.phenotype_genotype_file.map { data ->
+
+        if (params.TensorQTL.aggregation_subentry != '') {
+            log.info("------- Analysing ${params.TensorQTL.aggregation_subentry} celltypes ------- ")
+            AGGREGATE_UMI_COUNTS.out.phenotype_genotype_file.subscribe { println "AGGREGATE_UMI_COUNTS.out.phenotype_genotype_file: $it" }
+            // Split the aggregation_subentry parameter into a list of patterns
+            valid_files = AGGREGATE_UMI_COUNTS.out.phenotype_genotype_file
+                .filter { tuple -> 
+                    def (sample, file, gp_mapping) = tuple
+                    def matches = params.TensorQTL.aggregation_subentry.split(',').any { pattern -> "${file}".contains("__${pattern}__") }
+
+                    if (matches) {
+                        println "MATCH: Sample=${sample}, File=${file}, GO Mapping=${gp_mapping}"
+                    } else {
+                        println "NO MATCH: Sample=${sample}, File=${file}, GO Mapping=${gp_mapping}"
+                    }
+
+                    return matches
+                }
+        } else {
+            log.info('------- Analysing all celltypes ------- ')
+            valid_files =  AGGREGATE_UMI_COUNTS.out.phenotype_genotype_file
+        }
+
+        out2 = valid_files.map { data ->
                 def (item, list1, list2) = data
                 // Ensure list1 and list2 are processed as lists
                 list1 = (list1 instanceof List) ? list1 : [list1]
@@ -141,7 +164,6 @@ workflow EQTL {
                 }
                 return result
             }.flatMap { it }
-        // out2.subscribe { println "out2: $it" }
 
         if(params.genotype_phenotype_mapping_file!=''){
             // Here user has provided a genotype phenotype file where the provided gt_id_column is contaiming a mapping file instead of actual genotype

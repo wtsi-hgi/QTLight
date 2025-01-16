@@ -96,6 +96,11 @@ def main():
     h5ad = options.h5ad
     agg_columns = options.agg_columns
     agg_columns = agg_columns.split(",")
+    if len(agg_columns)>1:
+        for f1 in agg_columns:
+            if re.sub(r'\W+', '_', f1.replace(' ', '_')) in h5ad.split("__")[0]:
+                agg_columns = [f1]
+             
     gt_id_column =  options.gt_id_column
     sample_column = options.sample_column
     n_individ = int(options.n_individ)
@@ -115,6 +120,7 @@ def main():
                 print("adata.X has been updated with 'dMean_normalised'.")
             else:
                 print('probably already normalised since no layer added')
+                
         for agg_col in agg_columns:
 
             print(agg_col)
@@ -135,13 +141,17 @@ def main():
                 adata.strings_to_categoricals()
                 # type='CD4 CTL'
                 cell_adata = adata[adata.obs[agg_col]==type]
+                cell_index = set(adata[adata.obs[agg_col]==type].obs.index)
                 if (len(cell_adata.obs['adata_phenotype_id'].unique())>n_individ):
                     aggregated_data_pre=pd.DataFrame()
                     genotype_phenotype_mapping_pre = []
                     for individual_1 in cell_adata.obs['adata_phenotype_id'].unique():
-                        individual_1_adata = cell_adata[adata.obs['adata_phenotype_id']==individual_1]
+                        # individual_indices = cell_adata.obs['adata_phenotype_id'] == individual_1
+                        donot_index = set(adata[adata.obs['adata_phenotype_id']==individual_1].obs.index)
+                        cell_donor_index = cell_index.intersection(donot_index)
+                        individual_1_adata = adata[list(cell_donor_index)]
                         if(individual_1_adata.obs.shape[0]>n_cells):
-                            print(individual_1)
+                            # print(individual_1)
                             Genotype = individual_1_adata.obs[gt_id_column].unique()[0]
                             # Change this to any aggregation strategy
                             #as per https://www.medrxiv.org/content/10.1101/2021.10.09.21264604v1.full.pdf 
