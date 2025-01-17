@@ -59,16 +59,14 @@ process OPTIMISE_PCS{
         if ("${interaction}" != 'base') {
             interaction_file = "${interaction}.tsv"
             outpath_end = "interaction_output__${interaction}"
-            outpath_end_to = outpath_end
         } else {
           interaction_file = "fake_file.fq"
           outpath_end = "base_output__base"
-          outpath_end_to = "base_output/base"
         }
         alpha = "${params.TensorQTL.alpha}"
         alpha_text = alpha.replaceAll("\\.", "pt")
-        outpath = "./OPTIM_pcs/${outpath_end_to}"
-        tensor_input_path = "./OPTIM_input/${outpath_end_to}"
+        outpath = "./OPTIM_pcs/${outpath_end}"
+        tensor_input_path = "./OPTIM_input/${outpath_end}"
         """  
           mkdir -p ${outpath}
           mkdir -p ${tensor_input_path}

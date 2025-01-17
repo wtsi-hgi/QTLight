@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
-__author__ = 'Tobi Alegbe'
-__date__ = '2023-04-27'
+__author__ = 'Tobi Alegbe & Matiss Ozols'
+__date__ = '2025-01-17'
 __version__ = '0.0.1'
 
 
