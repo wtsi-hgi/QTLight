@@ -27,6 +27,7 @@ process TENSORQTL {
     each path(plink_files_prefix)
     val(skip_nominal)
     val(preprocess_bed)
+    val(skip_gwas)
 
   output:
     tuple val(condition), val(interaction), path("${outpath}"), emit: pc_qtls_path
@@ -48,6 +49,10 @@ process TENSORQTL {
       }else{
         chrom_to_map_trans = "--chrom_to_map_trans ${params.TensorQTL.chrom_to_map_trans} "
       }
+    }
+
+    if (skip_gwas){
+      chrom_to_map_trans = ""
     }
 
     if (skip_nominal) {

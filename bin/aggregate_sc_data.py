@@ -107,8 +107,11 @@ def main():
     n_cells = int(options.n_cells)
     print('Reading in data...')
     adata = sc.read_h5ad(filename=h5ad, backed='r')
+    adata.obs.index = adata.obs.index + "___" + adata.obs.groupby(adata.obs.index).cumcount().astype(str)
+    # make sure indexes are unique
     adata.strings_to_categoricals()
     adata.obs['adata_phenotype_id'] = adata.obs[gt_id_column].astype('str')+'_'+adata.obs[sample_column].astype('str')
+    
 
 
     for method in methods:
@@ -148,7 +151,7 @@ def main():
                     for individual_1 in cell_adata.obs['adata_phenotype_id'].unique():
                         # individual_indices = cell_adata.obs['adata_phenotype_id'] == individual_1
                         donot_index = set(adata[adata.obs['adata_phenotype_id']==individual_1].obs.index)
-                        cell_donor_index = cell_index.intersection(donot_index)
+                        cell_donor_index = set(cell_index.intersection(donot_index))
                         individual_1_adata = adata[list(cell_donor_index)]
                         if(individual_1_adata.obs.shape[0]>n_cells):
                             # print(individual_1)

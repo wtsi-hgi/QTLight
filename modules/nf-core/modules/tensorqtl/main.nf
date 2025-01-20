@@ -308,6 +308,7 @@ workflow TENSORQTL_eqtls{
           condition_bed,
           plink_genotype,
           params.TensorQTL.optimise_pcs,
+          true,
           true
       )
 
@@ -324,6 +325,7 @@ workflow TENSORQTL_eqtls{
           TENSORQTL_OPTIM(
             OPTIMISE_PCS.out.cis_input,
             plink_genotype,
+            false,
             false,
             false
           )
