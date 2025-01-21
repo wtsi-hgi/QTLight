@@ -487,7 +487,7 @@ process PHENOTYPE_PCs{
     tag { sanitized_columns }
 
     if (workflow.containerEngine == 'singularity' && !params.singularity_pull_docker_container) {
-        container "/lustre/scratch127/humgen/teams/hgi/mo11/tmp_projects127/cardinal_QTLs/ELGH/shuangs_annotations_genomeWide/test/eqtl_29_11_2024.sif"
+        container "${params.eqtl_container}"
     } else {
         container "${params.eqtl_docker}"
     }   

@@ -14,9 +14,9 @@ proc ModulesHelp { } {
     puts stderr " 	*QTLight sample_input (or QTLight sample_input):will create a directory sample_input in your current working directory where you will sample input files."
 }
  
-module-whatis   "Nextflow Pipeline  - QTLight version $version is an qtl mapping pipeline for scrna, bulk-RNAseq, Chipseq, atac, splicing, metabolomics. It uses limix and tensorqtl"
+#//module-whatis   "Nextflow Pipeline  - QTLight version $version is an qtl mapping pipeline for scrna, bulk-RNAseq, Chipseq, atac, splicing, metabolomics. It uses limix and tensorqtl"
 module-whatis   "Name: QTLight (https://github.com/wtsi-hgi/QTLight), Version: 1.41"
-module-whatis "Packages: tensorqtl-1.0.9"
+module-whatis "Packages: tensorqtl-1.0.9 SaigeQTL"
 
 set install /software/hgi/pipelines/QTLight/QTLight_v1.41
 module load ISG/singularity/3.11.4
