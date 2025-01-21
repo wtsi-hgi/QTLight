@@ -700,6 +700,7 @@ workflow SAIGE_qtls{
         phenotype_file
         bim_bed_fam
         genome_annotation
+        genotype_phenotype_mapping_file
 
     main:
         log.info('------- Running SAIGE QTLs ------- ')
@@ -711,15 +712,19 @@ workflow SAIGE_qtls{
             // Split the aggregation_subentry parameter into a list of patterns
             valid_files = phenotype_file.filter { file ->
                 params.SAIGE.aggregation_subentry.split(',').any { pattern -> "${file}".contains("__${pattern}__") }
+                
             }
         } else {
             log.info('------- Analysing all celltypes ------- ')
             valid_files = phenotype_file
         }
+        valid_files.subscribe { println "valid_files: $it" }
+        genotype_pcs.subscribe { println "genotype_pcs: $it" }
+        genome_annotation.subscribe { println "genome_annotation: $it" }
 
         H5AD_TO_SAIGE_FORMAT(
             valid_files,
-            params.genotype_phenotype_mapping_file,
+            genotype_phenotype_mapping_file,
             params.aggregation_columns,
             genotype_pcs,
             genome_annotation

@@ -299,7 +299,7 @@ workflow EQTL {
     // SAIGE SCRNA QTL mapping method
     if (params.method=='single_cell'){
         if (params.SAIGE.run){
-            SAIGE_qtls(genotype_pcs_file,adata,bim_bed_fam,genome_annotation)
+            SAIGE_qtls(genotype_pcs_file,adata,bim_bed_fam,genome_annotation,genotype_phenotype_mapping_file)
         }
     }
 

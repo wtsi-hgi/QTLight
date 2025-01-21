@@ -204,8 +204,12 @@ def main():
             if bridge:
                 br1 = pd.read_csv(bridge, sep='\t').set_index('RNA')
                 br2 = temp.obs[genotype_id].map(br1['Genotype'])
-                temp.obs[genotype_id] = br2
+                if br2.isna().all():
+                    print('bridge not used')
+                else:
+                    temp.obs[genotype_id] = br2
                 del br1
+                del br2
             temp = temp[temp.obs[genotype_id].isin(geno_pcs.index)]        
 
                 
@@ -259,9 +263,12 @@ def main():
             covariates_string=''
             if covariates:
                 print("Extracting and sorting covariates")
-                to_add = preprocess_covariates(temp.obs[covariates], scale_covariates)
-                counts = counts.join(to_add)
-                covariates_string = ','+inherited_options.covariates
+                try:
+                    to_add = preprocess_covariates(temp.obs[covariates], scale_covariates)
+                    counts = counts.join(to_add)
+                    covariates_string = ','+inherited_options.covariates
+                except:
+                    print(f'{covariates} at least one of these do not exist')
             
             counts.index = counts.index + counts.index.duplicated().cumsum().astype(str)
             temp.obs.index = temp.obs.index + temp.obs.index.duplicated().cumsum().astype(str)
