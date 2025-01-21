@@ -122,7 +122,6 @@ workflow EQTL {
         
         if (params.normalise_before_or_after_aggregation=='after'){
             // here we normalise the adata per splits
-            // adata.subscribe { println "adata: $it" }
             NORMALISE_ANNDATA(adata)
             splits_h5ad = NORMALISE_ANNDATA.out.adata
         }else{
@@ -145,7 +144,6 @@ workflow EQTL {
                     } else {
                         println "NO MATCH: Sample=${sample}, File=${file}, GO Mapping=${gp_mapping}"
                     }
-
                     return matches
                 }
         } else {
@@ -182,9 +180,9 @@ workflow EQTL {
         channel_input_data_table=channel_input_data_table2.collect()
     }
 
-    
-    if (params.genotypes.preprocessed_bed_file=='' && params.genotypes.preprocessed_pgen_file==''){
-        // USE VCF FILE
+
+    if (params.input_vcf){
+        // VCF file processing
         log.info 'Lets preprocess genotypes'
         donorsvcf = Channel.from(params.input_vcf)
         if (params.genotypes.subset_genotypes_to_available){
@@ -202,147 +200,55 @@ workflow EQTL {
         }else{
             plink_convert_input=subset_genotypes  
         }
-    }else if (params.genotypes.preprocessed_pgen_file!=''){
-        plink_path = Channel.from(params.genotypes.preprocessed_pgen_file)
     }else{
-        plink_path = Channel.from(params.genotypes.preprocessed_pgen_file)
+        plink_convert_input=Chenel.of()
+    }
+
+    if (params.genotypes.preprocessed_bed_file==''){
+        // BED file preparation
+        PLINK_CONVERT(plink_convert_input)
+        bim_bed_fam = PLINK_CONVERT.out.bim_bed_fam
+        plink_path_bed = PLINK_CONVERT.out.plink_path
+    }else{
+        plink_path_bed = Channel.from(params.genotypes.preprocessed_bed_file)
+        Channel.fromPath("${params.genotypes.preprocessed_bed_file}/*.bed", followLinks: true)
+            .set { bed_files }
+
+        Channel.fromPath("${params.genotypes.preprocessed_bed_file}/*.bim", followLinks: true)
+            .set { bim_files }
+
+        Channel.fromPath("${params.genotypes.preprocessed_bed_file}/*.fam", followLinks: true)
+            .set { fam_files }
+        bim_bed_fam = bim_files
+                    .combine(bed_files)
+                    .combine(fam_files)  
+    }
+
+
+    if (params.genotypes.preprocessed_pgen_file==''){
+        // USE VCF FILE
+        PGEN_CONVERT(plink_convert_input)
+        plink_path_pgen = PGEN_CONVERT.out.plink_path
+    }else{
+        plink_path_pgen = Channel.from(params.genotypes.preprocessed_pgen_file)
     }
 
 
     // If use dosages we convert vcf to pgen
     // Otherwise we convert it to bed
     if(params.genotypes.use_gt_dosage){
-        if(params.genotypes.preprocessed_pgen_file==''){
-            PGEN_CONVERT(plink_convert_input)
-            plink_path = PGEN_CONVERT.out.plink_path
-        }else{
-            plink_path = Channel.from(params.genotypes.preprocessed_pgen_file)
-        }
-
-        // Saige S1 needs bed file
-        
-        PLINK_CONVERT(plink_convert_input)
-        bim_bed_fam = PLINK_CONVERT.out.bim_bed_fam
-        
-
+        plink_path = plink_path_pgen
     }else{
-        if(params.genotypes.preprocessed_bed_file!=''){
-            // USE BED FILE
-            plink_path = Channel.from(params.genotypes.preprocessed_bed_file)
-            Channel.fromPath("${params.genotypes.preprocessed_bed_file}/*.bed", followLinks: true)
-                .set { bed_files }
-
-            Channel.fromPath("${params.genotypes.preprocessed_bed_file}/*.bim", followLinks: true)
-                .set { bim_files }
-
-            Channel.fromPath("${params.genotypes.preprocessed_bed_file}/*.fam", followLinks: true)
-                .set { fam_files }
-            bim_bed_fam = bim_files
-                        .combine(bed_files)
-                        .combine(fam_files)   
-        }else{
-            // here we dont use dosage for analysis
-            PLINK_CONVERT(plink_convert_input)
-            plink_path = PLINK_CONVERT.out.plink_path
-            bim_bed_fam = PLINK_CONVERT.out.bim_bed_fam
-        }         
-
+        plink_path = plink_path_bed
     }
-        
-    
 
-
-
-
-
-        // we prioritise vcf to convert to pgen
-    //     if(params.genotypes.preprocessed_pgen_file==''){
-    //         if(params.genotypes.use_gt_dosage){
-    //             if (params.input_vcf!=''){
-    //                 PGEN_CONVERT(plink_convert_input)
-    //                 plink_path = PGEN_CONVERT.out.plink_path
-    //             }
-    //         }else{
-    //             // here we dont use dosage for analysis
-    //             PLINK_CONVERT(plink_convert_input)
-    //             plink_path = plink_path
-    //         }
-    //     }else{
-    //         if(params.genotypes.use_gt_dosage){
-    //             plink_path = Channel.from(params.genotypes.preprocessed_pgen_file)
-    //         }else{
-    //             // here we dont use dosage for analysis
-    //             plink_convert_input = Channel.from(params.genotypes.preprocessed_pgen_file)
-    //             PLINK_CONVERT(plink_convert_input)
-    //             plink_path = plink_path
-    //         }
-    //     }
-
-    // }
-    
-    // if(params.genotypes.preprocessed_pgen_file!=''){
-    //     // USE PGEN FILE
-    //     plink_convert_input=Channel.from(genotypes.preprocessed_pgen_file)
-    //     PLINK_CONVERT(plink_convert_input)
-    //     if(params.genotypes.use_gt_dosage){
-    //         plink_path = plink_convert_input
-    //     }else{
-    //         // here we dont use dosage for analysis
-    //         plink_path = PLINK_CONVERT.out.plink_path
-    //     }
-    //     bim_bed_fam = PLINK_CONVERT.out.bim_bed_fam
-    // }
-    
-    
-    // if (params.genotypes.preprocessed_bed_file=='' || params.genotypes.preprocessed_pgen_file==''){
-
-    //     // 2) Generate the PLINK file
-    //     PLINK_CONVERT(plink_convert_input)
-    //     plink_path = PLINK_CONVERT.out.plink_path
-    //     bim_bed_fam = PLINK_CONVERT.out.bim_bed_fam
-
-    //     // we prioritise vcf to convert to pgen
-    //     if(params.genotypes.preprocessed_pgen_file==''){
-    //         if(params.genotypes.use_gt_dosage){
-    //             if (params.input_vcf!=''){
-    //                 PGEN_CONVERT(plink_convert_input)
-    //                 plink_path = PGEN_CONVERT.out.plink_path
-    //             }
-    //         }else{
-    //             // here we dont use dosage for analysis
-    //             plink_path = plink_path
-    //         }
-    //     }
-    // }
-
-    // // // 
-    // if (params.LIMIX.run){
-        
-    // }
-    
-
-    // if(params.genotypes.preprocessed_pgen_file==''){
-    //     if(params.genotypes.use_gt_dosage){
-    //         // Here we are using dosage for anaysis.
-    //         if (params.input_vcf==''){
-    //             PGEN_CONVERT(plink_path)
-    //             plink_path = PGEN_CONVERT.out.plink_path
-    //         }
-
-    //     }else{
-    //         // here we dont use dosage for analysis
-    //         plink_path = plink_path
-    //     }
-    // }
+    // GENOTYPE PCs
     if (params.covariates.genotype_pcs_file==''){
         GENOTYPE_PC_CALCULATION(plink_path)
         genotype_pcs_file = GENOTYPE_PC_CALCULATION.out.gtpca_plink
     }else{
         genotype_pcs_file = Channel.fromPath(params.covariates.genotype_pcs_file)
     }
-    
-
-    // condition_channel = condition_channel.unique() 
 
     // 4) Phenotype file preperation including PCs, normalisation
     genome_annotation = Channel.from(params.annotation_file)
@@ -370,7 +276,7 @@ workflow EQTL {
         // Curently we are testing all the genes for all the possible gene cis windoes.
         LIMIX_eqtls(
             filtered_pheno_channel,
-            plink_path,
+            plink_path_bed,
             genome_annotation
         )
     }

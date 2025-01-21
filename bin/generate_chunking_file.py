@@ -74,12 +74,10 @@ def main():
     )
     options = parser.parse_args()
 
-    # genes = int(options.chunk_size)
-
     try:
         df = read_gtf(options.genome_annotation)
-        df2 = df[df.feature == 'gene']
-        Gene_Chr_Start_End_Data =df2[['gene_id','start','end','seqname','strand']]
+        df2 = df.filter(df["feature"] == "gene")
+        Gene_Chr_Start_End_Data =df2[['gene_id','start','end','seqname','strand']].to_pandas()
     except:
         Gene_Chr_Start_End_Data = pd.read_csv(options.genome_annotation,index_col=None,sep='\t')
         
