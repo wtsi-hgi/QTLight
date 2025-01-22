@@ -150,9 +150,9 @@ process LIMIX{
             export MPLCONFIGDIR=/tmp 
             cut -f 1,2 -d \$'\\t' ${individual2sample_filename} > data_no_sample_category.txt
             run_limix_QTL_analysis.py --plink ${genotypeFile}/plink_genotypes -af ${annotationFile} -pf ${phenotypeFile} -cf ${covariateFile} -od ${outputFolder} -smf data_no_sample_category.txt -rf ${kinship_path} -np ${numberOfPermutations} -maf ${minorAlleleFrequency} -hwe ${hwe} -cr ${callRate} -c -gm standardize -w ${windowSize} --block_size ${blockSize}
-            mv snp_metadata_all.txt ${condition}_snp_metadata_${chunk_number}.txt
-            mv qtl_results_all.h5 ${condition}_qtl_results_${chunk_number}.h5
-            mv feature_metadata_all.txt ${condition}_feature_metadata_${chunk_number}.txt
+            mv snp_metadata_all.txt ${condition}_snp_metadata_${chunk_number}.txt || echo 'not available'
+            mv qtl_results_all.h5 ${condition}_qtl_results_${chunk_number}.h5 || echo 'not available'
+            mv feature_metadata_all.txt ${condition}_feature_metadata_${chunk_number}.txt || echo 'not available'
         """
     
 }

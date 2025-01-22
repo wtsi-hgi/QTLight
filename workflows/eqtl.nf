@@ -84,10 +84,11 @@ workflow EQTL {
     // if single cell data then have to prepere pseudo bulk dataset.
     if (params.method=='bulk'){
         log.info '------ Bulk analysis ------'
+        log.info "------ ${params.genotype_phenotype_mapping_file} ------"
         genotype_phenotype_mapping_file=params.genotype_phenotype_mapping_file
         phenotype_file=params.phenotype_file
 
-        input_channel = Channel.fromPath(genotype_phenotype_mapping_file, followLinks: true, checkIfExists: true)
+        input_channel = Channel.fromPath(genotype_phenotype_mapping_file)
         
         input_channel.splitCsv(header: true, sep: params.input_tables_column_delimiter)
             .map{row->tuple(row.Genotype)}.distinct()
@@ -242,7 +243,7 @@ workflow EQTL {
         plink_path = plink_path_bed
     }
 
-    // GENOTYPE PCs
+    // // GENOTYPE PCs
     if (params.covariates.genotype_pcs_file==''){
         GENOTYPE_PC_CALCULATION(plink_path)
         genotype_pcs_file = GENOTYPE_PC_CALCULATION.out.gtpca_plink
@@ -254,8 +255,8 @@ workflow EQTL {
     genome_annotation = Channel.from(params.annotation_file)
     // Prepeare chunking file
     
-    // MBV method from QTLTools (PMID 28186259)  
-    // RASCAL
+    // // MBV method from QTLTools (PMID 28186259)  
+    // // RASCAL
     
 
     NORMALISE_and_PCA_PHENOTYPE(phenotype_condition)
@@ -292,14 +293,18 @@ workflow EQTL {
             plink_path,
         )
     }
-    genotype_pcs_file.subscribe { println "genotype_pcs_file.out.adata: $it" }
-    adata.subscribe { println "adata.out.adata: $it" }
-    bim_bed_fam.subscribe { println "bim_bed_fam.out.adata: $it" }
-    genome_annotation.subscribe { println "genome_annotation.out.adata: $it" }
+
     // SAIGE SCRNA QTL mapping method
     if (params.method=='single_cell'){
         if (params.SAIGE.run){
-            SAIGE_qtls(genotype_pcs_file,adata,bim_bed_fam,genome_annotation,genotype_phenotype_mapping_file)
+
+            if (params.genotype_phenotype_mapping_file==''){
+                saige_genotype_phenotype_mapping_file = Channel.of("$projectDir/assets/fake_file.fq")
+            }else{
+                saige_genotype_phenotype_mapping_file = Channel.fromPath(params.genotype_phenotype_mapping_file, followLinks: true, checkIfExists: true)
+            }
+
+            SAIGE_qtls(genotype_pcs_file,adata,bim_bed_fam,genome_annotation,saige_genotype_phenotype_mapping_file)
         }
     }
 
