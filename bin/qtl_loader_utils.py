@@ -99,7 +99,8 @@ def get_genotype_data(geno_prefix, plinkGenotype):
         fam.set_index('iid',inplace=True)
         bgen=None
     else :
-        bgen = read_bgen(geno_prefix+'.bgen', verbose=False)
+        bgen = read_bgen(geno_prefix, verbose=False)
+        pgen = None
         bed=None
         fam =bgen['samples']
         fam = fam.to_frame("iid")

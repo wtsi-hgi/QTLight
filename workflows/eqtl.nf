@@ -53,7 +53,7 @@ multiqc_options.args += params.multiqc_title ? Utils.joinModuleArgs(["--title \"
 //
 // include { FASTQC  } from '../modules/nf-core/modules/fastqc/main'  addParams( options: modules['fastqc'] )
 include {PREPROCESS_GENOTYPES} from '../modules/nf-core/modules/preprocess_genotypes/main' 
-include {PLINK_CONVERT;PGEN_CONVERT} from '../modules/nf-core/modules/plink_convert/main' 
+include {PLINK_CONVERT;PGEN_CONVERT;BGEN_CONVERT} from '../modules/nf-core/modules/plink_convert/main' 
 include {SUBSET_GENOTYPE} from '../modules/nf-core/modules/subset_genotype/main' 
 include {GENOTYPE_PC_CALCULATION} from '../modules/nf-core/modules/genotype_pc_calculation/main' 
 include {SPLIT_PHENOTYPE_DATA} from '../modules/nf-core/modules/split_phenotype_data/main' 
@@ -67,6 +67,8 @@ include {TENSORQTL_eqtls} from '../modules/nf-core/modules/tensorqtl/main'
 include {H5AD_TO_SAIGE_FORMAT} from '../modules/nf-core/modules/saige/main'
 include {SAIGE_qtls} from '../modules/nf-core/modules/saige/main'
 include {SUBSET_PCS} from '../modules/nf-core/modules/covar_processing/main'
+include {KINSHIP_CALCULATION} from "$projectDir/modules/nf-core/modules/kinship_calculation/main"
+
 // include {OPTIMISE_PCS} from '../modules/nf-core/modules/optimise_pcs/main'
 /*
 ========================================================================================
@@ -268,7 +270,20 @@ workflow EQTL {
 
     // LIMIX QTL mapping method
     if (params.LIMIX.run){
-        // 3) Generate the kinship matrix and genotype PCs
+        KINSHIP_CALCULATION(plink_path)
+        kinship_file = KINSHIP_CALCULATION.out.kinship_matrix
+
+        
+            if(params.genotypes.use_gt_dosage){
+                if (params.genotypes.preprocessed_bgen_file==''){
+                    BGEN_CONVERT(plink_convert_input)
+                    plink_path_limix = BGEN_CONVERT.out.plink_path
+                }else{
+                    plink_path_limix = Channel.from(params.genotypes.preprocessed_bgen_file)
+                }
+            }else{
+                plink_path_limix = plink_path_bed
+            }
         
         filtered_pheno_channel =SUBSET_PCS.out.for_bed.map { tuple ->  [tuple[3],[[tuple[0],tuple[1],tuple[2]]]].combinations()}.flatten().collate(4)
         
@@ -277,8 +292,9 @@ workflow EQTL {
         // Curently we are testing all the genes for all the possible gene cis windoes.
         LIMIX_eqtls(
             filtered_pheno_channel,
-            plink_path_bed,
-            genome_annotation
+            plink_path_limix,
+            genome_annotation,
+            kinship_file
         )
     }
 

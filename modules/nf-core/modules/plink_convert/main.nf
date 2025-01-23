@@ -1,3 +1,39 @@
+process BGEN_CONVERT{
+    // Converts VCF to PLINK format, makes bed/bim/fam if use_gt_dosage param is false
+    // otherwise makes pgen/psam/pvar with dosages
+
+    scratch false      // use tmp directory
+    label 'process_medium'
+    if (workflow.containerEngine == 'singularity' && !params.singularity_pull_docker_container) {
+        container "${params.eqtl_container}"
+
+    publishDir  path: "${params.outdir}/genotypes",
+                mode: "${params.copy_mode}",
+                overwrite: "true"        
+        
+    } else {
+        container "${params.eqtl_docker}"
+    }
+
+    input:
+        path(file__vcf)
+    output:
+        path("genotypes_bgen.bgen"), emit: plink_path
+
+    script:
+        if ("${file__vcf}".contains(".vcf")) {
+            ext1 = "--vcf"
+        } else {
+            ext1 = "--bcf"
+        }
+
+
+        """
+            plink2 ${ext1} ${file__vcf} --make-pgen --out temp
+            plink2 --pfile temp --export bgen-1.2 --out genotypes_bgen
+        """    
+}
+
 process PLINK_CONVERT{
     
     // Converts VCF to PLINK format, makes bed/bim/fam if use_gt_dosage param is false

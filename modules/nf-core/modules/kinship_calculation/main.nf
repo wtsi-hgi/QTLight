@@ -25,7 +25,7 @@ process KINSHIP_CALCULATION {
         }else{
             pgen_or_bed = "--bfile"
         }
-        pgen_or_bed = "--bfile" //ATM only bed is used in LIMIX
+        // pgen_or_bed = "--bfile" //ATM only bed is used in LIMIX
         """
             plink2 --freq counts ${pgen_or_bed} ${plink_path}/plink_genotypes --out tmp_gt_plink_freq
             plink2 --make-rel square --read-freq tmp_gt_plink_freq.acount ${pgen_or_bed} ${plink_path}/plink_genotypes

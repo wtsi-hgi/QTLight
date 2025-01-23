@@ -1,4 +1,3 @@
-include {KINSHIP_CALCULATION} from "$projectDir/modules/nf-core/modules/kinship_calculation/main"
 
 process CHUNK_GENOME{
     tag "$condition, $nr_phenotype_pcs"
@@ -151,14 +150,22 @@ process LIMIX{
 
         outputFolder='./'
         chunk_number = "${annotationFile}".replaceFirst(/.*__(\d+)\.tsv$/, '$1')
+
+        if (params.genotypes.use_gt_dosage) {
+            genotypeFile = "--bgen ${genotypeFile}"
+        }else{
+            genotypeFile = "--plink ${genotypeFile}/plink_genotypes "
+        }
+
+
         """
             export NUMBA_CACHE_DIR=/tmp
             export MPLCONFIGDIR=/tmp 
             cut -f 1,2 -d \$'\\t' ${individual2sample_filename} > data_no_sample_category.txt
-            run_limix_QTL_analysis.py --plink ${genotypeFile}/plink_genotypes -af ${annotationFile} -pf ${phenotypeFile} -cf ${covariateFile} -od ${outputFolder} -smf data_no_sample_category.txt -rf ${kinship_path} -np ${numberOfPermutations} -maf ${minorAlleleFrequency} -hwe ${hwe} -cr ${callRate} -c -gm standardize -w ${windowSize} --block_size ${blockSize}
-            mv snp_metadata_all.txt ${condition}_snp_metadata_${chunk_number}.txt || echo 'not available'
-            mv qtl_results_all.h5 ${condition}_qtl_results_${chunk_number}.h5 || echo 'not available'
-            mv feature_metadata_all.txt ${condition}_feature_metadata_${chunk_number}.txt || echo 'not available'
+            run_limix_QTL_analysis.py ${genotypeFile} -af ${annotationFile} -pf ${phenotypeFile} -cf ${covariateFile} -od ${outputFolder} -smf data_no_sample_category.txt -rf ${kinship_path} -np ${numberOfPermutations} -maf ${minorAlleleFrequency} -hwe ${hwe} -cr ${callRate} -c -gm standardize -w ${windowSize} --block_size ${blockSize}
+            mv snp_metadata_all.txt ${condition}_snp_metadata_${chunk_number}.txt
+            mv qtl_results_all.h5 ${condition}_qtl_results_${chunk_number}.h5
+            mv feature_metadata_all.txt ${condition}_feature_metadata_${chunk_number}.txt
         """
     
 }
@@ -168,14 +175,14 @@ workflow LIMIX_eqtls{
         filtered_pheno_channel
         plink_genotype
         genome_annotation
-
+        kinship_file
     main:
 
-        KINSHIP_CALCULATION(plink_genotype)
+
         CHUNK_GENOME(genome_annotation,filtered_pheno_channel,params.chunkSize)
 
         chunking_channel=CHUNK_GENOME.out.filtered_chunking_file
-        kinship_file = KINSHIP_CALCULATION.out.kinship_matrix
+        
 
         result = chunking_channel.flatMap { item ->
             def (condition,phenotype_file,phenotype_pcs,chunging_file,mapping_file) = item
