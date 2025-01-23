@@ -24,7 +24,7 @@ def main():
         action='version',
         version='%(prog)s {version}'.format(version=__version__)
     )
-
+    parser.add_argument('-chr', '--chr', dest='chr', required=False, default=None)
     parser.add_argument(
         '-covar', '--covar_file',
         action='store',
@@ -113,7 +113,12 @@ def main():
     BED_Data.loc[idx1,"end"]=Data.loc[idx1,"end"]
     
     BED_Data = BED_Data.drop('strand',axis=1)
-
+    BED_Data = BED_Data.sort_values(by=['chromosome'])
+    
+    if (options.chr):
+        chrs = options.chr.split(',')
+        BED_Data = BED_Data[BED_Data['chromosome'].isin(chrs)]
+        
     def split_dataframe(df, chunk_size):
         return [df.iloc[i:i + chunk_size] for i in range(0, len(df), chunk_size)]
 

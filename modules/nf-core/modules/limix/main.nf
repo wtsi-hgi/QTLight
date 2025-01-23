@@ -20,8 +20,14 @@ process CHUNK_GENOME{
         tuple val(condition),path(phenotype_file), path(phenotype_pcs),path("Chunging_file*.tsv"),path(mapping_file) , emit: filtered_chunking_file
     script:
         nr_phenotype_pcs = phenotype_pcs.getSimpleName()
+        if ("${params.LIMIX.chromosomes_to_test}"!=''){
+            chromosomes_as_string = params.LIMIX.chromosomes_to_test.join(',')
+            cond2 = " --chr ${chromosomes_as_string}"
+        }else{
+            cond2 = " "
+        }
         """
-            generate_chunking_file.py --genome_annotation ${genome_annotation} --chunk_size ${chunkSize} --phenotype_file ${phenotype_file} --covar_file ${phenotype_pcs} --condition ${condition}  --genotype_phenotype_file ${mapping_file}
+            generate_chunking_file.py --genome_annotation ${genome_annotation} --chunk_size ${chunkSize} --phenotype_file ${phenotype_file} --covar_file ${phenotype_pcs} --condition ${condition}  --genotype_phenotype_file ${mapping_file} ${cond2}
         """
     
 }
