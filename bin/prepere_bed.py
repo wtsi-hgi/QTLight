@@ -54,6 +54,7 @@ def main():
     )
 
     options = parser.parse_args()
+    midpoint = False
     # print("performing data encoding in BED format")
     # Load the base that determines the gene starts and ends.
     # annotation_file = "/lustre/scratch123/hgi/teams/hgi/mo11/eQTL_mapping/LIMIX/nf_core_eqtl/assets/annotation_file.txt"
@@ -125,9 +126,9 @@ def main():
 
     # print(Gene_Chr_Start_End_Data.start)
 
-
-    BED_Formated_Data["start"]=Gene_Chr_Start_End_Data.start+((Gene_Chr_Start_End_Data.end-Gene_Chr_Start_End_Data.start)/2).apply(math.ceil)
-    BED_Formated_Data["end"]=BED_Formated_Data["start"]+1
+    if midpoint:
+        BED_Formated_Data["start"]=Gene_Chr_Start_End_Data.start+((Gene_Chr_Start_End_Data.end-Gene_Chr_Start_End_Data.start)/2).apply(math.ceil)
+        BED_Formated_Data["end"]=BED_Formated_Data["start"]+1
 
 
     BED_Formated_Data["gene_id"]=BED_Formated_Data.index

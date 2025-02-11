@@ -73,10 +73,11 @@ process AGGREGATE_QTL_RESULTS{
     script:
         all_qtl_results = "${condition}".replaceFirst(/.*\.tsv$/, '')
 
-        matcher = ("${condition}" =~ /.*?__(.*?)__(.*?)\.tsv$/)
-        group0 = matcher[0][0]
-        group1 = matcher[0][1] // Extracts 'Mono_all'
-        group2 = matcher[0][2] // Extracts '4pcs'
+        // matcher = ("${condition}" =~ /.*?__(.*?)__(.*?)\.tsv$/)
+        group0 = "${condition}".split('__')[0]
+        group1 =  "${condition}".split('__')[0]
+        // group1 = matcher[0][1] // Extracts 'Mono_all'
+        // group2 = matcher[0][2] // Extracts '4pcs'
 
         """
             mkdir results_${group1}
