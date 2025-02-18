@@ -277,6 +277,8 @@ workflow TENSORQTL_eqtls{
         plink_genotype
         
     main:
+
+     
       if (params.TensorQTL.interaction_file != '') {
           SPLIT_INTERACTIONS(params.TensorQTL.interaction_file)
           interaction_files = SPLIT_INTERACTIONS.out.interactions_files.flatten()
@@ -301,7 +303,6 @@ workflow TENSORQTL_eqtls{
       //     valid_files = phenotype_file
       // }
 
-      condition_bed.view { "condition_bed item: $it" }
       // dMean__CD4_Naive_all, /lustre/scratch127/humgen/teams/hgi/mo11/tmp_projects127/sle_project/8.eqtl_analysis/work/6b/2a35dfd61dcea16e2a43d45eaffd0d/Expression_Data.bed.gz, /lustre/scratch127/humgen/teams/hgi/mo11/tmp_projects127/sle_project/8.eqtl_analysis/work/6b/2a35dfd61dcea16e2a43d45eaffd0d/Covariates.tsv, 20pcs, /software/hgi/pipelines/QTLight/QTLight_v1.41/assets/fake_file.fq
       // plink_genotype.subscribe { println "TENSORQTL dist: $it" }
       TENSORQTL(
