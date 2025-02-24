@@ -62,6 +62,6 @@ process AGGREGATE_UMI_COUNTS {
     sanitized_columns = adata.getName().replaceAll(/[^a-zA-Z0-9]/, '_').replaceAll(/\.h5ad$/, '')
     """
       echo ${sanitized_columns}
-      aggregate_sc_data.py --agg_columns '${agg_columns}' --gt_id_column '${gt_id_column}' --sample_column '${sample_column}' --n_cells ${n_cells_min} -n_individ ${n_donors_min} -h5ad ${adata} --method ${params.aggregation_method}
+      aggregate_sc_data.py --agg_columns '${agg_columns}' --gt_id_column '${gt_id_column}' --sample_column '${sample_column}' --n_cells ${n_cells_min} -n_individ ${n_donors_min} -h5ad ${adata} --method ${params.aggregation_method} --cell_percentage_threshold ${params.cell_percentage_threshold}
     """
 }

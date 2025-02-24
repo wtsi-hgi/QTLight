@@ -97,6 +97,7 @@ def parse_options():
     parser.add_argument('-s', '--sample_id', required=True)
     parser.add_argument('-o', '--general_file_dir', required=True)
     parser.add_argument('-p', '--nperc', required=True)
+    parser.add_argument('-cpt', '--cell_percentage_threshold', required=True)
     parser.add_argument('-m', '--min', required=True)
     parser.add_argument('-col', '--condition_col', default='')
     parser.add_argument('-cond', '--condition', default='')
@@ -108,6 +109,7 @@ def parse_options():
     parser.add_argument('-br', '--bridge', default=None)
     return parser.parse_args()
 
+    )
 def main():
     inherited_options = parse_options()
     phenotype__file = inherited_options.phenotype__file
@@ -119,6 +121,7 @@ def main():
     min_cells = int(inherited_options.min)
     condition_col = inherited_options.condition_col
     condition = inherited_options.condition
+    cell_percentage_threshold = float(inherited_options.cell_percentage_threshold)
     covariates = inherited_options.covariates.split(',') if inherited_options.covariates else []
     expression_pca = int(inherited_options.expression_pca)
     scale_covariates = inherited_options.scale_covariates
@@ -130,6 +133,19 @@ def main():
             aggregate_on_all = f1
             
     adata = ad.read_h5ad(phenotype__file,backed='r')
+    
+    if cell_percentage_threshold > 0:
+        # Calculate the proportion of cells expressing each gene
+        cell_counts = (adata.X > 0).sum(axis=0).A1  # .A1 converts sparse matrix to a flat array
+        total_cells = adata.shape[0]
+        cell_expression_proportion = cell_counts / total_cells
+        # Apply the filter based on cell-level expression
+        keep_genes = cell_expression_proportion >= cell_percentage_threshold
+        # Get the index IDs of the retained genes
+        indexes = set(adata.var.index[keep_genes].tolist())
+    else:
+        indexes = set(adata.var.index[keep_genes].tolist())
+    
     genes=list(adata.var.index)
     if (inherited_options.chr):
         # Here we subset down to the genes available on determined chr.
@@ -149,7 +165,8 @@ def main():
         del all_genes
         del Gene_Chr_Start_End_Data
         gc.collect()
-        
+    genes = list(set(genes).intersection(indexes))
+    
     # condition='Platelet'
     # if condition_col != "NULL":
     #     print("Subsetting for the condition")

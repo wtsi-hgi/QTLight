@@ -83,6 +83,14 @@ def main():
         help=''
     )
 
+    parser.add_argument(
+        '-cpt', '--cell_percentage_threshold',
+        action='store',
+        dest='cell_percentage_threshold',
+        required=True,
+        help='cell_percentage_threshold'
+    )
+
     options = parser.parse_args()
     methods = options.method
     methods = methods.split(",")
@@ -104,6 +112,7 @@ def main():
     gt_id_column =  options.gt_id_column
     sample_column = options.sample_column
     n_individ = int(options.n_individ)
+    cell_percentage_threshold = float(options.cell_percentage_threshold)
     n_cells = int(options.n_cells)
     print('Reading in data...')
     adata = sc.read_h5ad(filename=h5ad, backed='r')
@@ -145,6 +154,20 @@ def main():
                 # type='CD4 CTL'
                 cell_adata = adata[adata.obs[agg_col]==type]
                 cell_index = set(adata[adata.obs[agg_col]==type].obs.index)
+                
+                # cell_percentage_threshold = 0.1  # e.g., 10% of cells must express the gene
+                if cell_percentage_threshold > 0:
+                    # Calculate the proportion of cells expressing each gene
+                    cell_counts = (cell_adata.X > 0).sum(axis=0).A1  # .A1 converts sparse matrix to a flat array
+                    total_cells = cell_adata.shape[0]
+                    cell_expression_proportion = cell_counts / total_cells
+                    # Apply the filter based on cell-level expression
+                    keep_genes = cell_expression_proportion >= cell_percentage_threshold
+                    # Get the index IDs of the retained genes
+                    indexes = cell_adata.var.index[keep_genes].tolist()
+                else:
+                    indexes = cell_adata.var.index[keep_genes].tolist()
+                    
                 if (len(cell_adata.obs['adata_phenotype_id'].unique())>n_individ):
                     aggregated_data_pre=pd.DataFrame()
                     genotype_phenotype_mapping_pre = []
@@ -152,7 +175,7 @@ def main():
                         # individual_indices = cell_adata.obs['adata_phenotype_id'] == individual_1
                         donot_index = set(adata[adata.obs['adata_phenotype_id']==individual_1].obs.index)
                         cell_donor_index = set(cell_index.intersection(donot_index))
-                        individual_1_adata = adata[list(cell_donor_index)]
+                        individual_1_adata = adata[list(cell_donor_index),indexes]
                         if(individual_1_adata.obs.shape[0]>n_cells):
                             # print(individual_1)
                             Genotype = individual_1_adata.obs[gt_id_column].unique()[0]

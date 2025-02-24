@@ -608,7 +608,7 @@ process H5AD_TO_SAIGE_FORMAT {
             --nperc \$nperc \
             --min ${params.n_min_cells} \
             --scale_covariates \$scale_covariates \
-            --expression_pca \$expression_pca \
+            --expression_pca \$expression_pca --cell_percentage_threshold ${params.cell_percentage_threshold} \
             ${cov_col} ${cond1} ${cond2}
     """
 }
