@@ -109,7 +109,7 @@ def parse_options():
     parser.add_argument('-br', '--bridge', default=None)
     return parser.parse_args()
 
-    )
+    
 def main():
     inherited_options = parse_options()
     phenotype__file = inherited_options.phenotype__file
@@ -134,18 +134,6 @@ def main():
             
     adata = ad.read_h5ad(phenotype__file,backed='r')
     
-    if cell_percentage_threshold > 0:
-        # Calculate the proportion of cells expressing each gene
-        cell_counts = (adata.X > 0).sum(axis=0).A1  # .A1 converts sparse matrix to a flat array
-        total_cells = adata.shape[0]
-        cell_expression_proportion = cell_counts / total_cells
-        # Apply the filter based on cell-level expression
-        keep_genes = cell_expression_proportion >= cell_percentage_threshold
-        # Get the index IDs of the retained genes
-        indexes = set(adata.var.index[keep_genes].tolist())
-    else:
-        indexes = set(adata.var.index[keep_genes].tolist())
-    
     genes=list(adata.var.index)
     if (inherited_options.chr):
         # Here we subset down to the genes available on determined chr.
@@ -165,7 +153,7 @@ def main():
         del all_genes
         del Gene_Chr_Start_End_Data
         gc.collect()
-    genes = list(set(genes).intersection(indexes))
+
     
     # condition='Platelet'
     # if condition_col != "NULL":
@@ -213,7 +201,19 @@ def main():
                 temp.X = temp.layers['counts'] # Sige needs raw counts. Please make sure correct layer is used!
             except:
                 _='not existant'
-
+                
+            if cell_percentage_threshold > 0:
+                # Calculate the proportion of cells expressing each gene
+                cell_counts = temp.X.sum(axis=0).A1  # .A1 converts sparse matrix to a flat array
+                total_cells = temp.shape[0]
+                cell_expression_proportion = cell_counts / total_cells
+                # Apply the filter based on cell-level expression
+                keep_genes = cell_expression_proportion >= cell_percentage_threshold
+                # Get the index IDs of the retained genes
+                indexes = set(temp.var.index[keep_genes].tolist())
+            else:
+                indexes = set(temp.var.index[keep_genes].tolist())
+            
             if (l1==1):
                 del adata
                 gc.collect() 
@@ -227,7 +227,7 @@ def main():
                     temp.obs[genotype_id] = br2
                 del br1
                 del br2
-            temp = temp[temp.obs[genotype_id].isin(geno_pcs.index)]        
+            temp = temp[temp.obs[genotype_id].isin(geno_pcs.index),list(indexes)]        
 
                 
             print("Filtering lowly expressed genes")
