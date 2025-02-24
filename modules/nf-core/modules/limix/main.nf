@@ -16,7 +16,7 @@ process CHUNK_GENOME{
         val(chunkSize)
 
     output:
-        tuple val(condition),path(phenotype_file), path(phenotype_pcs),path("Chunging_file*.tsv"),path(mapping_file) , emit: filtered_chunking_file
+        tuple val(condition),path(phenotype_file), path(phenotype_pcs),path("Chunging_file*.tsv"),path(mapping_file) , emit: filtered_chunking_file optional true
     script:
         nr_phenotype_pcs = phenotype_pcs.getSimpleName()
         if ("${params.LIMIX.chromosomes_to_test}"!=''){
