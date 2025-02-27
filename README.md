@@ -26,6 +26,12 @@ On release, automated continuous integration tests run the pipeline on a full-si
   <img src="https://github.com/wtsi-hgi/eqtl/blob/main/assets/images/eqtl_workflow_saige.png" width="100%"/>
 </p>
 
+
+### LIMIX
+<p align="center">
+  <img src="https://github.com/wtsi-hgi/eqtl/blob/main/assets/images/eqtl_workflow_limix.png" width="100%"/>
+</p>
+
 ## Pipeline summary
 
 <!-- TODO nf-core: Fill in short bullet-pointed list of the default steps in the pipeline -->
