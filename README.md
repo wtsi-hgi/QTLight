@@ -1,7 +1,8 @@
 ## Introduction
 
 <!-- TODO nf-core: Write a 1-2 sentence summary of what data the pipeline is for and what it does -->
-**nf-core/eqtl** is a bioinformatics best-practice analysis pipeline for eqtl analysis.
+**nf-core/eqtl** is a bioinformatics best-practice analysis pipeline for eqtl analysis with TensorQTL and SaigeQTL. 
+It takes your vcf files (or pgen/bed) alongside flat quantification data (such as bulk RNAseq expression files, ATACseq qantification data, Splicing Quantification data) or a scRNA h5ad file and performs relevant analysis.
 
 
 <p align="center">
@@ -100,7 +101,7 @@ For further information or help, don't hesitate to get in touch on the [Slack `#
 
 Currently pipeline has not been published but we would really appreciate if you could please acknowlage the use of this pipeline in your work:
 
-> Ozols, M. et al. 2023. eqtl (Quantitative Trait Loci mapping pipeline): GitHub. https://github.com/wtsi-hgi/eqtl. 
+> Ozols, M. et al. 2023. QTLight (Quantitative Trait Loci mapping pipeline): GitHub. https://github.com/wtsi-hgi/eqtl. 
 
 <!-- TODO nf-core: Add citation for pipeline after first release. Uncomment lines below and update Zenodo doi and badge at the top of this file. -->
 <!-- If you use  nf-core/eqtl for your analysis, please cite it using the following doi: [10.5281/zenodo.XXXXXX](https://doi.org/10.5281/zenodo.XXXXXX) -->

@@ -83,6 +83,14 @@ def main():
         help=''
     )
 
+    parser.add_argument(
+        '-cpt', '--cell_percentage_threshold',
+        action='store',
+        dest='cell_percentage_threshold',
+        required=True,
+        help='cell_percentage_threshold'
+    )
+
     options = parser.parse_args()
     methods = options.method
     methods = methods.split(",")
@@ -96,28 +104,35 @@ def main():
     h5ad = options.h5ad
     agg_columns = options.agg_columns
     agg_columns = agg_columns.split(",")
+    if len(agg_columns)>1:
+        for f1 in agg_columns:
+            if re.sub(r'\W+', '_', f1.replace(' ', '_')) in h5ad.split("__")[0]:
+                agg_columns = [f1]
+             
     gt_id_column =  options.gt_id_column
     sample_column = options.sample_column
     n_individ = int(options.n_individ)
+    cell_percentage_threshold = float(options.cell_percentage_threshold)
     n_cells = int(options.n_cells)
-    # if options.genotype_phenotype:
-    #     genotype_phenotype = options.genotype_phenotype
-    #     genotype_phenotype = pd.read_csv(genotype_phenotype)
-    # else:
-        # here we estimate the genotype phenotype interaction file from the genotype, since the IDs are the same. 
     print('Reading in data...')
     adata = sc.read_h5ad(filename=h5ad, backed='r')
+    adata.obs.index = adata.obs.index + "___" + adata.obs.groupby(adata.obs.index).cumcount().astype(str)
+    # make sure indexes are unique
     adata.strings_to_categoricals()
     adata.obs['adata_phenotype_id'] = adata.obs[gt_id_column].astype('str')+'_'+adata.obs[sample_column].astype('str')
+    
 
 
     for method in methods:
 
         if (method =='dMean'):
-            try:
+            if 'dMean_normalised' in adata.layers:
+                adata = adata.to_memory()
                 adata.X = adata.layers['dMean_normalised']
-            except:
+                print("adata.X has been updated with 'dMean_normalised'.")
+            else:
                 print('probably already normalised since no layer added')
+                
         for agg_col in agg_columns:
 
             print(agg_col)
@@ -138,14 +153,31 @@ def main():
                 adata.strings_to_categoricals()
                 # type='CD4 CTL'
                 cell_adata = adata[adata.obs[agg_col]==type]
+                cell_index = set(adata[adata.obs[agg_col]==type].obs.index)
+                
+                # cell_percentage_threshold = 0.1  # e.g., 10% of cells must express the gene
+                if cell_percentage_threshold > 0:
+                    # Calculate the proportion of cells expressing each gene
+                    cell_counts = (cell_adata.X > 0).sum(axis=0).A1  # .A1 converts sparse matrix to a flat array
+                    total_cells = cell_adata.shape[0]
+                    cell_expression_proportion = cell_counts / total_cells
+                    # Apply the filter based on cell-level expression
+                    keep_genes = cell_expression_proportion >= cell_percentage_threshold
+                    # Get the index IDs of the retained genes
+                    indexes = cell_adata.var.index[keep_genes].tolist()
+                else:
+                    indexes = cell_adata.var.index[keep_genes].tolist()
+                    
                 if (len(cell_adata.obs['adata_phenotype_id'].unique())>n_individ):
                     aggregated_data_pre=pd.DataFrame()
                     genotype_phenotype_mapping_pre = []
                     for individual_1 in cell_adata.obs['adata_phenotype_id'].unique():
-                        individual_indices = cell_adata.obs['adata_phenotype_id'] == individual_1
-                        individual_1_adata = adata[adata.obs['adata_phenotype_id']==individual_1]
+                        # individual_indices = cell_adata.obs['adata_phenotype_id'] == individual_1
+                        donot_index = set(adata[adata.obs['adata_phenotype_id']==individual_1].obs.index)
+                        cell_donor_index = set(cell_index.intersection(donot_index))
+                        individual_1_adata = adata[list(cell_donor_index),indexes]
                         if(individual_1_adata.obs.shape[0]>n_cells):
-                            print(individual_1)
+                            # print(individual_1)
                             Genotype = individual_1_adata.obs[gt_id_column].unique()[0]
                             # Change this to any aggregation strategy
                             #as per https://www.medrxiv.org/content/10.1101/2021.10.09.21264604v1.full.pdf 
@@ -173,12 +205,9 @@ def main():
                     if (len(aggregated_data_pre.columns)>=n_individ):
                         aggregated_data=pd.concat([aggregated_data,aggregated_data_pre],axis=1)
                         genotype_phenotype_mapping= genotype_phenotype_mapping+ genotype_phenotype_mapping_pre
-                        # f = pd.DataFrame(individual_1_adata.X.mean(axis=0))
-                # os.remove('tmp.h5ad')
-                # del cell_adata
-                # gc.collect()  # Force garbage collection to free up memory
+
                 genotype_phenotype_mapping = pd.DataFrame(genotype_phenotype_mapping)
-                if(len(genotype_phenotype_mapping)!=0):
+                if(len(genotype_phenotype_mapping)>=10):
                     genotype_phenotype_mapping.to_csv(f'{method}__{modified_agg_col}___genotype_phenotype_mapping.tsv',sep='\t',index=False)
                     aggregated_data.to_csv(f'{method}__{modified_agg_col}___phenotype_file.tsv',sep='\t',index=True)
     print('Successfully Finished')

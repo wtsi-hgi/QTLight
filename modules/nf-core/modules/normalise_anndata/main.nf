@@ -8,7 +8,7 @@ process NORMALISE_ANNDATA {
     }else{
         memory { 
             sizeInGB = adata.size() / 1e9 
-            return (sizeInGB * 2 * task.attempt).toString() + 'GB' 
+            return (sizeInGB * 6 * task.attempt).toString() + 'GB' 
         }
     }
 
@@ -23,7 +23,7 @@ process NORMALISE_ANNDATA {
       each path(adata)
 
     output:
-      path("nAD_*.h*", emit:adata)
+      path("nAD_*.h*", emit:adata) optional true
     script:
       sanitized_columns = adata.getName().replaceAll(/[^a-zA-Z0-9]/, '_').replaceAll(/\.h5ad$/, '')
       

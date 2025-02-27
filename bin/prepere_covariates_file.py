@@ -90,8 +90,8 @@ def main():
     all = {}
     count=0
     for index, row in phenotype_pcs.iterrows():
-        d = dict(covariates_df.loc[index])|dict(row)
-        d = d|{'id':index}
+        d = {**dict(covariates_df.loc[index]), **dict(row)}
+        d = {**d, 'id': index}
         all[count]=d
         count+=1
         # print()

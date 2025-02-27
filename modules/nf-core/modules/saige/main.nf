@@ -96,6 +96,41 @@ process CONDITIONAL_QTL {
     """
 }
 
+process CREATE_SPARSE_GRM {
+
+    label 'process_low'
+
+    // Specify the number of forks (10k)
+    maxForks 1000
+
+    if (workflow.containerEngine == 'singularity' && !params.singularity_pull_docker_container) {
+        container "${params.saige_grm_container}"
+    } else {
+        container "${params.saige_docker}"
+    }    
+
+
+    input:
+        tuple path(plink_bim), path(plink_bed), path(plink_fam)
+        
+    output:
+        // tuple val(name),path(genes_list),path("output"),emit:output
+        path("sparseGRM_*.mtx"), emit: sparseGRM
+        path("sparseGRM_*.sampleIDs.txt"), emit: sparseGRM_sample
+
+    // Define the Bash script to run for each array job
+    script:
+    """
+        createSparseGRM.R \
+            --nThreads=${task.cpus} \
+            --outputPrefix=sparseGRM_output \
+            --numRandomMarkerforSparseKin=2000 \
+            --relatednessCutoff ${params.SAIGE.relatednessCutoff} \
+            --famFile ${plink_fam} \
+            --bimFile ${plink_bim} \
+            --bedFile ${plink_bed} 
+    """  
+}
 
 process SAIGE_S1 {
     label 'process_low'
@@ -112,7 +147,8 @@ process SAIGE_S1 {
 
     input:
         tuple val(name),path(genes_list),path(pheno_file),path(cov),path(plink_bim), path(plink_bed), path(plink_fam)
-        
+        each path(sparseGRM)
+        each path(sparseGRM_samples)
     output:
         tuple val(name),path(genes_list),path("output"),emit:output
         path("*genes_droped_from_s1_due_to_error.tsv"), emit: dropped optional true
@@ -127,7 +163,8 @@ process SAIGE_S1 {
         do
            {  # try
             step1_fitNULLGLMM_qtl.R \
-                --useSparseGRMtoFitNULL=FALSE  \
+                --useSparseGRMtoFitNULL=TRUE  \
+                --sparseGRMFile ${sparseGRM} --sparseGRMSampleIDFile ${sparseGRM_samples} --relatednessCutoff ${params.SAIGE.relatednessCutoff} \
                 --useGRMtoFitNULL=FALSE \
                 --phenoFile=${pheno_file}	\
                 --phenoCol=\$i       \
@@ -138,14 +175,14 @@ process SAIGE_S1 {
                 --outputPrefix=./output/nindep_100_ncell_100_lambda_2_tauIntraSample_0.5_\$i  \
                 --skipVarianceRatioEstimation=FALSE  \
                 --isRemoveZerosinPheno=FALSE \
-                --isCovariateOffset=TRUE  \
+                --isCovariateOffset=FALSE  \
                 --isCovariateTransform=TRUE  \
                 --skipModelFitting=FALSE  \
                 --tol=0.00001 --traceCVcutoff 0.005 --nrun 15  \
                 --famFile ${plink_fam} \
                 --bimFile ${plink_bim} \
                 --bedFile ${plink_bed} \
-                --IsOverwriteVarianceRatioFile=TRUE 
+                --IsOverwriteVarianceRatioFile=TRUE ${params.SAIGE.step1_extra_flags}
             } || {
                 # catch
                 sed -i '/\$i/d' ${genes_list}
@@ -163,103 +200,11 @@ process SAIGE_S1 {
 }
 
 
-process SAIGE_S2 {
-    label 'process_low'
-
-    // Specify the number of forks (10k)
-    // maxForks 1000
-
-    if (workflow.containerEngine == 'singularity' && !params.singularity_pull_docker_container) {
-        container "${params.saige_container}"
-    } else {
-        container "${params.saige_docker}"
-    }    
-
-    input:
-        tuple val(name),path(genes_list),path(output),path(plink_bim), path(plink_bed), path(plink_fam)
-
-    output:
-        tuple val("${name}"),path(genes_list),path("output_${name}___${chr}"),path(output),path("regions_${genes_list}"),path(plink_bim), path(plink_bed), path(plink_fam),val(chr),emit:output
-        tuple val("${name}___${chr}"),path("output_${name}___${chr}/\${chr1}___nindep_100_ncell_100_lambda_2_tauIntraSample_0.5_cis_*"),emit:for_aggregation
-
-    script:
-        if (params.SAIGE.cis_trans_mode=='cis'){
-            mode="--rangestoIncludeFile=\${step2prefix}_region_file.txt"
-        }else{
-            mode=""
-        }
-    
-    """
-        cp ${genes_list} regions_${genes_list}
-        step1prefix=${output}/nindep_100_ncell_100_lambda_2_tauIntraSample_0.5           
-        step2prefix=output_${name}___${chr}/\${chr1}___nindep_100_ncell_100_lambda_2_tauIntraSample_0.5_cis
-        mkdir -p output_${name}___${chr}
-
-        run_step2_tests_qtl() {
-            step2_tests_qtl.R       \
-                    --bedFile=${plink_bed}      \
-                    --bimFile=${plink_bim}      \
-                    --famFile=${plink_fam}      \
-                    --SAIGEOutputFile=\${step2prefix}     \
-                    --chrom=${chr}       \
-                    --minMAF=${params.SAIGE.minMAF} \
-                    --minMAC=${params.SAIGE.minMAC} \
-                    --LOCO=FALSE    \
-                    --GMMATmodel_varianceRatio_multiTraits_File=${output}/step1_output_formultigenes.txt     \
-                    --SPAcutoff=${params.SAIGE.SPAcutoff} \
-                    --markers_per_chunk=${params.SAIGE.markers_per_chunk} ${mode}
-
-            if [ \$? -ne 0 ]; then
-                echo "step2_tests_qtl.R command failed" >&2
-                exit 1  # Exit the script with a non-zero status
-            fi
-
-            line_count=\$(wc -l < output/step1_output_formultigenes.txt)
-            if [ "\$line_count" -eq 1 ]; then
-                echo "File has exactly one line"
-                var=\$(cat output/step1_output_formultigenes.txt | awk '{print \$1}')
-                echo \$var
-                mv output_${name}___${chr}/\${chr1}___nindep_100_ncell_100_lambda_2_tauIntraSample_0.5_cis output_${name}___${chr}/\${chr1}___nindep_100_ncell_100_lambda_2_tauIntraSample_0.5_cis_\$var
-                mv output_${name}___${chr}/\${chr1}___nindep_100_ncell_100_lambda_2_tauIntraSample_0.5_cis.index output_${name}___${chr}/\${chr1}___nindep_100_ncell_100_lambda_2_tauIntraSample_0.5_cis_\$var.index
-            else
-                echo "File does not have exactly one line"
-            fi
-        }
-
-        run_step2_tests_qtl
-        
-        cat "${genes_list}" | while IFS= read -r gene || [ -n "\$gene" ]
-        do
-            f1="output_${name}___${chr}/\${chr1}___nindep_100_ncell_100_lambda_2_tauIntraSample_0.5_cis_\$gene"
-            first_line=\$(head -n 1 "\$f1")
-            # Check if the first line contains both V1 and V2
-            if [[ \$first_line == *"V1"* && \$first_line == *"V2"* ]]; then
-                echo "The first line contains both V1 and V2."
-                run_step2_tests_qtl
-            else
-                d="\$first_line : The first line does not contain both V1 and V2."
-            fi
-            line_count=\$(wc -l < \$f1)
-            if [ "\$line_count" -eq 1 ]; then
-                run_step2_tests_qtl
-                echo "The file has more <= 1 line."
-            elif [ "\$line_count" -lt 1 ]; then
-                run_step2_tests_qtl
-                echo "The file has more <= 1 line."
-            else
-                d="The file has more than 1 line."
-            fi
-        done
-
-
-    """
-}
-
 process SAIGE_S2_CIS {
     label 'process_low'
 
     // Specify the number of forks (10k)
-    // maxForks 1000
+    maxForks 1000
 
     if (workflow.containerEngine == 'singularity' && !params.singularity_pull_docker_container) {
         container "${params.saige_container}"
@@ -268,7 +213,9 @@ process SAIGE_S2_CIS {
     }    
 
     input:
-        tuple val(name),path(genes_list),path(output),path(genome_regions),path(plink_bim), path(plink_bed), path(plink_fam)
+        tuple (val(name),path(genes_list),path(output),path(genome_regions),path(plink_bim), path(plink_bed), path(plink_fam))
+        each path(sparseGRM)
+        each path(sparseGRM_samples)
 
     output:
         tuple val("${name}"),path("genes_list2.tsv"),path("output_${name}___*"),path(output),path(genome_regions),path(plink_bim), path(plink_bed), path(plink_fam),emit:output optional true
@@ -276,37 +223,52 @@ process SAIGE_S2_CIS {
 
     script:
         if (params.SAIGE.cis_trans_mode=='cis'){
-            mode="--rangestoIncludeFile=regions_cis.tsv"
+            mode="--rangestoIncludeFile=regions_cis.tsv --chrom=\${chr1}"
         }else{
-            mode=""
+            if (params.SAIGE.trans_chr_to_test=='SAME'){
+                mode="--chrom=\${chr1}"
+            }else{
+                mode="--chrom=${params.SAIGE.trans_chr_to_test}"
+            }
+            
         }
     
     """
         run_step2_tests_qtl() {
             { 
-                step2_tests_qtl.R       \
+                warning_output=\$(step2_tests_qtl.R       \
                     --bedFile=${plink_bed}      \
                     --bimFile=${plink_bim}      \
                     --famFile=${plink_fam}      \
+                    --sparseGRMFile ${sparseGRM} --sparseGRMSampleIDFile ${sparseGRM_samples} --relatednessCutoff=${params.SAIGE.relatednessCutoff} \
                     --SAIGEOutputFile=output_${name}___\${chr1}/\${chr1}___nindep_100_ncell_100_lambda_2_tauIntraSample_0.5_cis_\${variable}    \
-                    --chrom=\${chr1}     \
                     --minMAF=${params.SAIGE.minMAF} \
                     --minMAC=${params.SAIGE.minMAC} \
                     --LOCO=FALSE    \
                     --varianceRatioFile=\${step1prefix}_\${variable}.varianceRatio.txt    \
                     --GMMATmodelFile=\${step1prefix}_\${variable}.rda    \
                     --SPAcutoff=${params.SAIGE.SPAcutoff} \
-                    --markers_per_chunk=${params.SAIGE.markers_per_chunk} ${mode} 
+                    --markers_per_chunk=${params.SAIGE.markers_per_chunk} ${mode}   2>&1)
 
                 if [ \$? -ne 0 ]; then
                     echo "step2_tests_qtl.R command failed" >&2
                     return  # Skip the rest of the function and go to the next iteration
                 fi
 
+                if [[ \$? -eq 0 && "\$warning_output" != *"Input/output error"* ]]; then
+                    echo "proceed"
+                else
+                    echo "warning exists"
+                    return 1
+                fi
+
                 line_count=\$(wc -l < output_${name}___\${chr1}/\${chr1}___nindep_100_ncell_100_lambda_2_tauIntraSample_0.5_cis_\${variable})        
                 if [ "\$line_count" -eq 1 ]; then
                     echo "File has exactly one line"
                     rm output_${name}___\${chr1}/\${chr1}___nindep_100_ncell_100_lambda_2_tauIntraSample_0.5_cis_\${variable}
+                elif [ "\$line_count" -eq 0 ]; then
+                    echo "File has exactly zero lines"
+                    return 1
                 else
                     echo "\${variable}\t\${chr1}" >> genes_list2.tsv
                 fi
@@ -342,7 +304,7 @@ process SAIGE_QVAL_COR {
     label 'process_low'
 
     // Specify the number of forks (10k)
-    // maxForks 1000
+    maxForks 1000
 
     if (workflow.containerEngine == 'singularity' && !params.singularity_pull_docker_container) {
         container "https://yascp.cog.sanger.ac.uk/public/singularity_images/wtsihgi_nf_scrna_qc_6bb6af5-2021-12-23-3270149cf265.sif"
@@ -437,7 +399,7 @@ process AGGREGATE_ACAT_RESULTS{
     }    
     
 
-    publishDir  path: "${params.outdir}/Saige_eQTLS/${group}",
+    publishDir  path: "${params.outdir}/Saige_eQTLS/${exp}",
                 mode: "${params.copy_mode}",
                 overwrite: "true"
 
@@ -446,7 +408,9 @@ process AGGREGATE_ACAT_RESULTS{
     output:
         tuple val(group),path("ACAT_all.tsv"), emit: acat_all
     script:
-        
+        parts = group.split('__')
+        chr = parts[-1]
+        exp = parts[-2] 
         """
             head -n 1 \$(find . -name "*_cis_genePval" | head -n 1)  >> ACAT_all.tsv
             find . -name "*_cis_genePval" -print0 | xargs -0 -I {} sh -c 'tail -n +2 "\$1"' sh {} >> ACAT_all.tsv
@@ -465,7 +429,7 @@ process AGGREGATE_QTL_RESULTS{
     }    
     
 
-    publishDir  path: "${params.outdir}/Saige_eQTLS/${group}",
+    publishDir  path: "${params.outdir}/Saige_eQTLS/${exp}",
                 mode: "${params.copy_mode}",
                 overwrite: "true"
 
@@ -476,7 +440,9 @@ process AGGREGATE_QTL_RESULTS{
         tuple val(group),path("minimum_q_all_genes.tsv"), emit: all
 
     script:
-        
+        parts = group.split('__')
+        chr = parts[-1]
+        exp = parts[-2] 
         """
             prepend_gene.py --pattern 'cis_*_minimum_q.txt' --column 'gene' --outfile 'minimum_q_all_genes.tsv'
             qvalue_correction.py -f minimum_q_all_genes.tsv -c "18" -n "qvalues_across_genes" -w "FALSE"
@@ -501,20 +467,23 @@ process AGGREGATE_QTL_ALLVARS{
     input:
         tuple val(group),path(qtl_q_results)
     output:
-        tuple val(group),path("chr${chr}__all_vars_genes.tsv"), emit: all
-
+        tuple val(group),path("${chr}__${exp}__all_vars_genes.tsv.gz"), emit: all  optional true
+        tuple val(group),path("p_vals_lambd*"), emit: lambda optional true
+        tuple val(group),path("*gene_lambdas.tsv"), emit: lambda_vals optional true
     script:
-        parts = group.split('___')
+        parts = group.split('__')
         chr = parts[-1]
-        exp = parts[0]
+        exp = parts[-3]
 
         """
-            prepend_gene_large.py --pattern 'cis_*' --column 'gene' --outfile 'chr${chr}__all_vars_genes.tsv'
+            prepend_gene_large.py --pattern 'cis_*' --column 'gene' --outfile '${chr}__${exp}__all_vars_genes.tsv'
+            gzip ${chr}__${exp}__all_vars_genes.tsv
+            mv cell_lambdas.tsv ${chr}__${exp}__gene_lambdas.tsv || echo 'not existant'
         """
 }
 
 process PHENOTYPE_PCs{
-    label 'process_medium'
+    // label 'process_medium'
     tag { sanitized_columns }
 
     if (workflow.containerEngine == 'singularity' && !params.singularity_pull_docker_container) {
@@ -538,6 +507,8 @@ process PHENOTYPE_PCs{
     script:
 
     """
+        export LD_LIBRARY_PATH=/opt/libstdc++-old:/usr/lib:/usr/local/lib:\$LD_LIBRARY_PATH
+        export LD_LIBRARY_PATH=/usr/lib/x86_64-linux-gnu:\$LD_LIBRARY_PATH
         saige_phenotype_pcs_and_other_covs.py ${saige_filt_expr_input} ${sanitized_columns}_with_pheno_pcs.tsv ${phenotype_pcs} ${covariates}
     """
 }
@@ -590,6 +561,7 @@ process H5AD_TO_SAIGE_FORMAT {
         tuple val(sanitized_columns),path("output_agg/*/*/test_genes.txt"),emit:gene_chunk optional true
         path("output_agg/*"),emit:output_agg optional true
 
+
     // Define the Bash script to run for each array job
     script:
     sanitized_columns = h5ad.getName().replaceAll(/[^a-zA-Z0-9]/, '_').replaceAll(/\.h5ad$/, '')
@@ -636,7 +608,7 @@ process H5AD_TO_SAIGE_FORMAT {
             --nperc \$nperc \
             --min ${params.n_min_cells} \
             --scale_covariates \$scale_covariates \
-            --expression_pca \$expression_pca \
+            --expression_pca \$expression_pca --cell_percentage_threshold ${params.cell_percentage_threshold} \
             ${cov_col} ${cond1} ${cond2}
     """
 }
@@ -699,7 +671,7 @@ process DETERMINE_TSS_AND_TEST_REGIONS {
     label 'process_low'
 
     // Specify the number of forks (10k)
-    // maxForks 1000
+    maxForks 200
 
     if (workflow.containerEngine == 'singularity' && !params.singularity_pull_docker_container) {
         container "${params.eqtl_container}"
@@ -728,15 +700,43 @@ workflow SAIGE_qtls{
         phenotype_file
         bim_bed_fam
         genome_annotation
+        genotype_phenotype_mapping_file
 
     main:
         log.info('------- Running SAIGE QTLs ------- ')
+        pheno =  Channel.of()
+        gene =  Channel.of()
+        // Check if aggregation_subentry is provided
+        if (params.SAIGE.aggregation_subentry != '') {
+            log.info("------- Analysing ${params.SAIGE.aggregation_subentry} celltypes ------- ")
+            // Split the aggregation_subentry parameter into a list of patterns
+            valid_files = phenotype_file.filter { file ->
+                params.SAIGE.aggregation_subentry.split(',').any { pattern -> "${file}".contains("__${pattern}__") }
+                
+            }
+        } else {
+            log.info('------- Analysing all celltypes ------- ')
+            valid_files = phenotype_file
+        }
+        valid_files.subscribe { println "valid_files: $it" }
+        genotype_pcs.subscribe { println "genotype_pcs: $it" }
+        genome_annotation.subscribe { println "genome_annotation: $it" }
 
-        H5AD_TO_SAIGE_FORMAT(phenotype_file,params.genotype_phenotype_mapping_file,params.aggregation_columns,genotype_pcs,genome_annotation)
-        PHENOTYPE_PCs(H5AD_TO_SAIGE_FORMAT.out.output_pheno,params.SAIGE.nr_expression_pcs)
+        H5AD_TO_SAIGE_FORMAT(
+            valid_files,
+            genotype_phenotype_mapping_file,
+            params.aggregation_columns,
+            genotype_pcs,
+            genome_annotation
+        )
+        pheno = H5AD_TO_SAIGE_FORMAT.out.output_pheno
+        gene = H5AD_TO_SAIGE_FORMAT.out.gene_chunk
+
+        gene.subscribe { println "gene: $it" }
+        PHENOTYPE_PCs(pheno,params.SAIGE.nr_expression_pcs)
         pheno = PHENOTYPE_PCs.out.output_pheno
 
-        CHUNK_GENES(H5AD_TO_SAIGE_FORMAT.out.gene_chunk,params.chunkSize)
+        CHUNK_GENES(gene,params.chunkSize)
         result = CHUNK_GENES.out.output_genes.flatMap { item ->
             def (first, second) = item
             if (!(second instanceof Collection)) {
@@ -750,26 +750,28 @@ workflow SAIGE_qtls{
         
         Channel.fromList(params.SAIGE.chromosomes_to_test)
                 .set{chromosomes_to_test}        
-
-        SAIGE_S1(pheno_chunk.combine(bim_bed_fam))
-
-
-        if(params.SAIGE.cis_trans_mode=='trans'){
-            SAIGE_S2(SAIGE_S1.out.output.combine(bim_bed_fam))
-            output_s2 = SAIGE_S2.out.output
-            agg_output = SAIGE_S2.out.for_aggregation
-
-        }else if(params.SAIGE.cis_trans_mode=='cis'){
-            DETERMINE_TSS_AND_TEST_REGIONS(SAIGE_S1.out.output,genome_annotation)
-            for_cis_input = DETERMINE_TSS_AND_TEST_REGIONS.out.output_genes
-            SAIGE_S2_CIS(for_cis_input.combine(bim_bed_fam))
-            // there will be cases where the genes are across multiple chr. and this will emt two outputs. 
-            // they need to be standardised.
-            output_s2 = SAIGE_S2_CIS.out.output
-            agg_output = SAIGE_S2_CIS.out.for_aggregation
+        CREATE_SPARSE_GRM(bim_bed_fam)
+        sparseGRM = CREATE_SPARSE_GRM.out.sparseGRM
+        sparseGRM_sample = CREATE_SPARSE_GRM.out.sparseGRM_sample
+        SAIGE_S1(pheno_chunk.combine(bim_bed_fam),sparseGRM,sparseGRM_sample)
 
 
-        }
+        // if(params.SAIGE.cis_trans_mode=='trans'){
+        //     SAIGE_S2(SAIGE_S1.out.output.combine(bim_bed_fam))
+        //     output_s2 = SAIGE_S2.out.output
+        //     agg_output = SAIGE_S2.out.for_aggregation
+
+        // }else if(params.SAIGE.cis_trans_mode=='cis'){
+        DETERMINE_TSS_AND_TEST_REGIONS(SAIGE_S1.out.output,genome_annotation)
+        for_cis_input = DETERMINE_TSS_AND_TEST_REGIONS.out.output_genes
+        SAIGE_S2_CIS(for_cis_input.combine(bim_bed_fam),sparseGRM,sparseGRM_sample)
+        // there will be cases where the genes are across multiple chr. and this will emt two outputs. 
+        // they need to be standardised.
+        output_s2 = SAIGE_S2_CIS.out.output
+        agg_output = SAIGE_S2_CIS.out.for_aggregation
+
+
+        // }
 
         // HERE WE either run the cis or trans qtl mapping. For cis we loop through each of the chunks whereas in trans we can run all together.
         // output_s2.subscribe { println "output_s2 dist: $it" }
@@ -785,7 +787,11 @@ workflow SAIGE_qtls{
             if (!(second instanceof Collection)) {
                 second = [second] // Wrap single value in a list
             }
-            return second.collect { [first, it] }
+            return second.collect { 
+                def fileName = "${it}".split('/').last() // Extract the filename by splitting on '/'
+                def number = fileName.split('__')[0] // Extract the number before the first '__'
+                ["${first}__${number}", it] 
+            }
         }
 
         SAIGE_S3_for_aggregation = SAIGE_QVAL_COR.out.q_out.flatMap { item ->
@@ -803,6 +809,7 @@ workflow SAIGE_qtls{
             }
             return second.collect { [first, it] }
         }
+
         SAIGE_S3_for_aggregation_ACAT = SAIGE_S3_for_aggregation_ACAT.map{row->tuple("${row[0]}".replaceFirst(/___.*/,""),
                                                     file(row[1])
                                                     )}  
@@ -810,7 +817,13 @@ workflow SAIGE_qtls{
         SAIGE_S3_for_aggregation = SAIGE_S3_for_aggregation.map{row->tuple("${row[0]}".replaceFirst(/___.*/,""),
                                                     file(row[1])
                                                     )}  
-        // SAIGE_S3_for_aggregation_ACAT.subscribe { println "SAIGSAIGE_S3_for_aggregation_ACATE_QVAL_COR dist: $it" }
+        // SAIGE_S2_for_aggregation.subscribe { println "SAIGE_S2_for_aggregation dist: $it" }
+        // SAIGE_S2_for_aggregation
+        //     .collectFile { it[0] }
+        //     .map { key, files ->
+        //         tuple(key, files)
+        //     }
+        //     .set { dynamic_groups }
         // ########## Aggregating and emiting the results.  ###############
         AGGREGATE_QTL_RESULTS(SAIGE_S3_for_aggregation.groupTuple(by: 0))
         AGGREGATE_QTL_ALLVARS(SAIGE_S2_for_aggregation.groupTuple(by: 0))

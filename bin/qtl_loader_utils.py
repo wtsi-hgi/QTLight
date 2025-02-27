@@ -4,6 +4,7 @@ import bgen_reader
 import pandas as pd
 import numpy as np
 import os
+import pgenlib
 
 #V0.1.1
 
@@ -64,13 +65,42 @@ def get_covariate_df(covariates_filename):
         covariate_df = None
     return covariate_df
 
+def read_plink2(geno_prefix):
+    # Paths to PLINK2 files
+    pgen_file = f"{geno_prefix}.pgen"
+    psam_file = f"{geno_prefix}.psam"
+    pvar_file = f"{geno_prefix}.pvar"
+
+    # Read .psam (sample data, equivalent to .fam)
+    fam = pd.read_csv(psam_file, sep="\t")
+    try:
+        fam = fam.rename(columns={'#IID':'iid'})
+    except:
+        _='different version'
+
+    # Read .pvar (variant data, equivalent to .bim)
+    bim = pd.read_csv(pvar_file, sep="\t", comment="#")
+    bim.columns = ['chrom', 'pos', 'snp', 'ref', 'alt', 'qual',  'info']
+    # Open .pgen file for genotype data
+    pgen = pgenlib.PgenReader(pgen_file.encode('utf-8'))
+
+    return bim, fam, pgen
+
 def get_genotype_data(geno_prefix, plinkGenotype):
     if(plinkGenotype):
-        bim,fam,bed = read_plink(geno_prefix,verbose=False)
+        try:
+            bim,fam,bed = read_plink(geno_prefix,verbose=False)
+            # bim2,fam2,bed2 = read_plink("/lustre/scratch127/humgen/teams/hgi/mo11/tmp_projects127/cardinal_QTLs/ELGH/shuangs_annotations_genomeWide/pakistani/results_maf0pt01_rn_transform/genotypes/plink_genotypes_bed/plink_genotypes",verbose=False)
+            
+            pgen = None
+        except:
+            bim, fam, pgen = read_plink2(geno_prefix)
+            bed = None
         fam.set_index('iid',inplace=True)
         bgen=None
     else :
-        bgen = read_bgen(geno_prefix+'.bgen', verbose=False)
+        bgen = read_bgen(geno_prefix, verbose=False)
+        pgen = None
         bed=None
         fam =bgen['samples']
         fam = fam.to_frame("iid")
@@ -91,7 +121,7 @@ def get_genotype_data(geno_prefix, plinkGenotype):
         print("Warning, the current software only supports biallelic SNPs and ploidy 2")
         bim.loc[np.logical_and(bim['nalleles']<3,bim['nalleles']>0),:]
     
-    return bim,fam,bed,bgen
+    return bim,fam,bed,bgen,pgen
 
 def get_annotation_df(anno_filename):
     annotation_col_dtypes = {'feature_id':np.object,

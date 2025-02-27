@@ -85,7 +85,8 @@ def run_QTL_analysis_load_intersect_phenotype_covariates_kinship_sample_mapping(
     annotation_df.index = annotation_df.index.astype("str")
 
     # loading genotype, file type is handeled in the loader utils.
-    bim,fam,bed,bgen = qtl_loader_utils.get_genotype_data(geno_prefix, plinkGenotype)
+    bim,fam,bed,bgen,pgen = qtl_loader_utils.get_genotype_data(geno_prefix, plinkGenotype)
+    bim.chrom = bim.chrom.astype(str)
     bim.chrom = bim.chrom.str.replace('chr','')
     # converting chromsome names
     annotation_df.replace(['X', 'Y', 'XY', 'MT'], ['23', '24', '25', '26'],inplace=True)
@@ -109,7 +110,7 @@ def run_QTL_analysis_load_intersect_phenotype_covariates_kinship_sample_mapping(
     sample2individual_df.index = sample2individual_df.index.astype('str')
     sample2individual_df = sample2individual_df.astype('str')
     sample2individual_df['sample']=sample2individual_df.index
-    sample2individual_df = sample2individual_df.drop_duplicates();
+    sample2individual_df = sample2individual_df.drop_duplicates()
 
     ##Filter first the linking files!
     #Subset linking to relevant genotypes.
@@ -164,8 +165,12 @@ def run_QTL_analysis_load_intersect_phenotype_covariates_kinship_sample_mapping(
         
     ##Filter now the actual data!
     #Filter phenotype data based on the linking files.
-    phenotype_df = phenotype_df.loc[list(set(phenotype_df.index)&set(annotation_df.index)),sample2individual_df.index.values]
-
+    
+    phenotype_df2 = phenotype_df.loc[list(set(phenotype_df.index)&set(annotation_df.index)),sample2individual_df.index.values]
+    if (len(phenotype_df2)<1):
+        phenotype_df.index = phenotype_df.index.str.split('.').str[0]
+        phenotype_df2 = phenotype_df.loc[list(set(phenotype_df.index)&set(annotation_df.index)),sample2individual_df.index.values]
+    phenotype_df = phenotype_df2
     #Filter kinship data based on the linking files.
     genetically_unique_individuals = None
     if kinship_df is not None:
@@ -255,7 +260,7 @@ def run_QTL_analysis_load_intersect_phenotype_covariates_kinship_sample_mapping(
         bim = bim.loc[bim['snp'].isin(snpC)]
     
     return [phenotype_df, kinship_df,readdepth_df, covariate_df, sample2individual_df, complete_annotation_df, annotation_df, snp_filter_df,
-        snp_feature_filter_df, genetically_unique_individuals, minimum_test_samples, feature_list, bim, fam, bed, bgen, chromosome,
+        snp_feature_filter_df, genetically_unique_individuals, minimum_test_samples, feature_list, bim, fam, bed, bgen,pgen, chromosome,
         selectionStart, selectionEnd, feature_variant_covariate_df]
 
 def run_PrsQtl_analysis_load_intersect_phenotype_covariates_kinship_sample_mapping\

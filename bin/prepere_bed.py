@@ -54,6 +54,7 @@ def main():
     )
 
     options = parser.parse_args()
+    midpoint = False
     # print("performing data encoding in BED format")
     # Load the base that determines the gene starts and ends.
     # annotation_file = "/lustre/scratch123/hgi/teams/hgi/mo11/eQTL_mapping/LIMIX/nf_core_eqtl/assets/annotation_file.txt"
@@ -75,11 +76,13 @@ def main():
     try:
         df = read_gtf(annotation_file)
         if (gtf_type=='gene'):
-            df2 = df[df.feature == 'gene']
-            Gene_Chr_Start_End_Data =df2[['gene_id','start','end','strand','seqname']]
+            # df2 = df[df.feature == 'gene'] #Old way, also old way doesnt need .to_pandas()
+            df2 = df.filter(df["feature"] == "gene")
+            Gene_Chr_Start_End_Data =df2[['gene_id','start','end','strand','seqname']].to_pandas()
         elif (gtf_type=='transcript'):
-            df2 = df[df.feature == 'transcript']
-            Gene_Chr_Start_End_Data =df2[['transcript_id','start','end','strand','seqname']]
+            # df2 = df[df.feature == 'transcript'] #Old way, also old way doesnt need .to_pandas()
+            df2 = df.filter(df["feature"] == "transcript")
+            Gene_Chr_Start_End_Data =df2[['transcript_id','start','end','strand','seqname']].to_pandas()
         else:
             _ = 'you havent specified which type of analysis you are performing'
             # 
@@ -123,9 +126,9 @@ def main():
 
     # print(Gene_Chr_Start_End_Data.start)
 
-
-    BED_Formated_Data["start"]=Gene_Chr_Start_End_Data.start+((Gene_Chr_Start_End_Data.end-Gene_Chr_Start_End_Data.start)/2).apply(math.ceil)
-    BED_Formated_Data["end"]=BED_Formated_Data["start"]+1
+    if midpoint:
+        BED_Formated_Data["start"]=Gene_Chr_Start_End_Data.start+((Gene_Chr_Start_End_Data.end-Gene_Chr_Start_End_Data.start)/2).apply(math.ceil)
+        BED_Formated_Data["end"]=BED_Formated_Data["start"]+1
 
 
     BED_Formated_Data["gene_id"]=BED_Formated_Data.index

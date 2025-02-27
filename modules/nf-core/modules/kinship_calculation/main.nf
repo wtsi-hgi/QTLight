@@ -20,9 +20,15 @@ process KINSHIP_CALCULATION {
         path("kinship_matrix.tsv"), emit: kinship_matrix
 
     script:
+        if (params.genotypes.use_gt_dosage) {
+            pgen_or_bed = "--pfile"
+        }else{
+            pgen_or_bed = "--bfile"
+        }
+        // pgen_or_bed = "--bfile" //ATM only bed is used in LIMIX
         """
-            plink2 --freq counts --bfile ${plink_path}/plink_genotypes --out tmp_gt_plink_freq
-            plink2 --make-rel square --read-freq tmp_gt_plink_freq.acount --bfile ${plink_path}/plink_genotypes
+            plink2 --freq counts ${pgen_or_bed} ${plink_path}/plink_genotypes --out tmp_gt_plink_freq
+            plink2 --make-rel square --read-freq tmp_gt_plink_freq.acount ${pgen_or_bed} ${plink_path}/plink_genotypes
             generate_kinship.py
         """
 }

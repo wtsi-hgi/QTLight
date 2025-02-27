@@ -1,0 +1,15 @@
+name: limix-env
+channels:
+  - conda-forge
+dependencies:
+  - python=3.8
+  - blas=*=*openblas
+  - numpy=1.21
+  - scikit-learn
+  - matplotlib-venn
+  - pandas-plink
+  - glimix-core
+  - bgen=4
+  - pip
+  - pytest
+  - pytables
