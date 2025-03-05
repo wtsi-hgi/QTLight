@@ -284,9 +284,11 @@ workflow EQTL {
             }else{
                 plink_path_limix = plink_path_bed
             }
-        
-        filtered_pheno_channel =SUBSET_PCS.out.for_bed.map { tuple ->  [tuple[3],[[tuple[0],tuple[1],tuple[2]]]].combinations()}.flatten().collate(4)
-        
+        // SUBSET_PCS.out.subscribe { println "SUBSET_PCS.out.: $it" }
+        filtered_pheno_channel = SUBSET_PCS.out.for_bed.map { tuple ->  
+            [tuple[3], [tuple[0], tuple[1], tuple[2]]]
+        }.flatten().collate(4)
+        // filtered_pheno_channel.subscribe { println "filtered_pheno_channel.: $it" }
         // limix pipeline is curently not correctly chunked. 
         // Genes should be batched and the regions that they need to be tested on also chunked. 
         // Curently we are testing all the genes for all the possible gene cis windoes.
@@ -301,7 +303,7 @@ workflow EQTL {
 
     // TensorQTL QTL mapping method
     if (params.TensorQTL.run){
-        for_bed_channel = SUBSET_PCS.out.for_bed.map { tuple ->  [tuple[3],[[tuple[0],tuple[1],tuple[2]]]].combinations()}.flatten().collate(4)
+        for_bed_channel = SUBSET_PCS.out.for_bed.map { tuple ->  [tuple[3],[[tuple[0],tuple[1],tuple[2]]]]}.flatten().collate(4)
         PREPERE_EXP_BED(for_bed_channel,genome_annotation,genotype_pcs_file)
 
         TENSORQTL_eqtls(
