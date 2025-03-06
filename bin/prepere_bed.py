@@ -126,6 +126,9 @@ def main():
     if (options.chr):
         chrs = options.chr.split(',')
         BED_Formated_Data = BED_Formated_Data[BED_Formated_Data['#chr'].isin(chrs)]
+        
+    # Change the denotion of the chromosomes.
+    BED_Formated_Data['#chr'].replace(['X', 'Y', 'XY', 'MT'], ['23', '24', '25', '26'],inplace=True)
     # Gene_Chr_Start_End_Data = pd.read_csv(annotation_file,sep="\t",skiprows=6 )
 
     # print(Gene_Chr_Start_End_Data.start)
