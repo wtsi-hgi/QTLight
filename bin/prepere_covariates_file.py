@@ -72,14 +72,18 @@ def main():
         covariates_df=covariates_df.set_index('Genotype')
     except:
         print('col already set')
-
-    phenotype_pcs=options.phenotype_pcs
-    phenotype_pcs= pd.read_csv(phenotype_pcs, sep='\t', index_col=0)
-
     sample_map_file=options.sample_mapping
     sample_mapping = pd.read_csv(sample_map_file,sep='\t')
     sample_mapping= sample_mapping.set_index('RNA')
-    phenotype_pcs.index = sample_mapping.loc[phenotype_pcs.index]['Genotype']
+    phenotype_pcs=options.phenotype_pcs
+    if options.phenotype_pcs=='0pcs.tsv':
+        phenotype_pcs=pd.DataFrame(index=covariates_df.index)
+    else:
+        phenotype_pcs= pd.read_csv(phenotype_pcs, sep='\t', index_col=0)
+        phenotype_pcs.index = sample_mapping.loc[phenotype_pcs.index]['Genotype']
+
+
+    
     covariates_df = covariates_df.add_prefix('Genotype ')
     phenotype_pcs = phenotype_pcs.add_prefix('Phenotype ')
 
