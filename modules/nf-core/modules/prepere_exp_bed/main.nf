@@ -31,9 +31,17 @@ process PREPERE_EXP_BED {
     }else{
     pfile = ""
         }
+
+    if ("${params.TensorQTL.chromosomes_to_test}"!=''){
+        chromosomes_as_string = params.TensorQTL.chromosomes_to_test.join(',')
+        cond2 = " --chr ${chromosomes_as_string}"
+    }else{
+        cond2 = " "
+    }
+
     """
       echo ${condition}
-      prepere_bed.py --annotation_file ${annotation_file} --mapping_file ${mapping_file} --expression_file ${expression_file} --gtf_type ${params.gtf_type}
+      prepere_bed.py --annotation_file ${annotation_file} --mapping_file ${mapping_file} --expression_file ${expression_file} --gtf_type ${params.gtf_type} ${cond2}
       prepere_covariates_file.py --genotype_pcs ${genotype_pcs} --phenotype_pcs ${phenotype_pcs} ${sample_covar} --sample_mapping ${mapping_file} ${pfile}
     """
 }

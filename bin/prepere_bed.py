@@ -21,7 +21,7 @@ def main():
         action='version',
         version='%(prog)s {version}'.format(version=__version__)
     )
-
+    parser.add_argument('-chr', '--chr', dest='chr', required=False, default=None)
 
     parser.add_argument(
         '-mf', '--mapping_file',
@@ -122,6 +122,10 @@ def main():
     BED_Formated_Data.loc[idx1,"start"]=Gene_Chr_Start_End_Data.loc[idx1,"end"]-1
     BED_Formated_Data.loc[idx1,"end"]=Gene_Chr_Start_End_Data.loc[idx1,"end"]
 
+
+    if (options.chr):
+        chrs = options.chr.split(',')
+        BED_Formated_Data = BED_Formated_Data[BED_Formated_Data['#chr'].isin(chrs)]
     # Gene_Chr_Start_End_Data = pd.read_csv(annotation_file,sep="\t",skiprows=6 )
 
     # print(Gene_Chr_Start_End_Data.start)
