@@ -107,7 +107,7 @@ def main():
     if (options.sample_covariates):
         print('yes')
         exctra_covs = pd.read_csv(options.sample_covariates,sep='\t',index_col=0)
-        data = pd.concat([data,exctra_covs])
+        data = pd.concat([data,exctra_covs[data.columns]])
     else:
         print('no')
     data.to_csv('Covariates.tsv',sep='\t')
