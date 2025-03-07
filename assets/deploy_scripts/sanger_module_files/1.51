@@ -20,5 +20,5 @@ module-whatis "Packages: tensorqtl-1.0.9 SaigeQTL LIMIX"
 
 set install /software/hgi/pipelines/QTLight/QTLight_v1.51
 module load ISG/singularity/3.11.4
-module load HGI/common/nextflow/21.10.6
+module load HGI/common/nextflow/24.10.4
 prepend-path PATH "/software/hgi/pipelines/QTLight/QTLight_v1.51/assets/deploy_scripts/module_exacutables"
