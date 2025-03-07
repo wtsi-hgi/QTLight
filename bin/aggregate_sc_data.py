@@ -166,7 +166,7 @@ def main():
                     # Get the index IDs of the retained genes
                     indexes = cell_adata.var.index[keep_genes].tolist()
                 else:
-                    indexes = cell_adata.var.index[keep_genes].tolist()
+                    indexes = list(cell_adata.var.index)
                     
                 if (len(cell_adata.obs['adata_phenotype_id'].unique())>n_individ):
                     aggregated_data_pre=pd.DataFrame()

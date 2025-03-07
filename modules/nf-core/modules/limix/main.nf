@@ -153,9 +153,9 @@ process LIMIX{
         chunk_number = "${annotationFile}".replaceFirst(/.*__(\d+)\.tsv$/, '$1')
 
         if (params.genotypes.use_gt_dosage) {
-            genotypeFile = "--bgen ${genotypeFile}"
+            genotypeFile2 = "--bgen ${genotypeFile}"
         }else{
-            genotypeFile = "--plink ${genotypeFile}/plink_genotypes "
+            genotypeFile2 = "--plink ${genotypeFile}/plink_genotypes "
         }
 
 
@@ -163,10 +163,10 @@ process LIMIX{
             export NUMBA_CACHE_DIR=/tmp
             export MPLCONFIGDIR=/tmp 
             cut -f 1,2 -d \$'\\t' ${individual2sample_filename} > data_no_sample_category.txt
-            run_limix_QTL_analysis.py ${genotypeFile} -af ${annotationFile} -pf ${phenotypeFile} -cf ${covariateFile} -od ${outputFolder} -smf data_no_sample_category.txt -rf ${kinship_path} -np ${numberOfPermutations} -maf ${minorAlleleFrequency} -hwe ${hwe} -cr ${callRate} -c -gm standardize -w ${windowSize} --block_size ${blockSize}
-            mv snp_metadata_all.txt ${condition}_snp_metadata_${chunk_number}.txt
-            mv qtl_results_all.h5 ${condition}_qtl_results_${chunk_number}.h5
-            mv feature_metadata_all.txt ${condition}_feature_metadata_${chunk_number}.txt
+            run_limix_QTL_analysis.py ${genotypeFile2} -af ${annotationFile} -pf ${phenotypeFile} -cf ${covariateFile} -od ${outputFolder} -smf data_no_sample_category.txt -rf ${kinship_path} -np ${numberOfPermutations} -maf ${minorAlleleFrequency} -hwe ${hwe} -cr ${callRate} -c -gm standardize -w ${windowSize} --block_size ${blockSize}
+            mv snp_metadata_all.txt ${condition}_snp_metadata_${chunk_number}.txt || echo 'not available'
+            mv qtl_results_all.h5 ${condition}_qtl_results_${chunk_number}.h5 || echo 'not available'
+            mv feature_metadata_all.txt ${condition}_feature_metadata_${chunk_number}.txt || echo 'not available'
         """
     
 }
