@@ -182,6 +182,7 @@ def main():
             genotype_df, variant_df = genotypeio.load_genotypes(plink_prefix_path, dosages = dosage)
             print(f"Genes being tested = {len(sig_genes)}")
             covariates_df = pd.read_csv(covariates_file, sep='\t', index_col=0)
+            covariates_df = covariates_df[list(set(phenotype_df.columns).intersection(set(covariates_df.columns)))]
             #phenotype_df = phenotype_df.loc[:,phenotype_df.columns.isin(covariates_df.columns)]
             #covariates_df = covariates_df.loc[:,covariates_df.columns.isin(phenotype_df.columns)]
             phenotype_df = phenotype_df[covariates_df.columns]
