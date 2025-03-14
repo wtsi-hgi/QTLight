@@ -1,5 +1,5 @@
 #!/usr/bin/env Rscript
-# .libPaths('/lustre/scratch123/hgi/teams/hgi/mo11/eQTL_mapping/marias_work/results/Limix_eQTLS/M0_oxLDL_qtls')
+
 rm()
 library("qvalue")
 library("multtest")
@@ -9,13 +9,6 @@ if (length(args)==0) {
   stop("At least one argument must be supplied (input file).n", call.=FALSE)
 }
 
-# test if there is at least one argument: if not, return an error
-# if (length(args)<3 || length(args)>4) {
-#   stop("At least three argument must be supplied (input folder, output folder, FDR level). (Optionally a filtering file to filter genes).n", call.=FALSE)
-# }
-
-##Parameters
-# folder = '/lustre/scratch123/hgi/teams/hgi/mo11/eQTL_mapping/marias_work/results/Limix_eQTLS/M2_oxLDL_qtls'
 folder = args[1] 
 folderOut = folder
 fdrLevel = 0.05

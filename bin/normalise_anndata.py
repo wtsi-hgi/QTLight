@@ -8,7 +8,6 @@ __version__ = '0.0.1'
 import scanpy as sc
 import pandas as pd
 import numpy as np
-# from pysctransform import vst, get_hvg_residuals, SCTransform
 np.random.seed(42)
 import argparse
 import scipy as sp
@@ -87,22 +86,6 @@ def main():
                                                         inplace=False)['X'])
     if method == 'pf_log1p_pf':
         adata.layers['dMean_normalised'] = PF(log1p(PF(adata.X)))
-
-
-    
-    # if method == 'scT':
-    #     # pySCTransform v2, not working with current version of packages plus takes a lot of memory
-    #     vst_out = vst(
-    #         adata.layers['counts'].T,
-    #         gene_names=adata.var_names.tolist(),
-    #         cell_names=adata.obs_names.tolist(),
-    #         method="fix-slope",
-    #         exclude_poisson=True,
-    #         correct_counts=True)
-        
-    #     # Some gene are dropped by scTransform, so we need to subset the AnnData
-    #     adata = adata[:,list(vst_out_v2['model_parameters_fit'].index)]
-    #     adata.layers['dMean_normalised'] = vst_out["corrected_counts"].T
 
     print('Saving normalised AnnData...')
     adata.write(f'nAD_{h5ad}')

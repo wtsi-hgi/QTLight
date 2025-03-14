@@ -1,5 +1,5 @@
 #!/usr/bin/env Rscript
-# .libPaths('/lustre/scratch118/humgen/hgi/users/mercury/scratch_mo11/r_server/r_libs_mo11')
+
 library(edgeR)
 library(DESeq2)
 library(ggplot2)
@@ -12,7 +12,7 @@ args = commandArgs(trailingOnly=TRUE)
 if (length(args)==0) {
   stop("At least one argument must be supplied (input file).n", call.=FALSE)
 }
-# azimuth.celltyp.l2-gdT-dSum_phenotype.tsv remap_genotype_phenotype_mapping.tsv None single_cell TRUE NONE 0.2
+
 Star_path = 'all_phenotype.tsv'
 Mapping_Path = 'sample_mapplings.tsv'
 filter_type = 'None'
@@ -46,9 +46,6 @@ if (args[8]=='true'){
 }
 
 use_sample_pca = as.logical(pc_strat)
-
-# number_phenotype_pcs = as.numeric(unlist(strsplit(number_phenotype_pcs, ',')))
-# max_number_phenotype_pcs =  max(number_phenotype_pcs)
 
 # Functions taken from https://github.com/kauralasoo/eQTLUtils/blob/master/R/matrix_operations.R
 quantileNormaliseVector = function(x){
@@ -216,11 +213,6 @@ if (inverse_normal == TRUE){
   print('Applying inverse normal transformation')
   normalised_counts = quantileNormaliseRows(normalised_counts)
 }
-
-# TMM_normalised_counts = t(t(y$counts)*y$samples$norm.factors)
-# norms = y$samples$norm.factors
-# TMM_normalised_counts_log = log(TMM_normalised_counts+1, 2) # Apply log2 transform on the TMM normalised counts.
-# pcs = prcomp(normalised_counts, scale = TRUE)
 
 if (use_sample_pca) {
   pcs = prcomp(t(normalised_counts), scale = TRUE)  # PCA on samples
