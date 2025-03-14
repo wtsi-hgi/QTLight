@@ -36,7 +36,7 @@ process NORMALISE_and_PCA_PHENOTYPE{
         """  
             echo ${prefix}
             echo ${outname}
-            normalise_and_pca.R ${phenotype_file} ${grouping_file} ${params.filter_method} ${params.method} ${params.inverse_normal_transform} ${params.norm_method} ${params.percent_of_population_expressed}
+            normalise_and_pca.R ${phenotype_file} ${grouping_file} ${params.filter_method} ${params.method} ${params.inverse_normal_transform} ${params.norm_method} ${params.percent_of_population_expressed} ${params.use_sample_pca}
         """
     
 }

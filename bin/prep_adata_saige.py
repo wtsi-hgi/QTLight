@@ -212,7 +212,7 @@ def main():
                 # Get the index IDs of the retained genes
                 indexes = set(temp.var.index[keep_genes].tolist())
             else:
-                indexes = set(temp.var.index[keep_genes].tolist())
+                indexes = list(temp.var.index)
             
             if (l1==1):
                 del adata
