@@ -211,9 +211,9 @@ if (inverse_normal == TRUE){
 # TMM_normalised_counts = t(t(y$counts)*y$samples$norm.factors)
 # norms = y$samples$norm.factors
 # TMM_normalised_counts_log = log(TMM_normalised_counts+1, 2) # Apply log2 transform on the TMM normalised counts.
-pcs = prcomp(normalised_counts, scale = TRUE)
-
-write.table(pcs$rotation,file=paste0('all__pcs.tsv'),sep='\t')
+# pcs = prcomp(normalised_counts, scale = TRUE)
+pcs = prcomp(t(normalised_counts), scale = TRUE)
+write.table(pcs$x,file=paste0('all__pcs.tsv'),sep='\t')
 write.table(normalised_counts,file=paste('normalised_phenotype.tsv',sep=''),sep='\t')
 
 # plots
