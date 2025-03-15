@@ -190,6 +190,7 @@ def main():
         variant_df = variant_df[variant_df.index.isin(test_variants)]
         print(f"Variants being tested = {genotype_df.shape[0]}")
         covariates_df = pd.read_csv(covariates_file, sep='\t', index_col=0)
+        covariates_df = covariates_df[list(set(phenotype_df.columns).intersection(set(covariates_df.columns)))]
         #phenotype_df = phenotype_df.loc[:,phenotype_df.columns.isin(covariates_df.columns)]
         #covariates_df = covariates_df.loc[:,covariates_df.columns.isin(phenotype_df.columns)]
         phenotype_df = phenotype_df[covariates_df.columns]

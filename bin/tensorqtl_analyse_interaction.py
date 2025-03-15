@@ -138,6 +138,7 @@ def main():
     
     
     covariates_df = pd.read_csv(covariates_file, sep='\t', index_col=0)
+    covariates_df = covariates_df[list(set(phenotype_df.columns).intersection(set(covariates_df.columns)))]
     interaction_df = pd.read_csv(interaction_file, sep='\t', header=None, index_col=0)
     phenotype_df = phenotype_df[covariates_df.columns]
     # have to drop dublicate rownames. and average the repeated measures.

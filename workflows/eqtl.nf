@@ -61,7 +61,7 @@ include {NORMALISE_and_PCA_PHENOTYPE} from '../modules/nf-core/modules/normalise
 include {LIMIX_eqtls} from '../modules/nf-core/modules/limix/main'
 include {PREPROCESS_SAMPLE_MAPPING} from '../modules/nf-core/modules/preprocess_sample_mapping/main'
 include {NORMALISE_ANNDATA; REMAP_GENOTPE_ID} from '../modules/nf-core/modules/normalise_anndata/main'
-include {AGGREGATE_UMI_COUNTS; SPLIT_AGGREGATION_ADATA} from '../modules/nf-core/modules/aggregate_UMI_counts/main'
+include {AGGREGATE_UMI_COUNTS; SPLIT_AGGREGATION_ADATA; ORGANISE_AGGREGATED_FILES} from '../modules/nf-core/modules/aggregate_UMI_counts/main'
 include {PREPERE_EXP_BED} from '../modules/nf-core/modules/prepere_exp_bed/main'
 include {TENSORQTL_eqtls} from '../modules/nf-core/modules/tensorqtl/main'
 include {H5AD_TO_SAIGE_FORMAT} from '../modules/nf-core/modules/saige/main'
@@ -133,11 +133,20 @@ workflow EQTL {
 
         AGGREGATE_UMI_COUNTS(splits_h5ad,params.aggregation_columns,params.gt_id_column,params.sample_column,params.n_min_cells,params.n_min_individ)
 
+        if (params.split_aggregation_adata==false){
+            ORGANISE_AGGREGATED_FILES(AGGREGATE_UMI_COUNTS.out.phenotype_genotype_file)
+            ORGANISE_AGGREGATED_FILES.out.phenotype_files_tsv.splitCsv(header: true, sep: params.input_tables_column_delimiter)
+                .map{row->tuple(row.name, file(row.phen_file), file(row.gp_fi) )}
+            .set{umi_counts_phenotype_genotype_file}
+        }else{
+            umi_counts_phenotype_genotype_file = AGGREGATE_UMI_COUNTS.out.phenotype_genotype_file
+        }
+
         if (params.TensorQTL.aggregation_subentry != '') {
             log.info("------- Analysing ${params.TensorQTL.aggregation_subentry} celltypes ------- ")
-            AGGREGATE_UMI_COUNTS.out.phenotype_genotype_file.subscribe { println "AGGREGATE_UMI_COUNTS.out.phenotype_genotype_file: $it" }
+            umi_counts_phenotype_genotype_file.subscribe { println "AGGREGATE_UMI_COUNTS.out.phenotype_genotype_file: $it" }
             // Split the aggregation_subentry parameter into a list of patterns
-            valid_files = AGGREGATE_UMI_COUNTS.out.phenotype_genotype_file
+            valid_files = umi_counts_phenotype_genotype_file
                 .filter { tuple -> 
                     def (sample, file, gp_mapping) = tuple
                     def matches = params.TensorQTL.aggregation_subentry.split(',').any { pattern -> "${file}".contains("__${pattern}__") }
@@ -151,7 +160,7 @@ workflow EQTL {
                 }
         } else {
             log.info('------- Analysing all celltypes ------- ')
-            valid_files =  AGGREGATE_UMI_COUNTS.out.phenotype_genotype_file
+            valid_files =  umi_counts_phenotype_genotype_file
         }
 
         out2 = valid_files.map { data ->

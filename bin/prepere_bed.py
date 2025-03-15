@@ -125,7 +125,8 @@ def main():
 
     if (options.chr):
         chrs = options.chr.split(',')
-        BED_Formated_Data = BED_Formated_Data[BED_Formated_Data['#chr'].isin(chrs)]
+        BED_Formated_Data['#chr'] = BED_Formated_Data['#chr'].str.replace('chr','')
+        BED_Formated_Data = BED_Formated_Data[BED_Formated_Data['#chr'].str.replace('chr','').isin(chrs)]
         
     # Change the denotion of the chromosomes.
     BED_Formated_Data['#chr'].replace(['X', 'Y', 'XY', 'MT'], ['23', '24', '25', '26'],inplace=True)
@@ -157,8 +158,7 @@ def main():
     Expression_Data=Expression_Data.rename(columns=Mapping_File)
     #2 Combine the Expression data and ID mapper to get a bed format.
     mergedDf = BED_Formated_Data.merge(Expression_Data, left_index=True, right_index=True)
-    chrs = ['chr1','chr2','chr3','chr4','chr5','chr6','chr7','chr8','chr9','chr10'
-            ,'chr11','chr12','chr13','chr14','chr15','chr16','chr17','chr18','chr19','chr20','chr21','chr22']
+    chrs = list(set(BED_Formated_Data['#chr']))
     
     mergedDf2 = mergedDf.set_index('#chr')
     chrs = list(set(mergedDf2.index).intersection(set(chrs)))

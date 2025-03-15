@@ -2,7 +2,6 @@
 library(edgeR)
 library(DESeq2)
 library(ggplot2)
-# library(dplyr)
 library(ggplot2)
 library(PCAtools)
 set.seed(2023)

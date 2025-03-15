@@ -30,6 +30,37 @@ process SPLIT_AGGREGATION_ADATA {
 }
 
 
+process ORGANISE_AGGREGATED_FILES{
+
+  publishDir  path: "${params.outdir}/aggregated_counts/${sanitized_columns}",mode: "${params.copy_mode}",
+              overwrite: "true"
+    label 'process_medium'
+    if (workflow.containerEngine == 'singularity' && !params.singularity_pull_docker_container) {
+        container "${params.eqtl_container}"
+        
+    } else {
+        container "${params.eqtl_docker}"
+    }
+    memory { 
+            sizeInGB = adata.size() / 1e9 * 0.3 * task.attempt
+            return (sizeInGB ).toString() + 'GB' 
+        }
+  input:
+    tuple val(sanitized_columns), path(phenotype_files),  path(genotype_phenotype_mapping)
+
+  output:
+    path("clean_table.tsv", emit:phenotype_files_tsv) optional true
+
+
+  script:
+    
+    """
+      organise_channels.py -files "${phenotype_files}" -files2 "${genotype_phenotype_mapping}"
+    """
+
+
+}
+
 process AGGREGATE_UMI_COUNTS {
   publishDir  path: "${params.outdir}/aggregated_counts/${sanitized_columns}",mode: "${params.copy_mode}",
               overwrite: "true"
