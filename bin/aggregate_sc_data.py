@@ -168,7 +168,7 @@ def main():
                 else:
                     indexes = list(cell_adata.var.index)
                     
-                if (len(cell_adata.obs['adata_phenotype_id'].unique())>n_individ):
+                if (len(cell_adata.obs['adata_phenotype_id'].unique())>=n_individ):
                     aggregated_data_pre=pd.DataFrame()
                     genotype_phenotype_mapping_pre = []
                     for individual_1 in cell_adata.obs['adata_phenotype_id'].unique():
@@ -176,7 +176,7 @@ def main():
                         donot_index = set(adata[adata.obs['adata_phenotype_id']==individual_1].obs.index)
                         cell_donor_index = set(cell_index.intersection(donot_index))
                         individual_1_adata = adata[list(cell_donor_index),indexes]
-                        if(individual_1_adata.obs.shape[0]>n_cells):
+                        if(individual_1_adata.obs.shape[0]>=n_cells):
                             # print(individual_1)
                             Genotype = individual_1_adata.obs[gt_id_column].unique()[0]
                             # Change this to any aggregation strategy
