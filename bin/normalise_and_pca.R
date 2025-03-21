@@ -5,25 +5,27 @@ library(DESeq2)
 library(ggplot2)
 library(PCAtools)
 set.seed(2023)
-
+library(ggfortify)
+library(dplyr)
+library(ggrepel)
 
 args = commandArgs(trailingOnly=TRUE)
 
 if (length(args)==0) {
   stop("At least one argument must be supplied (input file).n", call.=FALSE)
 }
-
-Star_path = 'all_phenotype.tsv'
-Mapping_Path = 'sample_mapplings.tsv'
+# dMean__plasma_cells___phenotype_file.tsv remap_dMean__plasma_cells___genotype_phenotype_mapping.tsv None single_cell TRUE NONE 0.1 true
+Star_path = 'dMean__plasma_cells___phenotype_file.tsv'
+Mapping_Path = 'remap_dMean__plasma_cells___genotype_phenotype_mapping.tsv'
 filter_type = 'None'
 
 # number_phenotype_pcs = args[4]
-sc_or_bulk = 'bulk'
-inverse_normal = as.logical('FALSE')
+sc_or_bulk = 'single_cell'
+inverse_normal = as.logical('TRUE')
 stopifnot(inverse_normal %in% c(TRUE, FALSE))
 norm_method = 'NONE'
-percent_of_population_expressed = '0.2'
-
+percent_of_population_expressed = '0.1'
+pc_strat='TRUE'
 
 
 Star_path = args[1]
@@ -224,26 +226,90 @@ if (use_sample_pca) {
 
 write.table(normalised_counts,file=paste('normalised_phenotype.tsv',sep=''),sep='\t')
 
-# plots
-p <- pca(Star_counts, metadata = Experimental_grops, removeVar = 0.1)
-if(ncol(normalised_counts)<15){
-  len1=ncol(normalised_counts)
-}else{
-  len1=15
-}
-pdf("screeplot.pdf") 
-screeplot(p, components = 1:len1)
+
+pc_var <- pcs$sdev^2
+explained_variance <- pc_var / sum(pc_var) * 100
+cumulative_variance <- cumsum(explained_variance)
+
+# Limit to first 10 PCs
+num_pcs <- 10
+explained_variance <- explained_variance[1:num_pcs]
+cumulative_variance <- cumulative_variance[1:num_pcs]
+
+# Set up the plotting area
+par(mar = c(5, 5, 2, 2))  # Adjust margins for better spacing
+
+pdf("screeplot.pdf")
+par(bg = "white")
+# First, draw an empty plot to define the plot area and add grid
+bar_positions <- barplot(explained_variance, names.arg = 1:num_pcs,
+                         col = NA, border = NA, ylim = c(0, 100),
+                         xlab = "Principal component", ylab = "Explained variation (%)")
+# Add grid lines (horizontal every 10%, vertical at each bar position)
+grid(nx = length(bar_positions), ny = 10, col = "lightgray", lty = "dotted")
+# Redraw the bar plot on top of the grid
+bar_positions <- barplot(explained_variance, names.arg = 1:num_pcs,
+                         col = "dodgerblue", border = NA, ylim = c(0, 100),
+                         xlab = "Principal component", ylab = "Explained variation (%)", add = TRUE)
+# Overlay cumulative variance as red line
+lines(bar_positions, cumulative_variance, col = "red", type = "b", pch = 16, lwd = 2)
 dev.off()
 
-pdf("biplot.pdf") 
-biplot(p, showLoadings = TRUE,
-       labSize = 2, pointSize = 4, sizeLoadingsNames = 2)
+
+
+pdf("biplot.pdf", width = 8, height = 6) 
+
+# Extract variance explained
+pc_variance <- summary(pcs)$importance[2,] * 100  # Convert proportion to percentage
+
+# Create PCA plot without metadata
+p <- autoplot(pcs, scale = 0, loadings = FALSE, alpha = 0.9, size = 1.2) +
+  labs(
+    x = paste0("PC1 (", round(pc_variance[1], 2), "% variation)"),
+    y = paste0("PC2 (", round(pc_variance[2], 2), "% variation)"),
+    title = "PCA Biplot"
+  ) +
+  theme_minimal() +  # Enables grid lines
+  theme(
+    text = element_text(size = 5),
+    axis.title = element_text(size = 14, face = "bold"),
+    plot.title = element_text(hjust = 0.5, face = "bold", size = 12),
+    panel.grid.major = element_line(color = "grey80", size = 0.4),
+    panel.grid.minor = element_line(color = "grey90", size = 0.2),
+    legend.position = "none"
+  )
+
+# Label only the top N most extreme points
+num_labels <- 20
+scores <- as.data.frame(pcs$x[, 1:2])
+top_samples <- rownames(scores)[order(abs(scores$PC1) + abs(scores$PC2), decreasing = TRUE)[1:num_labels]]
+scores_subset <- scores[top_samples, ]
+
+# Add labels with smaller font
+p <- p + 
+  geom_text_repel(data = scores_subset, aes(x = PC1, y = PC2, label = rownames(scores_subset)), 
+                  size = 1, max.overlaps = 25)
+
+print(p)
 dev.off()
+
 
 pdf("loadings.pdf") 
-plotloadings(p,
-             components = getComponents(p, c(1)),
-             rangeRetain = 0.12, absolute = TRUE,
-             col = c('black', 'pink', 'red4'),
-             drawConnectors = TRUE, labSize = 4) + coord_flip()
+pca=pcs
+loadings <- as.data.frame(pca$rotation)
+loadings$Variable <- rownames(loadings)
+loadings_melted <- reshape2::melt(loadings, id.vars = "Variable", variable.name = "PrincipalComponent", value.name = "LoadingScore")
+loadings_melted <- loadings_melted %>% group_by(PrincipalComponent) %>% arrange(desc(abs(LoadingScore))) %>% slice(1:5)
+
+ggplot(loadings_melted[loadings_melted$PrincipalComponent %in% c(paste0("PC",1:9)),], aes(x = Variable, y = LoadingScore)) +
+  geom_bar(stat = "identity", color = "black") +
+  facet_wrap(~PrincipalComponent, scales = "free", ncol = 3) +
+  scale_y_continuous(limits = c(-1, 1)) +
+  labs(
+    title = "PCA Loading Scores - top 5 genes",
+    x = "Gene",
+    y = "Loading Score"
+  ) +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1))
 dev.off()
