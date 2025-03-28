@@ -213,7 +213,7 @@ workflow EQTL {
             plink_convert_input=subset_genotypes  
         }
     }else{
-        plink_convert_input=Chenel.of()
+        plink_convert_input=Channel.of()
     }
 
     if (params.genotypes.preprocessed_bed_file==''){

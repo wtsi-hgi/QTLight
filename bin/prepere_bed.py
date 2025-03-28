@@ -44,6 +44,13 @@ def main():
         required=True,
         help=''
     )
+    parser.add_argument(
+        '-position', '--position',
+        action='store',
+        dest='position',
+        required=True,
+        help=''
+    )
 
     parser.add_argument(
         '-gtf', '--gtf_type',
@@ -54,7 +61,10 @@ def main():
     )
 
     options = parser.parse_args()
-    midpoint = False
+    if (options.position=='TSS'): #this can be TSS or midpoint
+        midpoint = False
+    else:
+        midpoint = True
     # print("performing data encoding in BED format")
     # Load the base that determines the gene starts and ends.
     # annotation_file = "/lustre/scratch123/hgi/teams/hgi/mo11/eQTL_mapping/LIMIX/nf_core_eqtl/assets/annotation_file.txt"
@@ -144,6 +154,9 @@ def main():
     # BED_Formated_Data["idx"]=Gene_Chr_Start_End_Data.feature_id
     # BED_Formated_Data=BED_Formated_Data.set_index("idx")
     BED_Formated_Data['#chr']='chr'+BED_Formated_Data['#chr'].astype(str)
+
+    BED_Formated_Data = BED_Formated_Data[BED_Formated_Data['start'] > 0]
+    BED_Formated_Data = BED_Formated_Data[BED_Formated_Data['end']>0]
 
     # Gene_Chr_Start_End_Data=Gene_Chr_Start_End_Data.iloc[list(Expression_Data.index)]
         #1 Conver the RNA_seq ids to HIPSci ids.
