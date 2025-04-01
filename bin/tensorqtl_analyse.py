@@ -291,9 +291,10 @@ def main():
     # this can be adjusted to take an average. TQTL can not account for repeated measures.
     phenotype_df=phenotype_df.loc[:,~phenotype_df.columns.duplicated()]
 
+    
     covariates_df=covariates_df.T
     
-    phenotype_df1 = list(set(phenotype_pos_df[phenotype_pos_df['chr']!='chrY'].index))
+    # phenotype_df1 = list(set(phenotype_pos_df[phenotype_pos_df['chr']!='chrY'].index))
     # phenotype_df1 = list(set(phenotype_pos_df[phenotype_pos_df['chr']=='21'].index))
     
     # not a good solution but atm
@@ -321,9 +322,11 @@ def main():
     except:
         print('exist')
 
-    print("Running trans analysis")
+    print(f"Dropping {len(set(phenotype_df.columns)) - len(set(phenotype_df.columns).intersection(set(genotype_df.columns)))} phenotypes because no genotype is present for these")
+    phenotype_df = phenotype_df[list(set(phenotype_df.columns).intersection(set(genotype_df.columns)))]
     
     if options.chrom_to_map_trans:
+        print("Running trans analysis")
         for chr1 in options.chrom_to_map_trans.split(','):
             gwas_trans_mapping(chrom_to_map = options.chrom_to_map_trans,variant_df=variant_df,
                                phenotype_df=phenotype_df,phenotype_pos_df=phenotype_pos_df,genotype_df=genotype_df,
