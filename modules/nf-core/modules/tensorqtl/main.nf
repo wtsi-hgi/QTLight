@@ -310,7 +310,8 @@ workflow TENSORQTL_eqtls{
           plink_genotype,
           params.TensorQTL.optimise_pcs,
           true,
-          true
+          true,
+          false
       )
 
       if (params.TensorQTL.optimise_pcs){
@@ -328,7 +329,8 @@ workflow TENSORQTL_eqtls{
             plink_genotype,
             false,
             false,
-            false
+            false,
+            params.TensorQTL.map_independent_qtls
           )
 
           if (params.TensorQTL.interaction_file != '' && params.TensorQTL.run_gsea){
