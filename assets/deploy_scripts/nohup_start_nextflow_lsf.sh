@@ -17,6 +17,7 @@ parentdir="$(dirname "$CWD1")"
 export RUN_ID="${PWD##*/}"
 mkdir $PWD/work || echo 'exists'
 mkdir $PWD/work/tmp || echo 'exists'
+ulimit -c unlimited
 echo $RUN_ID | nextflow run $SCRIPT_DIR/../.. -profile sanger $INPUT_FILE --nf_ci_loc $PWD -resume > nextflow.nohup.log 2>&1 & 
 
 # get process PID 

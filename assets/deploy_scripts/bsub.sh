@@ -4,12 +4,12 @@ parentdir="$(dirname "$CWD1")"
 INPUT_FILE="$@"
 export RUN_ID="${PWD##*/}"
 export NXF_OPTS="-Xms35G -Xmx35G"
+
 export SINGULARITY_TMPDIR=$PWD/work/tmp
 export TEMP=$PWD/work/tmp
 export TMP_DIR=$PWD/work/tmp
 SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
 
 sample="$RUN_ID"
-echo -e "\n Submitting eqtl (https://github.com/wtsi-hgi/eqtl) with input file $INPUT_FILE"
-bsub -R'select[mem>35000] rusage[mem=35000]' -J $sample -n 1 -M 35000 -o $sample.o -e $sample.e -q $QUEUE bash $SCRIPT_DIR/../../assets/deploy_scripts/nohup_start_nextflow_lsf.sh $INPUT_FILE
+bsub -R'select[mem>75000] rusage[mem=75000]' -J $sample -n 1 -M 75000 -o $sample.o -e $sample.e -q $QUEUE bash $SCRIPT_DIR/../../assets/deploy_scripts/nohup_start_nextflow_lsf.sh $INPUT_FILE
 echo "Submitted job can be killed with: bkill -J $sample"
