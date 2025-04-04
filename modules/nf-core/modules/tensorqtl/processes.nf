@@ -28,6 +28,7 @@ process TENSORQTL {
     val(skip_nominal)
     val(preprocess_bed)
     val(skip_gwas)
+    val(map_independent_qtls)
 
   output:
     tuple val(condition), val(interaction), path("${outpath}"), emit: pc_qtls_path
@@ -44,6 +45,7 @@ process TENSORQTL {
       tensor_qtl_script = "tensorqtl_analyse.py -nperm ${params.numberOfPermutations}"
       outpath = "${nr_phenotype_pcs}/base_output/base"
       interaction = 'base'
+      
       if (params.TensorQTL.chrom_to_map_trans == ''){
         chrom_to_map_trans = ""
       }else{
@@ -60,6 +62,12 @@ process TENSORQTL {
     } else {
       map_nominal_flag = "--map_nominal"
     }
+    if (map_independent_qtls) {
+      map_independent_qtls = "--map_independent_qtls"
+    } else {
+      map_independent_qtls = ""
+    }
+
     if (preprocess_bed) {
       preprocess_bed = "bedtools sort -i ${aggrnorm_counts_bed} -header > Expression_Data.sorted.bed; sed -i 's/^chr//' Expression_Data.sorted.bed"
     } else {
@@ -73,7 +81,7 @@ process TENSORQTL {
     }
     """
       ${preprocess_bed}
-      ${tensor_qtl_script} --plink_prefix_path ${plink_files_prefix}/plink_genotypes --expression_bed Expression_Data.sorted.bed --covariates_file ${covariates_tsv} -window ${params.windowSize} ${dosage} --maf ${params.maf} --outdir ${outpath} ${map_nominal_flag} ${chrom_to_map_trans}
+      ${tensor_qtl_script} --plink_prefix_path ${plink_files_prefix}/plink_genotypes --expression_bed Expression_Data.sorted.bed --covariates_file ${covariates_tsv} -window ${params.windowSize} ${dosage} --maf ${params.maf} --outdir ${outpath} ${map_nominal_flag} ${chrom_to_map_trans} ${map_independent_qtls}
       cd ${outpath} && ln ../../../${covariates_tsv} ./ && ln ../../../Expression_Data.sorted.bed ./ && ln ../../../${interaction_file} ./
     """
 }

@@ -253,6 +253,14 @@ def main():
         default=False,
         help=''
     )
+    
+    parser.add_argument(
+        '-ind', '--map_independent_qtls',
+        action='store_true',
+        dest='map_independent_qtls',
+        default=False,
+        help=''
+    )
 
     options = parser.parse_args()
     maf=float(options.maf)
@@ -291,9 +299,10 @@ def main():
     # this can be adjusted to take an average. TQTL can not account for repeated measures.
     phenotype_df=phenotype_df.loc[:,~phenotype_df.columns.duplicated()]
 
+    
     covariates_df=covariates_df.T
     
-    phenotype_df1 = list(set(phenotype_pos_df[phenotype_pos_df['chr']!='chrY'].index))
+    phenotype_df1 = list(set(phenotype_pos_df.index))
     # phenotype_df1 = list(set(phenotype_pos_df[phenotype_pos_df['chr']=='21'].index))
     
     # not a good solution but atm
@@ -321,9 +330,12 @@ def main():
     except:
         print('exist')
 
-    print("Running trans analysis")
+    print(f"Dropping {len(set(phenotype_df.columns)) - len(set(phenotype_df.columns).intersection(set(genotype_df.columns)))} phenotypes because no genotype is present for these")
+    phenotype_df = phenotype_df[list(set(phenotype_df.columns).intersection(set(genotype_df.columns)))]
+    covariates_df = covariates_df.loc[list(set(phenotype_df.columns).intersection(set(genotype_df.columns))),:]
     
     if options.chrom_to_map_trans:
+        print("Running trans analysis")
         for chr1 in options.chrom_to_map_trans.split(','):
             gwas_trans_mapping(chrom_to_map = options.chrom_to_map_trans,variant_df=variant_df,
                                phenotype_df=phenotype_df,phenotype_pos_df=phenotype_pos_df,genotype_df=genotype_df,
@@ -384,15 +396,19 @@ def main():
         # calculate_qvalues(cis_df_dropped, qvalue_lambda=0.85)
         # Perform conditional analysis
     #######################
-    try:
-        indep_df = cis.map_independent(genotype_df, variant_df, cis_df_dropped,
-                                        phenotype_df.loc[phenotype_df1],       
-                                        phenotype_pos_df.loc[phenotype_df1],
-                                        nperm=int(options.nperm), window=int(options.window),
-                                        covariates_df=covariates_df,maf_threshold=maf,seed=7)
-        indep_df.to_csv(f"{outdir}/Cis_eqtls_independent.tsv",sep="\t",index=False)
-    except:
-        print("No significant phenotypes for cis.map_independent")
+    if options.map_independent_qtls:        
+        try:
+            indep_df = cis.map_independent(genotype_df, variant_df, cis_df_dropped,
+                                            phenotype_df.loc[phenotype_df1],       
+                                            phenotype_pos_df.loc[phenotype_df1],
+                                            nperm=int(options.nperm), window=int(options.window),
+                                            covariates_df=covariates_df,maf_threshold=maf,seed=7)
+            indep_df.to_csv(f"{outdir}/Cis_eqtls_independent.tsv",sep="\t",index=False)
+        except:
+            print("No significant phenotypes for cis.map_independent")
+        
+    else:
+        print('--Skipping map_independent analysis')
     
     if 'qvals' not in cis_df_dropped.columns:
         # Add 'qvals' column with None values

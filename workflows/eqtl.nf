@@ -105,46 +105,68 @@ workflow EQTL {
 
     }else if (params.method=='single_cell'){
         log.info '------ Scrna analysis ------'
+        if (params.pre_aggregated_counts_folder==''){    
+            if (params.normalise_before_or_after_aggregation=='before'){
+                // here we normalise the adata all together per splits
+                NORMALISE_ANNDATA(params.phenotype_file)
+                // NORMALISE_ANNDATA.out.adata.subscribe { println "NORMALISE_ANNDATA.out.adata: $it" }
+                pheno = NORMALISE_ANNDATA.out.adata
+            }else{
+                pheno = params.phenotype_file
+            }
+            
+            if (params.split_aggregation_adata){
+                // pheno.subscribe { println "pheno: $it" }
+                SPLIT_AGGREGATION_ADATA(pheno,params.aggregation_columns)
+                adata = SPLIT_AGGREGATION_ADATA.out.split_phenotypes.flatten()
+            }else{
+                adata = pheno
+            }   
+            
+            if (params.normalise_before_or_after_aggregation=='after'){
+                // here we normalise the adata per splits
+                NORMALISE_ANNDATA(adata)
+                splits_h5ad = NORMALISE_ANNDATA.out.adata
+            }else{
+                splits_h5ad = adata
+            }
         
-        if (params.normalise_before_or_after_aggregation=='before'){
-            // here we normalise the adata all together per splits
-            NORMALISE_ANNDATA(params.phenotype_file)
-            // NORMALISE_ANNDATA.out.adata.subscribe { println "NORMALISE_ANNDATA.out.adata: $it" }
-            pheno = NORMALISE_ANNDATA.out.adata
+            AGGREGATE_UMI_COUNTS(splits_h5ad,params.aggregation_columns,params.gt_id_column,params.sample_column,params.n_min_cells,params.n_min_individ)
+            phenotype_genotype_file = AGGREGATE_UMI_COUNTS.out.phenotype_genotype_file
+            genotype_phenotype_mappings = AGGREGATE_UMI_COUNTS.out.genotype_phenotype_mapping.flatten()
         }else{
-            pheno = params.phenotype_file
+            log.info "Looking for existing files '___phenotype_file.tsv' and '___genotype_phenotype_mapping.tsv' in ${params.pre_aggregated_counts_folder}/*/*phenotype_file.tsv"
+            Channel
+                .fromPath(params.pre_aggregated_counts_folder+'/*/*___phenotype_file.tsv').ifEmpty { error "No FASTQ files found in data/ directory" }
+                .map{file1 ->
+                    def parts = "${file1}".split('___')
+                    def name_pre = parts[ parts.size() - 2 ]
+                    def name_parts = "${name_pre}".split('/')
+                    def name = name_parts[ name_parts.size() - 1 ]
+                    def replacedFullPath = "${file1}".replace('___phenotype_file.tsv', '___genotype_phenotype_mapping.tsv')
+        
+                    tuple( name, file(file1), file(replacedFullPath) )  }
+                .set { phenotype_genotype_file }
+            
+            Channel
+                .fromPath(params.pre_aggregated_counts_folder+'/*/*___phenotype_file.tsv').ifEmpty { error "No FASTQ files found in data/ directory" }
+                .map{file1 ->
+                    def replacedFullPath = "${file1}".replace('___phenotype_file.tsv', '___genotype_phenotype_mapping.tsv')
+                    file(replacedFullPath)   }
+                .set { genotype_phenotype_mappings }
         }
-        
-        if (params.split_aggregation_adata){
-            // pheno.subscribe { println "pheno: $it" }
-            SPLIT_AGGREGATION_ADATA(pheno,params.aggregation_columns)
-            adata = SPLIT_AGGREGATION_ADATA.out.split_phenotypes.flatten()
-        }else{
-            adata = pheno
-        }   
-        
-        if (params.normalise_before_or_after_aggregation=='after'){
-            // here we normalise the adata per splits
-            NORMALISE_ANNDATA(adata)
-            splits_h5ad = NORMALISE_ANNDATA.out.adata
-        }else{
-            splits_h5ad = adata
-        }
-
-        AGGREGATE_UMI_COUNTS(splits_h5ad,params.aggregation_columns,params.gt_id_column,params.sample_column,params.n_min_cells,params.n_min_individ)
 
         if (params.split_aggregation_adata==false){
-            ORGANISE_AGGREGATED_FILES(AGGREGATE_UMI_COUNTS.out.phenotype_genotype_file)
+            ORGANISE_AGGREGATED_FILES(phenotype_genotype_file)
             ORGANISE_AGGREGATED_FILES.out.phenotype_files_tsv.splitCsv(header: true, sep: params.input_tables_column_delimiter)
                 .map{row->tuple(row.name, file(row.phen_file), file(row.gp_fi) )}
             .set{umi_counts_phenotype_genotype_file}
         }else{
-            umi_counts_phenotype_genotype_file = AGGREGATE_UMI_COUNTS.out.phenotype_genotype_file
+            umi_counts_phenotype_genotype_file = phenotype_genotype_file
         }
 
         if (params.TensorQTL.aggregation_subentry != '') {
             log.info("------- Analysing ${params.TensorQTL.aggregation_subentry} celltypes ------- ")
-            umi_counts_phenotype_genotype_file.subscribe { println "AGGREGATE_UMI_COUNTS.out.phenotype_genotype_file: $it" }
             // Split the aggregation_subentry parameter into a list of patterns
             valid_files = umi_counts_phenotype_genotype_file
                 .filter { tuple -> 
@@ -182,10 +204,10 @@ workflow EQTL {
             genotype_phenotype_mapping_file = REMAP_GENOTPE_ID.out.genotype_phenotype_mapping
         }else{
             phenotype_condition = out2
-            genotype_phenotype_mapping_file = AGGREGATE_UMI_COUNTS.out.genotype_phenotype_mapping.flatten()
+            genotype_phenotype_mapping_file = genotype_phenotype_mappings.flatten()
         }
 
-        // genotype_phenotype_mapping_file.subscribe { println "genotype_phenotype_mapping_file: $it" }
+        // phenotype_genotype_file.subscribe { println "phenotype_genotype_file: $it" }
         genotype_phenotype_mapping_file.splitCsv(header: true, sep: params.input_tables_column_delimiter)
             .map{row->tuple(row.Genotype)}.distinct()
             .set{channel_input_data_table2}
