@@ -165,35 +165,10 @@ def main():
     else:
         print('  * WARNING: using CPU!')
 
-    # Replacing with simplier command
-    # pr = genotypeio.PlinkReader(plink_prefix_path)
-    # genotype_df = pr.load_genotypes()
-    # variant_df = pr.bim.set_index('snp')[['chrom', 'pos']]
     genotype_df, variant_df = genotypeio.load_genotypes(plink_prefix_path, dosages=dosage)
     os.makedirs(outdir)
 
-        
-        
-  #     try:
-  #         # Here we have Plink1 bin,bed,fam
-  #         pr = genotypeio.PlinkReader(plink_prefix_path)
-  #         variant_df = pr.bim.set_index('snp')[['chrom', 'pos']]
-  #     except:
-  #         # Here we have Plink2 psam,pgen,pvar
-  #         pr = pgen.PgenReader(plink_prefix_path)
-  #         variant_df2 = pr.variant_dfs
-  #         variant_df = pd.DataFrame()
-  #         for k1 in variant_df2.keys():
-  #             dic1=pd.DataFrame(variant_df2[k1])
-  #             dic1['chrom']=k1
-  #             variant_df=pd.concat([variant_df,dic1])
-  #         variant_df.index=variant_df.index.rename('snp')
-  #         variant_df=variant_df[['chrom', 'pos']]
-  #         del variant_df2
-  #     genotype_df = pr.load_genotypes()    
-  #     Directory = f'{outdir}/inter_output'
-  #     os.mkdir(Directory)
-    phenotype_df1 = list(set(phenotype_pos_df[phenotype_pos_df['chr']!='chrY'].index))
+    phenotype_df1 = list(set(phenotype_pos_df.index))
     cis.map_nominal(genotype_df, variant_df, 
                     phenotype_df.loc[phenotype_df1], 
                     phenotype_pos_df.loc[phenotype_df1],

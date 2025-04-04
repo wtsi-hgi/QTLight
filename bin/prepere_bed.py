@@ -131,35 +131,25 @@ def main():
     idx1 = Gene_Chr_Start_End_Data[Gene_Chr_Start_End_Data.strand =='-'].index
     BED_Formated_Data.loc[idx1,"start"]=Gene_Chr_Start_End_Data.loc[idx1,"end"]-1
     BED_Formated_Data.loc[idx1,"end"]=Gene_Chr_Start_End_Data.loc[idx1,"end"]
-
-
+    BED_Formated_Data['#chr'] = BED_Formated_Data['#chr'].str.replace('chr','')
+    
+    # # Change the denotion of the chromosomes.
+    # BED_Formated_Data['#chr'].replace(['X', 'Y', 'XY', 'MT'], ['23', '24', '25', '26'],inplace=True)
+    
     if (options.chr):
         chrs = options.chr.split(',')
-        BED_Formated_Data['#chr'] = BED_Formated_Data['#chr'].str.replace('chr','')
         BED_Formated_Data = BED_Formated_Data[BED_Formated_Data['#chr'].str.replace('chr','').isin(chrs)]
-        
-    # Change the denotion of the chromosomes.
-    BED_Formated_Data['#chr'].replace(['X', 'Y', 'XY', 'MT'], ['23', '24', '25', '26'],inplace=True)
-    # Gene_Chr_Start_End_Data = pd.read_csv(annotation_file,sep="\t",skiprows=6 )
-
-    # print(Gene_Chr_Start_End_Data.start)
 
     if midpoint:
         BED_Formated_Data["start"]=Gene_Chr_Start_End_Data.start+((Gene_Chr_Start_End_Data.end-Gene_Chr_Start_End_Data.start)/2).apply(math.ceil)
         BED_Formated_Data["end"]=BED_Formated_Data["start"]+1
 
-
     BED_Formated_Data["gene_id"]=BED_Formated_Data.index
     BED_Formated_Data = BED_Formated_Data.sort_values(by=['#chr','start','end'])
-    # BED_Formated_Data["idx"]=Gene_Chr_Start_End_Data.feature_id
-    # BED_Formated_Data=BED_Formated_Data.set_index("idx")
-    BED_Formated_Data['#chr']='chr'+BED_Formated_Data['#chr'].astype(str)
-
     BED_Formated_Data = BED_Formated_Data[BED_Formated_Data['start'] > 0]
     BED_Formated_Data = BED_Formated_Data[BED_Formated_Data['end']>0]
 
     # Gene_Chr_Start_End_Data=Gene_Chr_Start_End_Data.iloc[list(Expression_Data.index)]
-        #1 Conver the RNA_seq ids to HIPSci ids.
     Mapping_File=pd.read_csv(mapping_file,sep="\t")
     try:
         Mapping_File=Mapping_File.drop('Sample_Category',axis=1)
@@ -178,18 +168,6 @@ def main():
     mergedDf = mergedDf2.loc[chrs]
     mergedDf = mergedDf.reset_index()
     mergedDf.dropna(axis=0,inplace=True)
-
-    # Check for missing genes - thre are missing genes, which shouldnt be there. Will have to investigate whether this is correct.
-    # Genes_reference = pd.Series(Expression_Data.index)
-    # Genes_reference[Genes_reference.isin(BED_Formated_Data.index.values)==False]
-    # Missing_Genes = Genes_reference[Genes_reference.isin(BED_Formated_Data.index.values)==False]
-    # Missing_Genes.to_csv("Missing_Genes.csv")
-
-    # Now just save the file to BED file.
-    # mergedDf["gene_id"]=mergedDf.index
-    # g = mergedDf['#chr'].value_counts()
-    # to_keep = list(g[g > 1].index)
-    # mergedDf = mergedDf[mergedDf['#chr'].isin(to_keep)]
     mergedDf.to_csv("Expression_Data.bed.gz", sep='\t', compression='gzip',index=False)
 
 if __name__ == '__main__':

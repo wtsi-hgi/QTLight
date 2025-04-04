@@ -628,9 +628,7 @@ process TEST {
 
     input:
         tuple val(sanitized_columns), path(saige_filt_expr_input),path(test_genes) 
-       
-    // Define the Bash script to run for each array job
-    // \${chr1}___nindep_100_ncell_100_lambda_2_tauIntraSample_0.5_gene_1_cis_gene_1
+
     script:
     """
         echo ${sanitized_columns}
@@ -718,9 +716,7 @@ workflow SAIGE_qtls{
             log.info('------- Analysing all celltypes ------- ')
             valid_files = phenotype_file
         }
-        valid_files.subscribe { println "valid_files: $it" }
-        genotype_pcs.subscribe { println "genotype_pcs: $it" }
-        genome_annotation.subscribe { println "genome_annotation: $it" }
+
 
         H5AD_TO_SAIGE_FORMAT(
             valid_files,
@@ -732,7 +728,6 @@ workflow SAIGE_qtls{
         pheno = H5AD_TO_SAIGE_FORMAT.out.output_pheno
         gene = H5AD_TO_SAIGE_FORMAT.out.gene_chunk
 
-        gene.subscribe { println "gene: $it" }
         PHENOTYPE_PCs(pheno,params.SAIGE.nr_expression_pcs)
         pheno = PHENOTYPE_PCs.out.output_pheno
 
@@ -755,32 +750,16 @@ workflow SAIGE_qtls{
         sparseGRM_sample = CREATE_SPARSE_GRM.out.sparseGRM_sample
         SAIGE_S1(pheno_chunk.combine(bim_bed_fam),sparseGRM,sparseGRM_sample)
 
-
-        // if(params.SAIGE.cis_trans_mode=='trans'){
-        //     SAIGE_S2(SAIGE_S1.out.output.combine(bim_bed_fam))
-        //     output_s2 = SAIGE_S2.out.output
-        //     agg_output = SAIGE_S2.out.for_aggregation
-
-        // }else if(params.SAIGE.cis_trans_mode=='cis'){
         DETERMINE_TSS_AND_TEST_REGIONS(SAIGE_S1.out.output,genome_annotation)
         for_cis_input = DETERMINE_TSS_AND_TEST_REGIONS.out.output_genes
         SAIGE_S2_CIS(for_cis_input.combine(bim_bed_fam),sparseGRM,sparseGRM_sample)
-        // there will be cases where the genes are across multiple chr. and this will emt two outputs. 
-        // they need to be standardised.
         output_s2 = SAIGE_S2_CIS.out.output
         agg_output = SAIGE_S2_CIS.out.for_aggregation
 
-
-        // }
-
         // HERE WE either run the cis or trans qtl mapping. For cis we loop through each of the chunks whereas in trans we can run all together.
-        // output_s2.subscribe { println "output_s2 dist: $it" }
-        // agg_output.subscribe { println "agg_output dist: $it" }
         SAIGE_QVAL_COR(output_s2)
         SAIGE_S3(SAIGE_QVAL_COR.out.output)
 
-
-        // SAIGE_QVAL_COR.out.for_conditioning.subscribe { println "SAIGE_QVAL_COR dist: $it" }
         // ########## Collecting Chunk outputs.  ###############
         SAIGE_S2_for_aggregation = agg_output.flatMap { item ->
             def (first, second) = item
@@ -817,14 +796,6 @@ workflow SAIGE_qtls{
         SAIGE_S3_for_aggregation = SAIGE_S3_for_aggregation.map{row->tuple("${row[0]}".replaceFirst(/___.*/,""),
                                                     file(row[1])
                                                     )}  
-        // SAIGE_S2_for_aggregation.subscribe { println "SAIGE_S2_for_aggregation dist: $it" }
-        // SAIGE_S2_for_aggregation
-        //     .collectFile { it[0] }
-        //     .map { key, files ->
-        //         tuple(key, files)
-        //     }
-        //     .set { dynamic_groups }
-        // ########## Aggregating and emiting the results.  ###############
         AGGREGATE_QTL_RESULTS(SAIGE_S3_for_aggregation.groupTuple(by: 0))
         AGGREGATE_QTL_ALLVARS(SAIGE_S2_for_aggregation.groupTuple(by: 0))
         AGGREGATE_ACAT_RESULTS(SAIGE_S3_for_aggregation_ACAT.groupTuple(by: 0))

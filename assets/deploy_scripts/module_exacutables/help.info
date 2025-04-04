@@ -1,4 +1,4 @@
-#####eQTLigt/eQTL 1.52#####
+#####eQTLigt/eQTL 1.60#####
 ##########################
 ${bold}eQTLigt${normal}[https://github.com/wtsi-hgi/eqtl] Nextflow pipeline that that performs eQTL analysis of scRNA, bulk, ATAC, Chip and any other QTLs
 ##########################
