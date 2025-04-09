@@ -201,10 +201,16 @@ def main():
             phenotype_df=phenotype_df.loc[:,~phenotype_df.columns.duplicated()]
 
             covariates_df=covariates_df.T
+            
+            
+            covariates_df = covariates_df.sort_index()
+            # Make sure they are always sorted the same regardless of what run it is.
+            phenotype_df = phenotype_df.loc[:,sorted(phenotype_df.columns, reverse=True)]
+    
             # Run test
             print("Running trans analysis")
-            trans_df_all = trans.map_trans(genotype_df, phenotype_df.loc[phenotype_pos_df['chr']!='chrY'],
-                                covariates_df = covariates_df, batch_size=10000,
+            trans_df_all = trans.map_trans(genotype_df, phenotype_df,
+                                covariates_df = covariates_df.loc[phenotype_df.columns], batch_size=10000,
                                 return_sparse=True, pval_threshold=pval_threshold, maf_threshold=maf)
 
             # Filter the trans for distance (1Mb)
