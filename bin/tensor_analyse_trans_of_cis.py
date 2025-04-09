@@ -190,8 +190,8 @@ def main():
             phenotype_df = phenotype_df[phenotype_df.index.isin(sig_genes)]
             phenotype_pos_df = phenotype_pos_df[phenotype_pos_df.index.isin(sig_genes)]
             # have to drop duplicate rownames. and average the repeated measures.
-            phenotype_df.columns = phenotype_df.columns.str.split('.').str[0]
-            covariates_df.columns = covariates_df.columns.str.split('.').str[0]
+            # phenotype_df.columns = phenotype_df.columns.str.split('.').str[0]
+            # covariates_df.columns = covariates_df.columns.str.split('.').str[0]
             print(f"Shape of phenotype_df:{phenotype_df.shape}")
             print(f"Shape of covariates_df:{covariates_df.shape}")
             print("Loaded genotypes, filtered genotypes and loaded covariates")

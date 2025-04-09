@@ -286,8 +286,8 @@ def main():
     covariates_df = covariates_df[list(set(phenotype_df.columns).intersection(set(covariates_df.columns)))]
     phenotype_df = phenotype_df[covariates_df.columns]
     # have to drop dublicate rownames. and average the repeated measures.
-    phenotype_df.columns = phenotype_df.columns.str.split('.').str[0]
-    covariates_df.columns = covariates_df.columns.str.split('.').str[0]
+    # phenotype_df.columns = phenotype_df.columns.str.split('.').str[0]
+    # covariates_df.columns = covariates_df.columns.str.split('.').str[0]
 
     covariates_df=covariates_df.loc[:,~covariates_df.columns.duplicated()]
     # this can be adjusted to take an average. TQTL can not account for repeated measures.

@@ -195,8 +195,8 @@ def main():
         #covariates_df = covariates_df.loc[:,covariates_df.columns.isin(phenotype_df.columns)]
         phenotype_df = phenotype_df[covariates_df.columns]
         # have to drop dublicate rownames. and average the repeated measures.
-        phenotype_df.columns = phenotype_df.columns.str.split('.').str[0]
-        covariates_df.columns = covariates_df.columns.str.split('.').str[0]
+        # phenotype_df.columns = phenotype_df.columns.str.split('.').str[0]
+        # covariates_df.columns = covariates_df.columns.str.split('.').str[0]
         print(f"Shape of phenotype_df:{phenotype_df.shape}")
         print(f"Shape of covariates_df:{covariates_df.shape}")
         print("Loaded genotypes, filtered genotypes and loaded covariates")

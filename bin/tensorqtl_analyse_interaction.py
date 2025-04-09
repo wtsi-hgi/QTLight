@@ -142,8 +142,8 @@ def main():
     interaction_df = pd.read_csv(interaction_file, sep='\t', header=None, index_col=0)
     phenotype_df = phenotype_df[covariates_df.columns]
     # have to drop dublicate rownames. and average the repeated measures.
-    phenotype_df.columns = phenotype_df.columns.str.split('.').str[0]
-    covariates_df.columns = covariates_df.columns.str.split('.').str[0]
+    # phenotype_df.columns = phenotype_df.columns.str.split('.').str[0]
+    # covariates_df.columns = covariates_df.columns.str.split('.').str[0]
 
     covariates_df=covariates_df.loc[:,~covariates_df.columns.duplicated()]
     interaction_df=interaction_df.loc[:,~interaction_df.columns.duplicated()]
