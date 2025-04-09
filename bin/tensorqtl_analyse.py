@@ -282,12 +282,6 @@ def main():
 
 
     phenotype_df, phenotype_pos_df = read_phenotype_bed(expression_bed)
-    
-    
-    # phenotype_df =  pd.read_csv(expression_bed, sep='\t', index_col=0,header=None)
-    # phenotype_df.columns = phenotype_df.iloc[0]
-    # phenotype_df = phenotype_df.iloc[1: , :]
-    # phenotype_df = phenotype_df.reindex(phenotype_df.index.drop(0)).reset_index(drop=True)
     covariates_df = pd.read_csv(covariates_file, sep='\t', index_col=0)
     covariates_df = covariates_df[list(set(phenotype_df.columns).intersection(set(covariates_df.columns)))]
     phenotype_df = phenotype_df[covariates_df.columns]
@@ -301,18 +295,7 @@ def main():
 
     
     covariates_df=covariates_df.T
-    
-    phenotype_df1 = list(set(phenotype_pos_df.index))
-    # phenotype_df1 = list(set(phenotype_pos_df[phenotype_pos_df['chr']=='21'].index))
-    
-    # not a good solution but atm
-
-    # covariates_df=covariates_df.set_index('IID')
-    # to_keep = list(set(covariates_df.index).intersection(set(phenotype_df.columns)))
-    # covariates_df=covariates_df.loc[to_keep]
-    # covariates_df= covariates_df
-
-    # phenotype_df = phenotype_df[to_keep]
+    phenotype_df_genes = list(set(phenotype_pos_df.index))
 
     print('----Fine read ------')
     if torch.cuda.is_available():
@@ -320,10 +303,6 @@ def main():
     else:
         print('  * WARNING: using CPU!')
 
-    # Replacing with simplier command
-    # pr = genotypeio.PlinkReader(plink_prefix_path)
-    # genotype_df = pr.load_genotypes()
-    # variant_df = pr.bim.set_index('snp')[['chrom', 'pos']]
     genotype_df, variant_df = genotypeio.load_genotypes(plink_prefix_path, dosages=dosage)
     try:
         os.makedirs(outdir)
@@ -333,26 +312,29 @@ def main():
     print(f"Dropping {len(set(phenotype_df.columns)) - len(set(phenotype_df.columns).intersection(set(genotype_df.columns)))} phenotypes because no genotype is present for these")
     phenotype_df = phenotype_df[list(set(phenotype_df.columns).intersection(set(genotype_df.columns)))]
     covariates_df = covariates_df.loc[list(set(phenotype_df.columns).intersection(set(genotype_df.columns))),:]
+    covariates_df = covariates_df.sort_index()
+    # Make sure they are always sorted the same regardless of what run it is.
+    phenotype_df = phenotype_df.loc[phenotype_df_genes,sorted(phenotype_df.columns, reverse=True)]
     
     if options.chrom_to_map_trans:
         print("Running trans analysis")
         for chr1 in options.chrom_to_map_trans.split(','):
             gwas_trans_mapping(chrom_to_map = options.chrom_to_map_trans,variant_df=variant_df,
                                phenotype_df=phenotype_df,phenotype_pos_df=phenotype_pos_df,genotype_df=genotype_df,
-                               phenotype_df1=phenotype_df1,covariates_df=covariates_df,outdir=outdir,map_nominal=map_nominal) ## Map all the genes across genome against all SNPs indicated as chrom_to_map parameter. For example if 2 then wil map all the genes across chromosomes against chr2 NPs.
+                               phenotype_df1=phenotype_df_genes,covariates_df=covariates_df,outdir=outdir,map_nominal=map_nominal) ## Map all the genes across genome against all SNPs indicated as chrom_to_map parameter. For example if 2 then wil map all the genes across chromosomes against chr2 NPs.
     else:    
         if map_nominal:
             cis.map_nominal(genotype_df, variant_df,
-                            phenotype_df.loc[phenotype_df1],
-                            phenotype_pos_df.loc[phenotype_df1],maf_threshold=maf,
-                            covariates_df=covariates_df,prefix='cis_nominal1',
+                            phenotype_df.loc[phenotype_df_genes],
+                            phenotype_pos_df.loc[phenotype_df_genes],maf_threshold=maf,
+                            covariates_df=covariates_df.loc[phenotype_df.columns],prefix='cis_nominal1',
                             output_dir=outdir, write_top=map_nominal, write_stats=map_nominal)
         
             all_files = glob.glob(f'{outdir}/cis_nominal*.parquet')
             All_Data = pd.DataFrame()
             count=0
             for bf1 in all_files:
-                print(bf1)
+                # print(bf1)
                 df = pd.read_parquet(bf1)
                 df.to_csv(bf1.replace('.parquet','.tsv'),sep='\t',index=False)
                 os.remove(bf1) 
@@ -360,11 +342,14 @@ def main():
   
 
     try:
+
         cis_df = cis.map_cis(genotype_df, variant_df, 
-                            phenotype_df.loc[phenotype_df1],
-                            phenotype_pos_df.loc[phenotype_df1],nperm=int(options.nperm),
+                            phenotype_df.loc[phenotype_df_genes],
+                            phenotype_pos_df.loc[phenotype_df_genes],nperm=int(options.nperm),
                             window=int(options.window),
-                            covariates_df=covariates_df,maf_threshold=maf,seed=7)
+                            covariates_df=covariates_df.loc[phenotype_df.columns],maf_threshold=maf,seed=7)
+        
+
         print('----cis eQTLs processed ------')
         cis_df.head()
         cis_df.to_csv(f"{outdir}/Cis_eqtls.tsv",sep="\t")
@@ -382,8 +367,8 @@ def main():
         # Hence the folowing part of the code if the above fails avoiding beta aproximation and 
         print('----cis eQTLs failed to aproximate betas ------')
         cis_df = cis.map_cis(genotype_df, variant_df, 
-                            phenotype_df.loc[phenotype_df1],
-                            phenotype_pos_df.loc[phenotype_df1],nperm=int(options.nperm),
+                            phenotype_df.loc[phenotype_df_genes],
+                            phenotype_pos_df.loc[phenotype_df_genes],nperm=int(options.nperm),
                             window=int(options.window),
                             covariates_df=covariates_df,maf_threshold=maf,seed=7,beta_approx=False)
         print('----cis eQTLs processed ------')
@@ -399,8 +384,8 @@ def main():
     if options.map_independent_qtls:        
         try:
             indep_df = cis.map_independent(genotype_df, variant_df, cis_df_dropped,
-                                            phenotype_df.loc[phenotype_df1],       
-                                            phenotype_pos_df.loc[phenotype_df1],
+                                            phenotype_df.loc[phenotype_df_genes],       
+                                            phenotype_pos_df.loc[phenotype_df_genes],
                                             nperm=int(options.nperm), window=int(options.window),
                                             covariates_df=covariates_df,maf_threshold=maf,seed=7)
             indep_df.to_csv(f"{outdir}/Cis_eqtls_independent.tsv",sep="\t",index=False)
