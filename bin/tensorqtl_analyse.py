@@ -319,7 +319,7 @@ def main():
     if options.chrom_to_map_trans:
         print("Running trans analysis")
         for chr1 in options.chrom_to_map_trans.split(','):
-            gwas_trans_mapping(chrom_to_map = options.chrom_to_map_trans,variant_df=variant_df,
+            gwas_trans_mapping(chrom_to_map = chr1,variant_df=variant_df,
                                phenotype_df=phenotype_df,phenotype_pos_df=phenotype_pos_df,genotype_df=genotype_df,
                                phenotype_df1=phenotype_df_genes,covariates_df=covariates_df,outdir=outdir,map_nominal=map_nominal) ## Map all the genes across genome against all SNPs indicated as chrom_to_map parameter. For example if 2 then wil map all the genes across chromosomes against chr2 NPs.
     else:    
