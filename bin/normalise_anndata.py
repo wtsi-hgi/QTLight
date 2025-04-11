@@ -12,7 +12,7 @@ np.random.seed(42)
 import argparse
 import scipy as sp
 import sys
-
+import warnings
 def PF(X):
     cd=np.asarray(X.sum(1)).ravel()
     avg_cd=cd.mean()
