@@ -28,6 +28,7 @@ process GENOTYPE_PC_CALCULATION {
         }
         """
             plink2 ${pgen_or_bed} ${plink_dir}/plink_genotypes ${params.covariates.genotype_pc_filters} --out tmp_gt_plink_freq
-            plink2 --pca ${params.covariates.nr_genotype_pcs} --extract tmp_gt_plink_freq.prune.in ${pgen_or_bed} ${plink_dir}/plink_genotypes --out gtpca_plink
+            plink2 ${pgen_or_bed} ${plink_dir}/plink_genotypes --extract tmp_gt_plink_freq.prune.in --freq --out tmp_gt_plink_freq
+            plink2 --pca ${params.covariates.nr_genotype_pcs} --read-freq tmp_gt_plink_freq.afreq --extract tmp_gt_plink_freq.prune.in ${pgen_or_bed} ${plink_dir}/plink_genotypes --out gtpca_plink
         """
 }
