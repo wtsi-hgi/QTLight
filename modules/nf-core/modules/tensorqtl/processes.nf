@@ -62,7 +62,7 @@ process TENSORQTL {
     } else {
       map_nominal_flag = "--map_nominal"
     }
-    if (map_independent_qtls) {
+    if (map_independent_qtls==true) {
       map_independent_qtls = "--map_independent_qtls"
     } else {
       map_independent_qtls = ""
@@ -80,6 +80,7 @@ process TENSORQTL {
       dosage = ""
     }
     """
+      echo ${map_independent_qtls}
       ${preprocess_bed}
       ${tensor_qtl_script} --plink_prefix_path ${plink_files_prefix}/plink_genotypes --expression_bed Expression_Data.sorted.bed --covariates_file ${covariates_tsv} -window ${params.windowSize} ${dosage} --maf ${params.maf} --outdir ${outpath} ${map_nominal_flag} ${chrom_to_map_trans} ${map_independent_qtls}
       cd ${outpath} && ln ../../../${covariates_tsv} ./ && ln ../../../Expression_Data.sorted.bed ./ && ln ../../../${interaction_file} ./

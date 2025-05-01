@@ -315,6 +315,7 @@ def main():
     covariates_df = covariates_df.sort_index()
     # Make sure they are always sorted the same regardless of what run it is.
     phenotype_df = phenotype_df.loc[phenotype_df_genes,sorted(phenotype_df.columns, reverse=True)]
+    covariates_df = covariates_df.loc[phenotype_df.columns]
     
     if options.chrom_to_map_trans:
         print("Running trans analysis")
@@ -370,7 +371,7 @@ def main():
                             phenotype_df.loc[phenotype_df_genes],
                             phenotype_pos_df.loc[phenotype_df_genes],nperm=int(options.nperm),
                             window=int(options.window),
-                            covariates_df=covariates_df,maf_threshold=maf,seed=7,beta_approx=False)
+                            covariates_df=covariates_df.loc[phenotype_df.columns],maf_threshold=maf,seed=7,beta_approx=False)
         print('----cis eQTLs processed ------')
         cis_df.head()
         cis_df.to_csv(f"{outdir}/Cis_eqtls.tsv",sep="\t")
