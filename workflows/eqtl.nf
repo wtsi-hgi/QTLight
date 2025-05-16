@@ -86,22 +86,24 @@ workflow EQTL {
     // if single cell data then have to prepere pseudo bulk dataset.
     if (params.method=='bulk'){
         log.info '------ Bulk analysis ------'
-        log.info "------ ${params.genotype_phenotype_mapping_file} ------"
-        genotype_phenotype_mapping_file=params.genotype_phenotype_mapping_file
-        phenotype_file=params.phenotype_file
 
-        input_channel = Channel.fromPath(genotype_phenotype_mapping_file)
-        
-        input_channel.splitCsv(header: true, sep: params.input_tables_column_delimiter)
-            .map{row->tuple(row.Genotype)}.distinct()
-            .set{channel_input_data_table}
-        channel_input_data_table = channel_input_data_table.collect().flatten().distinct()
-        input_channel.splitCsv(header: true, sep: params.input_tables_column_delimiter)
-            .map{row->row.Sample_Category}.distinct().set{condition_channel}
-        SPLIT_PHENOTYPE_DATA(genotype_phenotype_mapping_file,phenotype_file,condition_channel)
-
-        phenotype_condition = SPLIT_PHENOTYPE_DATA.out.phenotye_file
-        out2 = SPLIT_PHENOTYPE_DATA.out.phenotye_file
+        if (params.genotype_phenotype_mapping_file!=''){
+            log.info '------ Genotype - Phenotype file not used as the phenotype file already contains matching genotype IDs ------'
+            genotype_phenotype_mapping_file=params.genotype_phenotype_mapping_file
+            phenotype_file=params.phenotype_file
+            input_channel = Channel.fromPath(genotype_phenotype_mapping_file)
+            input_channel.splitCsv(header: true, sep: params.input_tables_column_delimiter)
+                .map{row->tuple(row.Genotype)}.distinct()
+                .set{channel_input_data_table}
+            channel_input_data_table = channel_input_data_table.collect().flatten().distinct()
+            input_channel.splitCsv(header: true, sep: params.input_tables_column_delimiter)
+                .map{row->row.Sample_Category}.distinct().set{condition_channel}
+            SPLIT_PHENOTYPE_DATA(genotype_phenotype_mapping_file,phenotype_file,condition_channel)
+            // val(condition),path("*_phenotype.tsv"),path(annotation_file)
+            phenotype_condition = SPLIT_PHENOTYPE_DATA.out.phenotye_file
+        }else{
+            phenotype_condition = Channel.from("foo").map { foo -> tuple("full",file(params.phenotype_file),file("$projectDir/assets/fake_file.fq")) }
+        }
 
     }else if (params.method=='single_cell'){
         log.info '------ Scrna analysis ------'

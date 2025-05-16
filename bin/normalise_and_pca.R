@@ -8,24 +8,26 @@ set.seed(2023)
 library(ggfortify)
 library(dplyr)
 library(ggrepel)
-
+library(reshape2)
+library(rlang)
 args = commandArgs(trailingOnly=TRUE)
 
 if (length(args)==0) {
   stop("At least one argument must be supplied (input file).n", call.=FALSE)
 }
+
 # dMean__plasma_cells___phenotype_file.tsv remap_dMean__plasma_cells___genotype_phenotype_mapping.tsv None single_cell TRUE NONE 0.1 true
-Star_path = 'dMean__plasma_cells___phenotype_file.tsv'
-Mapping_Path = 'remap_dMean__plasma_cells___genotype_phenotype_mapping.tsv'
+Star_path = 'splicing_phenotype_input.tsv'
+Mapping_Path = 'fake_file.fq'
 filter_type = 'None'
 
 # number_phenotype_pcs = args[4]
 sc_or_bulk = 'single_cell'
-inverse_normal = as.logical('TRUE')
+inverse_normal = as.logical('FALSE')
 stopifnot(inverse_normal %in% c(TRUE, FALSE))
 norm_method = 'NONE'
-percent_of_population_expressed = '0.1'
-pc_strat='TRUE'
+percent_of_population_expressed = '0.2'
+pc_strat='true'
 
 
 Star_path = args[1]
@@ -38,7 +40,7 @@ stopifnot(inverse_normal %in% c(TRUE, FALSE))
 
 
 norm_method = args[6]
-percent_of_population_expressed = args[7]
+percent_of_population_expressed = as.numeric(args[7])
 if (args[8]=='false'){
   pc_strat = 'FALSE'
 }
@@ -70,7 +72,26 @@ quantileNormaliseRows <- function(matrix,...){
 }
 
 Star_counts_pre = read.table(file = Star_path, sep = '\t',check.names=FALSE, row.names = 1,header = TRUE)
-colnames(Star_counts_pre)[duplicated(colnames(Star_counts_pre))]=paste0('rep_',colnames(Star_counts_pre)[duplicated(colnames(Star_counts_pre))])
+
+Star_counts_pre = read.table(file = '/lustre/scratch127/humgen/teams/hgi/mo11/tmp_projects127/qtlight_test/v8/work/57/7176c0c42b98562abac3d5ecb64c47/splicing_t2.tsv', sep = '\t',check.names=FALSE, row.names = 1,header = TRUE)
+
+original_cols <- colnames(Star_counts_pre)
+dup_tracker <- table(original_cols)
+new_cols <- character(length(original_cols))
+name_counter <- list()
+
+for (i in seq_along(original_cols)) {
+  name <- original_cols[i]
+  if (dup_tracker[name] > 1) {
+    count <- name_counter[[name]] %||% 1  # use %||% from rlang or just `if (is.null())`
+    new_cols[i] <- paste0("rep", count, "_", name)
+    name_counter[[name]] <- count + 1
+  } else {
+    new_cols[i] <- name
+  }
+}
+
+colnames(Star_counts_pre) <- new_cols
 # percent_of_population_expressed = 0.2 #We want to only map the values that are expressed in at least 20% of donors. 
 #as per https://www.medrxiv.org/content/10.1101/2021.10.09.21264604v1.full.pdf 
 # We mapped cis-eQTL within a 1 megabase (MB) window of the TSS of each gene expressed
@@ -90,16 +111,55 @@ if (percent_of_population_expressed>0){
   Star_counts_pre = Star_counts_pre[keep, ]
   
 }
+if ("gene_name" %in% colnames(Star_counts_pre)) {
+  Star_counts_pre$gene_name <- NULL
+}
 Star_counts_pre = t(Star_counts_pre)
 
-Experimental_grops = read.table(Mapping_Path, fill = TRUE,check.names=FALSE,header = TRUE,sep = '\t')
-Experimental_grops[duplicated(Experimental_grops[2]),2]=paste0('rep_',Experimental_grops[duplicated(Experimental_grops[2]),2])
-row.names(Experimental_grops) <- Experimental_grops[,2]
-Experimental_grops = Experimental_grops[,-2]
-Experimental_grops2=Experimental_grops
-Experimental_grops2$RNA = rownames(Experimental_grops)
-Experimental_grops2 <- Experimental_grops2[, c(1,3,2)]
+
+if (grepl("fake_file", Mapping_Path)) {
+  # Assume Star_counts_pre is already loaded in the environment
+  row_data <- rownames(Star_counts_pre)
+  Sample_Category <- tools::file_path_sans_ext(basename(Star_path))
+  Experimental_grops2 <- data.frame(
+    Genotype = row_data,
+    RNA = row_data,
+    Sample_Category = Sample_Category
+  )
+  Experimental_grops2 <- Experimental_grops2[Experimental_grops2$Genotype != "gene_name", ]
+  # For fake mapping path:
+  Experimental_grops2$Genotype <- sub("^rep\\d+_", "", Experimental_grops2$Genotype)
+
+  rownames(Experimental_grops2) = Experimental_grops2$RNA
+} else {
+  Experimental_grops = read.table(Mapping_Path, fill = TRUE,check.names=FALSE,header = TRUE,sep = '\t')
+  original_ids <- Experimental_grops[[2]]
+  id_counts <- table(original_ids)
+  new_ids <- character(length(original_ids))
+  id_tracker <- list()
+
+  for (i in seq_along(original_ids)) {
+    id <- original_ids[i]
+    if (id_counts[id] > 1) {
+      count <- if (is.null(id_tracker[[id]])) 1 else id_tracker[[id]]
+      new_ids[i] <- paste0("rep", count, "_", id)
+      id_tracker[[id]] <- count + 1
+    } else {
+      new_ids[i] <- id
+    }
+  }
+
+  # Update column 2 with new unique IDs
+  Experimental_grops[[2]] <- new_ids
+  row.names(Experimental_grops) <- Experimental_grops[,2]
+  Experimental_grops = Experimental_grops[,-2]
+  Experimental_grops2=Experimental_grops
+  Experimental_grops2$RNA = rownames(Experimental_grops)
+  Experimental_grops2 <- Experimental_grops2[, c(1,3,2)]
+}
+
 write.table(Experimental_grops2, file='mappings_handeling_repeats.tsv', quote=FALSE, row.names = FALSE,sep='\t')
+Experimental_grops <- Experimental_grops2
 
 nonzero_genes = colSums(Star_counts_pre) != 0
 Star_counts_pre <- Star_counts_pre[,nonzero_genes]
@@ -114,7 +174,7 @@ Star_counts_pre_t=t(Star_counts_pre)
 # We merge the Expreimental groups and the counts to make sure that they are in the same order, which is cruical for analysis.
 Star_counts_pre = merge(Star_counts_pre, Experimental_grops, by=0,all.x = TRUE,)
 rownames(Star_counts_pre) <- Star_counts_pre[,'Row.names']
-Star_counts_pre = Star_counts_pre[,!(names(Star_counts_pre) %in% c("Row.names"))]
+# Star_counts_pre = Star_counts_pre[,!(names(Star_counts_pre) %in% c("Row.names"))]
 
 
 Star_counts_pre = Star_counts_pre[complete.cases(Star_counts_pre$Sample_Category),]
@@ -124,7 +184,9 @@ Star_counts_pre = Star_counts_pre[!(is.na(Star_counts_pre$Genotype) | Star_count
 n=ncol(Experimental_grops)
 Experimental_grops = (Star_counts_pre[,(ncol(Star_counts_pre)-n+1):ncol(Star_counts_pre)])
 
-Star_counts = Star_counts_pre[,0:(ncol(Star_counts_pre)-n)]
+Star_counts = Star_counts_pre[, seq_len(ncol(Star_counts_pre) - n)]
+
+Star_counts$Row.names <- NULL
 # Star_counts = subset(Star_counts, select = -c(Row.names))
 Star_counts=t(Star_counts)
 all(rownames(Experimental_grops) == colnames(Star_counts))
@@ -141,7 +203,7 @@ if (norm_method=='NONE' && filter_type=='None'){
       y <- y[keep, keep.lib.sizes=TRUE]
       y <- calcNormFactors(y, method = "TMM")
       
-      if (lengths(unique(Experimental_grops$Sample_Category)) ==1){
+      if (length(unique(Experimental_grops$Sample_Category)) == 1){
         y <- estimateDisp(y)
       }else{
         design <- model.matrix(~ Experimental_grops$Sample_Category)
@@ -173,11 +235,8 @@ if (norm_method=='NONE' && filter_type=='None'){
       y <- calcNormFactors(y, method = "TMM")
       
     }else if(filter_type=='None'){
-      y=y
       y <- calcNormFactors(y, method = "TMM")
-      
-      
-      if (lengths(unique(Experimental_grops$Sample_Category)) ==1){
+      if (length(unique(Experimental_grops$Sample_Category)) ==1){
         y <- estimateDisp(y)
       }else{
         design <- model.matrix(~ Experimental_grops$Sample_Category)
@@ -191,9 +250,6 @@ if (norm_method=='NONE' && filter_type=='None'){
         normalised_counts = normalised_counts[complete.cases(normalised_counts), ]
       }else if(norm_method=='DESEQ'){
         counts = y$counts
-        # sampleTable <- data.frame(condition = factor(rep(c("VSMC"), ncol(Experimental_grops))))
-        # TMM_normalised_counts <- cpm(y, log=FALSE)
-        # sampleTable <-data.frame(condition = factor(Experimental_grops$Sample_Category))
         all(colnames(counts) %in% rownames(Experimental_grops))
         all(colnames(counts) == rownames(Experimental_grops))
         Experimental_grops$Sample_Category=as.numeric(factor(Experimental_grops$Sample_Category))
@@ -254,8 +310,6 @@ bar_positions <- barplot(explained_variance, names.arg = 1:num_pcs,
 # Overlay cumulative variance as red line
 lines(bar_positions, cumulative_variance, col = "red", type = "b", pch = 16, lwd = 2)
 dev.off()
-
-
 
 pdf("biplot.pdf", width = 8, height = 6) 
 
