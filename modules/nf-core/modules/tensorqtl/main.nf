@@ -121,11 +121,26 @@ process TRANS_BY_CIS {
       }
 
       """
-	  ${command_subset_var_list}
+      plink_dir="${plink_files_prefix}"
+      base_name=""
+      if ls "\$plink_dir"/*.psam 1> /dev/null 2>&1; then
+          base_name=\$(basename \$(ls "\$plink_dir"/*.psam | head -n 1) .psam)
+          pgen_or_bed="--pfile"
+      elif ls "\$plink_dir"/*.bed 1> /dev/null 2>&1; then
+          base_name=\$(basename \$(ls "\$plink_dir"/*.bed | head -n 1) .bed)
+          pgen_or_bed="--bfile"
+      else
+          echo "No .psam or .bed file found in \$plink_dir"
+          exit 1
+      fi
+      echo " Detected base name: \$base_name"
+      echo "Using mode: \$pgen_or_bed"
+
+	    ${command_subset_var_list}
       tensor_analyse_trans_by_cis.py \
         --covariates_file ${covariates} \
         --phenotype_file ${phenotype_file} \
-        --plink_prefix_path ${plink_files_prefix}/plink_genotypes \
+        --plink_prefix_path "\$plink_dir/\$base_name" \
         --outdir "./" \
         ${dosage} \
         --maf ${params.maf} \
@@ -178,10 +193,25 @@ process TRANS_OF_CIS {
       alpha = "${params.TensorQTL.alpha}"
 
       """
+      plink_dir="${plink_files_prefix}"
+      base_name=""
+      if ls "\$plink_dir"/*.psam 1> /dev/null 2>&1; then
+          base_name=\$(basename \$(ls "\$plink_dir"/*.psam | head -n 1) .psam)
+          pgen_or_bed="--pfile"
+      elif ls "\$plink_dir"/*.bed 1> /dev/null 2>&1; then
+          base_name=\$(basename \$(ls "\$plink_dir"/*.bed | head -n 1) .bed)
+          pgen_or_bed="--bfile"
+      else
+          echo "No .psam or .bed file found in \$plink_dir"
+          exit 1
+      fi
+      echo " Detected base name: \$base_name"
+      echo "Using mode: \$pgen_or_bed"
+
       tensor_analyse_trans_of_cis.py \
         --covariates_file ${covariates} \
         --phenotype_file ${phenotype_file} \
-        --plink_prefix_path ${plink_files_prefix}/plink_genotypes \
+        --plink_prefix_path "\$plink_dir/\$base_name" \
         --outdir "./" \
         --dosage ${dosage} \
         --maf ${params.maf}  \

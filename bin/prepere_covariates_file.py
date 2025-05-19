@@ -53,6 +53,15 @@ def main():
     )
 
     parser.add_argument(
+        '-nr_gPCs', '--nr_gPCs',
+        action='store',
+        dest='nr_gPCs',
+        required=True,
+        default=0,
+        help=''
+    )
+
+    parser.add_argument(
         '-pfile', '--pfile',
         action='store_true',
         dest='pfile',
@@ -63,7 +72,22 @@ def main():
     options = parser.parse_args()
     genotype_pcs=options.genotype_pcs
     pfile=options.pfile
+    
+    
+    phenotype_pcs=options.phenotype_pcs
     covariates_df = pd.read_csv(genotype_pcs, sep='\t', index_col=0)
+
+        
+    if options.phenotype_pcs=='0pcs.tsv':
+        phenotype_pcs=pd.DataFrame(index=covariates_df.index)
+    else:
+        phenotype_pcs= pd.read_csv(phenotype_pcs, sep='\t', index_col=0)
+        phenotype_pcs.index = sample_mapping.loc[phenotype_pcs.index]['Genotype']
+    
+    idx = list(set(phenotype_pcs.index).intersection(set(covariates_df.index)))
+    if len(idx)==0:
+        covariates_df = covariates_df.T
+        idx = list(set(phenotype_pcs.index).intersection(set(covariates_df.index)))  
 
     covariates_df=covariates_df.rename(columns={'IID':'Genotype'})
     covariates_df=covariates_df.rename(columns={'#IID':'Genotype'})
@@ -72,22 +96,17 @@ def main():
         covariates_df=covariates_df.set_index('Genotype')
     except:
         print('col already set')
+        
+    covariates_df = covariates_df.iloc[:,:int(options.nr_gPCs)]
+    
     sample_map_file=options.sample_mapping
     sample_mapping = pd.read_csv(sample_map_file,sep='\t')
     sample_mapping= sample_mapping.set_index('RNA')
-    phenotype_pcs=options.phenotype_pcs
-    if options.phenotype_pcs=='0pcs.tsv':
-        phenotype_pcs=pd.DataFrame(index=covariates_df.index)
-    else:
-        phenotype_pcs= pd.read_csv(phenotype_pcs, sep='\t', index_col=0)
-        phenotype_pcs.index = sample_mapping.loc[phenotype_pcs.index]['Genotype']
 
-
-    
     covariates_df = covariates_df.add_prefix('Genotype ')
     phenotype_pcs = phenotype_pcs.add_prefix('Phenotype ')
 
-    idx = list(set(phenotype_pcs.index).intersection(set(covariates_df.index)))
+
     covariates_df = covariates_df.loc[idx]
     phenotype_pcs = phenotype_pcs.loc[list(idx)]
 
@@ -95,7 +114,7 @@ def main():
     count=0
     for index, row in phenotype_pcs.iterrows():
         d = {**dict(covariates_df.loc[index]), **dict(row)}
-        d = {**d, 'id': index}
+        d = {**d, 'id': f"{index}"}
         all[count]=d
         count+=1
         # print()
@@ -107,8 +126,12 @@ def main():
     if (options.sample_covariates):
         print('yes')
         exctra_covs = pd.read_csv(options.sample_covariates,sep='\t',index_col=0)
-        # print(f"There are {len(set(exctra_covs.columns).intersection(set(data.columns)))} overlapping")
-        data = pd.concat([data,exctra_covs[data.columns]])
+        idx2 = set(exctra_covs.columns).intersection(set(data.columns))
+        try:
+            data = pd.concat([data.loc[:,list(idx2)],exctra_covs.loc[:,list(idx2)]])
+        except:
+            exctra_covs=exctra_covs.T
+            data = pd.concat([data.loc[:,list(idx2)],exctra_covs.loc[:,list(idx2)]])
     else:
         print('no')
     data.to_csv('Covariates.tsv',sep='\t')

@@ -73,8 +73,6 @@ quantileNormaliseRows <- function(matrix,...){
 
 Star_counts_pre = read.table(file = Star_path, sep = '\t',check.names=FALSE, row.names = 1,header = TRUE)
 
-Star_counts_pre = read.table(file = '/lustre/scratch127/humgen/teams/hgi/mo11/tmp_projects127/qtlight_test/v8/work/57/7176c0c42b98562abac3d5ecb64c47/splicing_t2.tsv', sep = '\t',check.names=FALSE, row.names = 1,header = TRUE)
-
 original_cols <- colnames(Star_counts_pre)
 dup_tracker <- table(original_cols)
 new_cols <- character(length(original_cols))

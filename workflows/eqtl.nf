@@ -240,24 +240,26 @@ workflow EQTL {
         plink_convert_input=Channel.of()
     }
 
-    if (params.genotypes.preprocessed_bed_file==''){
-        // BED file preparation
-        PLINK_CONVERT(plink_convert_input)
-        bim_bed_fam = PLINK_CONVERT.out.bim_bed_fam
-        plink_path_bed = PLINK_CONVERT.out.plink_path
-    }else{
-        plink_path_bed = Channel.from(params.genotypes.preprocessed_bed_file)
-        Channel.fromPath("${params.genotypes.preprocessed_bed_file}/*.bed", followLinks: true)
-            .set { bed_files }
+    if (params.SAIGE.run || (params.genotypes.use_gt_dosage == false)) {
+        if (params.genotypes.preprocessed_bed_file==''){
+            // BED file preparation
+            PLINK_CONVERT(plink_convert_input)
+            bim_bed_fam = PLINK_CONVERT.out.bim_bed_fam
+            plink_path_bed = PLINK_CONVERT.out.plink_path
+        }else{
+            plink_path_bed = Channel.from(params.genotypes.preprocessed_bed_file)
+            Channel.fromPath("${params.genotypes.preprocessed_bed_file}/*.bed", followLinks: true)
+                .set { bed_files }
 
-        Channel.fromPath("${params.genotypes.preprocessed_bed_file}/*.bim", followLinks: true)
-            .set { bim_files }
+            Channel.fromPath("${params.genotypes.preprocessed_bed_file}/*.bim", followLinks: true)
+                .set { bim_files }
 
-        Channel.fromPath("${params.genotypes.preprocessed_bed_file}/*.fam", followLinks: true)
-            .set { fam_files }
-        bim_bed_fam = bim_files
-                    .combine(bed_files)
-                    .combine(fam_files)  
+            Channel.fromPath("${params.genotypes.preprocessed_bed_file}/*.fam", followLinks: true)
+                .set { fam_files }
+            bim_bed_fam = bim_files
+                        .combine(bed_files)
+                        .combine(fam_files)  
+        }
     }
 
 
