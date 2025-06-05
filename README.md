@@ -89,7 +89,7 @@ The nf-core/eqtl pipeline comes with documentation about the pipeline [usage](./
 
 ## Credits
 
-QTLight was developed by Matiss Ozols, Anna Cuomo, Marc Jan Bonder, Hannes Ponstingl, Tobi Alegbe, Bradley Harris, Haerin Jang.
+QTLight was developed by Matiss Ozols, Anna Cuomo, Marc Jan Bonder, Hannes Ponstingl, Tobi Alegbe, Bradley Harris, Haerin Jang, Vivek Iyer, Nicole Soranzo.
 <!-- 
 ## Contributions and Support
 
@@ -99,12 +99,12 @@ For further information or help, don't hesitate to get in touch on the [Slack `#
 
 ## Citations
 
-Currently pipeline has not been published but we would really appreciate if you could please acknowlage the use of this pipeline in your work:
 
-> Ozols, M. et al. QTLight (Quantitative Trait Loci mapping pipeline): GitHub. https://github.com/wtsi-hgi/QTLight. 
+If you use  nf-core/eqtl for your analysis, please cite it using the following doi: [10.5281/zenodo.15601494](https://doi.org/10.5281/zenodo.15601494)
+> Ozols, M. et al. QTLight (Quantitative Trait Loci mapping pipeline): GitHub. https://github.com/wtsi-hgi/QTLight. [![DOI](https://zenodo.org/badge/454434698.svg)](https://doi.org/10.5281/zenodo.15601493)
 
 <!-- TODO nf-core: Add citation for pipeline after first release. Uncomment lines below and update Zenodo doi and badge at the top of this file. -->
-<!-- If you use  nf-core/eqtl for your analysis, please cite it using the following doi: [10.5281/zenodo.XXXXXX](https://doi.org/10.5281/zenodo.XXXXXX) -->
+
 
 <!-- TODO nf-core: Add bibliography of tools and data used in your pipeline -->
 An extensive list of references for the tools used by the pipeline can be found in the [`CITATIONS.md`](CITATIONS.md) file.
