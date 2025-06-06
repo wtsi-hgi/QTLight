@@ -12,20 +12,15 @@ include {NORMALISE_ANNDATA; REMAP_GENOTPE_ID} from '../modules/local/normalise_a
 include {AGGREGATE_UMI_COUNTS; SPLIT_AGGREGATION_ADATA; ORGANISE_AGGREGATED_FILES} from '../modules/local/aggregate_UMI_counts/main'
 include {PREPERE_EXP_BED} from '../modules/local/prepere_exp_bed/main'
 include {TENSORQTL_eqtls} from '../modules/local/tensorqtl/main'
-include {H5AD_TO_SAIGE_FORMAT} from '../modules/local/saige/main'
 include {SAIGE_qtls} from '../modules/local/saige/main'
 include {SUBSET_PCS} from '../modules/local/covar_processing/main'
 include {KINSHIP_CALCULATION} from "$projectDir/modules/local/kinship_calculation/main"
 
-// include {OPTIMISE_PCS} from '../modules/local/optimise_pcs/main'
 /*
 ========================================================================================
     RUN MAIN WORKFLOW
 ========================================================================================
 */
-
-// Info required for completion email and summary
-def multiqc_report = []
 
 workflow EQTL {
 
@@ -46,7 +41,6 @@ workflow EQTL {
             input_channel.splitCsv(header: true, sep: params.input_tables_column_delimiter)
                 .map{row->row.Sample_Category}.distinct().set{condition_channel}
             SPLIT_PHENOTYPE_DATA(genotype_phenotype_mapping_file,phenotype_file,condition_channel)
-            // val(condition),path("*_phenotype.tsv"),path(annotation_file)
             phenotype_condition = SPLIT_PHENOTYPE_DATA.out.phenotye_file
         }else{
             phenotype_condition = Channel.from("foo").map { foo -> tuple("full",file(params.phenotype_file),file("$projectDir/assets/fake_file.fq")) }
@@ -58,14 +52,12 @@ workflow EQTL {
             if (params.normalise_before_or_after_aggregation=='before'){
                 // here we normalise the adata all together per splits
                 NORMALISE_ANNDATA(params.phenotype_file)
-                // NORMALISE_ANNDATA.out.adata.subscribe { println "NORMALISE_ANNDATA.out.adata: $it" }
                 pheno = NORMALISE_ANNDATA.out.adata
             }else{
                 pheno = params.phenotype_file
             }
             
             if (params.split_aggregation_adata){
-                // pheno.subscribe { println "pheno: $it" }
                 SPLIT_AGGREGATION_ADATA(pheno,params.aggregation_columns)
                 adata = SPLIT_AGGREGATION_ADATA.out.split_phenotypes.flatten()
             }else{
@@ -307,20 +299,3 @@ workflow EQTL {
 
 }
 
-workflow.onComplete {
-
-    log.info "Pipeline completed at: $workflow.complete"
-    log.info "Command line: $workflow.commandLine"
-    log.info "Execution status: ${ workflow.success ? 'OK' : 'failed' }"
-
-    if (params.email || params.email_on_fail) {
-        NfcoreTemplate.email(workflow, params, summary_params, projectDir, log, multiqc_report)
-    }
-    NfcoreTemplate.summary(workflow, params, log)
-}
-
-/*
-========================================================================================
-    THE END
-========================================================================================
-*/
