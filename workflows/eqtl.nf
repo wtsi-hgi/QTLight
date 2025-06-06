@@ -1,75 +1,23 @@
-/*
-========================================================================================
-    VALIDATE INPUTS
-========================================================================================
-*/
 
-def summary_params = NfcoreSchema.paramsSummaryMap(workflow, params)
 
-// Validate input parameters
-// WorkflowEqtl.initialise(params, log)
+include {PREPROCESS_GENOTYPES} from '../modules/local/preprocess_genotypes/main' 
+include {PLINK_CONVERT;PGEN_CONVERT;BGEN_CONVERT} from '../modules/local/plink_convert/main' 
+include {SUBSET_GENOTYPE} from '../modules/local/subset_genotype/main' 
+include {GENOTYPE_PC_CALCULATION} from '../modules/local/genotype_pc_calculation/main' 
+include {SPLIT_PHENOTYPE_DATA} from '../modules/local/split_phenotype_data/main' 
+include {NORMALISE_and_PCA_PHENOTYPE} from '../modules/local/normalise_and_pca/main' 
+include {LIMIX_eqtls} from '../modules/local/limix/main'
+include {PREPROCESS_SAMPLE_MAPPING} from '../modules/local/preprocess_sample_mapping/main'
+include {NORMALISE_ANNDATA; REMAP_GENOTPE_ID} from '../modules/local/normalise_anndata/main'
+include {AGGREGATE_UMI_COUNTS; SPLIT_AGGREGATION_ADATA; ORGANISE_AGGREGATED_FILES} from '../modules/local/aggregate_UMI_counts/main'
+include {PREPERE_EXP_BED} from '../modules/local/prepere_exp_bed/main'
+include {TENSORQTL_eqtls} from '../modules/local/tensorqtl/main'
+include {H5AD_TO_SAIGE_FORMAT} from '../modules/local/saige/main'
+include {SAIGE_qtls} from '../modules/local/saige/main'
+include {SUBSET_PCS} from '../modules/local/covar_processing/main'
+include {KINSHIP_CALCULATION} from "$projectDir/modules/local/kinship_calculation/main"
 
-// TODO nf-core: Add all file path parameters for the pipeline to the list below
-// Check input path parameters to see if they exist
-// def checkPathParamList = [ params.input, params.multiqc_config, params.fasta ]
-// for (param in checkPathParamList) { if (param) { file(param, checkIfExists: true) } }
-
-// // Check mandatory parameters
-// if (params.input) { ch_input = file(params.input) } else { exit 1, 'Input samplesheet not specified!' }
-
-/*
-========================================================================================
-    CONFIG FILES
-========================================================================================
-*/
-
-ch_multiqc_config        = file("$projectDir/assets/multiqc_config.yaml", checkIfExists: true)
-ch_multiqc_custom_config = params.multiqc_config ? Channel.fromPath(params.multiqc_config) : Channel.empty()
-
-/*
-========================================================================================
-    IMPORT LOCAL MODULES/SUBWORKFLOWS
-========================================================================================
-*/
-
-// Don't overwrite global params.modules, create a copy instead and use that within the main script.
-def modules = params.modules.clone()
-
-//
-// MODULE: Local to the pipeline
-//
-
-/*
-========================================================================================
-    IMPORT NF-CORE MODULES/SUBWORKFLOWS
-========================================================================================
-*/
-
-def multiqc_options   = modules['multiqc']
-multiqc_options.args += params.multiqc_title ? Utils.joinModuleArgs(["--title \"$params.multiqc_title\""]) : ''
-
-//
-// MODULE: Installed directly from nf-core/modules
-//
-// include { FASTQC  } from '../modules/nf-core/modules/fastqc/main'  addParams( options: modules['fastqc'] )
-include {PREPROCESS_GENOTYPES} from '../modules/nf-core/modules/preprocess_genotypes/main' 
-include {PLINK_CONVERT;PGEN_CONVERT;BGEN_CONVERT} from '../modules/nf-core/modules/plink_convert/main' 
-include {SUBSET_GENOTYPE} from '../modules/nf-core/modules/subset_genotype/main' 
-include {GENOTYPE_PC_CALCULATION} from '../modules/nf-core/modules/genotype_pc_calculation/main' 
-include {SPLIT_PHENOTYPE_DATA} from '../modules/nf-core/modules/split_phenotype_data/main' 
-include {NORMALISE_and_PCA_PHENOTYPE} from '../modules/nf-core/modules/normalise_and_pca/main' 
-include {LIMIX_eqtls} from '../modules/nf-core/modules/limix/main'
-include {PREPROCESS_SAMPLE_MAPPING} from '../modules/nf-core/modules/preprocess_sample_mapping/main'
-include {NORMALISE_ANNDATA; REMAP_GENOTPE_ID} from '../modules/nf-core/modules/normalise_anndata/main'
-include {AGGREGATE_UMI_COUNTS; SPLIT_AGGREGATION_ADATA; ORGANISE_AGGREGATED_FILES} from '../modules/nf-core/modules/aggregate_UMI_counts/main'
-include {PREPERE_EXP_BED} from '../modules/nf-core/modules/prepere_exp_bed/main'
-include {TENSORQTL_eqtls} from '../modules/nf-core/modules/tensorqtl/main'
-include {H5AD_TO_SAIGE_FORMAT} from '../modules/nf-core/modules/saige/main'
-include {SAIGE_qtls} from '../modules/nf-core/modules/saige/main'
-include {SUBSET_PCS} from '../modules/nf-core/modules/covar_processing/main'
-include {KINSHIP_CALCULATION} from "$projectDir/modules/nf-core/modules/kinship_calculation/main"
-
-// include {OPTIMISE_PCS} from '../modules/nf-core/modules/optimise_pcs/main'
+// include {OPTIMISE_PCS} from '../modules/local/optimise_pcs/main'
 /*
 ========================================================================================
     RUN MAIN WORKFLOW
@@ -82,7 +30,6 @@ def multiqc_report = []
 workflow EQTL {
 
     log.info 'Lets run eQTL mapping'
-    
     // if single cell data then have to prepere pseudo bulk dataset.
     if (params.method=='bulk'){
         log.info '------ Bulk analysis ------'
@@ -271,7 +218,6 @@ workflow EQTL {
         plink_path_pgen = Channel.from(params.genotypes.preprocessed_pgen_file)
     }
 
-
     // If use dosages we convert vcf to pgen
     // Otherwise we convert it to bed
     if(params.genotypes.use_gt_dosage){
@@ -290,17 +236,15 @@ workflow EQTL {
 
     // 4) Phenotype file preperation including PCs, normalisation
     genome_annotation = Channel.from(params.annotation_file)
-    // Prepeare chunking file
-    
-    // // MBV method from QTLTools (PMID 28186259)  
-    // // RASCAL
+
+    // Potentially add:
+    // MBV method from QTLTools (PMID 28186259)  
+    // RASCAL
     
 
     NORMALISE_and_PCA_PHENOTYPE(phenotype_condition)
-
     Channel.of(params.covariates.nr_phenotype_pcs).splitCsv().flatten().set{pcs}
     NORMALISE_and_PCA_PHENOTYPE.out.for_bed.combine(pcs).set{test123}
-
     SUBSET_PCS(test123)
 
     // LIMIX QTL mapping method
@@ -319,14 +263,11 @@ workflow EQTL {
             }else{
                 plink_path_limix = plink_path_bed
             }
-        // SUBSET_PCS.out.subscribe { println "SUBSET_PCS.out.: $it" }
+
         filtered_pheno_channel = SUBSET_PCS.out.for_bed.map { tuple ->  
             [tuple[3], [tuple[0], tuple[1], tuple[2]]]
         }.flatten().collate(4)
-        // filtered_pheno_channel.subscribe { println "filtered_pheno_channel.: $it" }
-        // limix pipeline is curently not correctly chunked. 
-        // Genes should be batched and the regions that they need to be tested on also chunked. 
-        // Curently we are testing all the genes for all the possible gene cis windoes.
+
         LIMIX_eqtls(
             filtered_pheno_channel,
             plink_path_limix,
@@ -361,18 +302,10 @@ workflow EQTL {
         }
     }
 
-    // Then run a LIMIX and/or TensorQTL - here have to combine the inputs.
-    
-    // Generate plots of comparisons of eQTLs detected by both methods.
+    // Generate plots of comparisons of eQTLs detected by all run methods.
 
 
 }
-
-/*
-========================================================================================
-    COMPLETION EMAIL AND SUMMARY
-========================================================================================
-*/
 
 workflow.onComplete {
 
