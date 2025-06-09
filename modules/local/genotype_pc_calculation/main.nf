@@ -44,8 +44,12 @@ process GENOTYPE_PC_CALCULATION {
             echo "Detected base name: \$base_name"
             echo "Using mode: \$pgen_or_bed"
 
+            n_samples=\$( [ -f "\$plink_dir/\$base_name.psam" ] && tail -n +2 "\$plink_dir/\$base_name.psam" | wc -l || wc -l < "\$plink_dir/\$base_name.fam" )
+            n_pcs=\$(( n_samples < 200 ? n_samples : 200 ))
+            echo "Using \$n_pcs PCs for \$n_samples samples"
+
             plink2 ${pgen_or_bed} "\$plink_dir/\$base_name" ${params.covariates.genotype_pc_filters} --out tmp_gt_plink_freq
             plink2 ${pgen_or_bed} "\$plink_dir/\$base_name" --extract tmp_gt_plink_freq.prune.in --freq --out tmp_gt_plink_freq
-            plink2 --pca 200 --read-freq tmp_gt_plink_freq.afreq --extract tmp_gt_plink_freq.prune.in ${pgen_or_bed} "\$plink_dir/\$base_name" --out gtpca_plink
+            plink2 --pca \$n_pcs --read-freq tmp_gt_plink_freq.afreq --extract tmp_gt_plink_freq.prune.in ${pgen_or_bed} "\$plink_dir/\$base_name" --out gtpca_plink
         """
 }
