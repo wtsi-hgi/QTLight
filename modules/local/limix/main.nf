@@ -75,12 +75,13 @@ process AGGREGATE_QTL_RESULTS{
 
         // matcher = ("${condition}" =~ /.*?__(.*?)__(.*?)\.tsv$/)
         group0 = "${condition}".split('__')[0]
-        group1 =  "${condition}".split('__')[0]
+        group1 =  "${condition}".split('__')[1]
         // group1 = matcher[0][1] // Extracts 'Mono_all'
-        // group2 = matcher[0][2] // Extracts '4pcs'
+        group2 = "${condition}".split('__')[2].replaceFirst(/\.tsv/, '')
 
         """
             mkdir results_${group1}
+            echo "${condition}"
             minimal_postprocess.py -id ./ -od results_${group1} -sfo -tfb 
             minimal_postprocess.py -id ./ -od results_${group1} -sfo -mrp 0.05 
         """
