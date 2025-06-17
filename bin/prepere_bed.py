@@ -131,7 +131,7 @@ def main():
     idx1 = Gene_Chr_Start_End_Data[Gene_Chr_Start_End_Data.strand =='-'].index
     BED_Formated_Data.loc[idx1,"start"]=Gene_Chr_Start_End_Data.loc[idx1,"end"]-1
     BED_Formated_Data.loc[idx1,"end"]=Gene_Chr_Start_End_Data.loc[idx1,"end"]
-    BED_Formated_Data['#chr'] = BED_Formated_Data['#chr'].str.replace('chr','')
+    BED_Formated_Data['#chr'] = BED_Formated_Data['#chr'].astype(str).replace('chr','')
     
     # # Change the denotion of the chromosomes.
     # BED_Formated_Data['#chr'].replace(['X', 'Y', 'XY', 'MT'], ['23', '24', '25', '26'],inplace=True)
