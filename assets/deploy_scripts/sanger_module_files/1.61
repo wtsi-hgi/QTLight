@@ -1,5 +1,5 @@
 #%Module1.0
-set version v1.60
+set version v1.61
 set program QTLight
 
 set version [file tail [module-info version [module-info name]]]
@@ -14,10 +14,10 @@ proc ModulesHelp { } {
     puts stderr " 	*QTLight sample_input (or QTLight sample_input):will create a directory sample_input in your current working directory where you will sample input files."
 }
  
-module-whatis   "Name: QTLight (https://github.com/wtsi-hgi/QTLight), Version: v1.60"
+module-whatis   "Beta - (please use v1.61) Name: QTLight (https://github.com/wtsi-hgi/QTLight), Version: v1.61 -- beta"
 
 
-set install /software/hgi/pipelines/QTLight/QTLight_v1.60
+set install /software/hgi/pipelines/QTLight/QTLight_v1.61
 module load ISG/singularity/3.11.4
 module load HGI/common/nextflow/24.10.4
-prepend-path PATH "/software/hgi/pipelines/QTLight/QTLight_v1.60/assets/deploy_scripts/module_exacutables"
+prepend-path PATH "/software/hgi/pipelines/QTLight/QTLight_v1.61/assets/deploy_scripts/module_exacutables"

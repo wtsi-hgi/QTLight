@@ -75,12 +75,13 @@ process AGGREGATE_QTL_RESULTS{
 
         // matcher = ("${condition}" =~ /.*?__(.*?)__(.*?)\.tsv$/)
         group0 = "${condition}".split('__')[0]
-        group1 =  "${condition}".split('__')[0]
+        group1 =  "${condition}".split('__')[1]
         // group1 = matcher[0][1] // Extracts 'Mono_all'
-        // group2 = matcher[0][2] // Extracts '4pcs'
+        group2 = "${condition}".split('__')[2].replaceFirst(/\.tsv/, '')
 
         """
             mkdir results_${group1}
+            echo "${condition}"
             minimal_postprocess.py -id ./ -od results_${group1} -sfo -tfb 
             minimal_postprocess.py -id ./ -od results_${group1} -sfo -mrp 0.05 
         """
@@ -160,8 +161,9 @@ process LIMIX{
 
 
         """
-            export NUMBA_CACHE_DIR=/tmp
-            export MPLCONFIGDIR=/tmp 
+            export NUMBA_CACHE_DIR=\$PWD
+            export MPLCONFIGDIR=\$PWD
+            export HOME=\$PWD
             cut -f 1,2 -d \$'\\t' ${individual2sample_filename} > data_no_sample_category.txt
             run_limix_QTL_analysis.py ${genotypeFile2} -af ${annotationFile} -pf ${phenotypeFile} -cf ${covariateFile} -od ${outputFolder} -smf data_no_sample_category.txt -rf ${kinship_path} -np ${numberOfPermutations} -maf ${minorAlleleFrequency} -hwe ${hwe} -cr ${callRate} -c -gm standardize -w ${windowSize} --block_size ${blockSize}
             mv snp_metadata_all.txt ${condition}_snp_metadata_${chunk_number}.txt || echo 'not available'

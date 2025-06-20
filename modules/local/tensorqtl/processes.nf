@@ -62,7 +62,7 @@ process TENSORQTL {
     } else {
       map_nominal_flag = "--map_nominal"
     }
-    if (map_independent_qtls) {
+    if (map_independent_qtls==true) {
       map_independent_qtls = "--map_independent_qtls"
     } else {
       map_independent_qtls = ""
@@ -80,8 +80,24 @@ process TENSORQTL {
       dosage = ""
     }
     """
+      plink_dir="${plink_files_prefix}"
+      base_name=""
+      if ls "\$plink_dir"/*.psam 1> /dev/null 2>&1; then
+          base_name=\$(basename \$(ls "\$plink_dir"/*.psam | head -n 1) .psam)
+          pgen_or_bed="--pfile"
+      elif ls "\$plink_dir"/*.bed 1> /dev/null 2>&1; then
+          base_name=\$(basename \$(ls "\$plink_dir"/*.bed | head -n 1) .bed)
+          pgen_or_bed="--bfile"
+      else
+          echo "No .psam or .bed file found in \$plink_dir"
+          exit 1
+      fi
+      echo " Detected base name: \$base_name"
+      echo "Using mode: \$pgen_or_bed"
+
+      echo ${map_independent_qtls}
       ${preprocess_bed}
-      ${tensor_qtl_script} --plink_prefix_path ${plink_files_prefix}/plink_genotypes --expression_bed Expression_Data.sorted.bed --covariates_file ${covariates_tsv} -window ${params.windowSize} ${dosage} --maf ${params.maf} --outdir ${outpath} ${map_nominal_flag} ${chrom_to_map_trans} ${map_independent_qtls}
+      ${tensor_qtl_script} --plink_prefix_path "\$plink_dir/\$base_name" --expression_bed Expression_Data.sorted.bed --covariates_file ${covariates_tsv} -window ${params.windowSize} ${dosage} --maf ${params.maf} --outdir ${outpath} ${map_nominal_flag} ${chrom_to_map_trans} ${map_independent_qtls}
       cd ${outpath} && ln ../../../${covariates_tsv} ./ && ln ../../../Expression_Data.sorted.bed ./ && ln ../../../${interaction_file} ./
     """
 }

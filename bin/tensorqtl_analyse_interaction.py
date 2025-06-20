@@ -142,8 +142,8 @@ def main():
     interaction_df = pd.read_csv(interaction_file, sep='\t', header=None, index_col=0)
     phenotype_df = phenotype_df[covariates_df.columns]
     # have to drop dublicate rownames. and average the repeated measures.
-    phenotype_df.columns = phenotype_df.columns.str.split('.').str[0]
-    covariates_df.columns = covariates_df.columns.str.split('.').str[0]
+    # phenotype_df.columns = phenotype_df.columns.str.split('.').str[0]
+    # covariates_df.columns = covariates_df.columns.str.split('.').str[0]
 
     covariates_df=covariates_df.loc[:,~covariates_df.columns.duplicated()]
     interaction_df=interaction_df.loc[:,~interaction_df.columns.duplicated()]
@@ -169,10 +169,15 @@ def main():
     os.makedirs(outdir)
 
     phenotype_df1 = list(set(phenotype_pos_df.index))
+    
+    covariates_df = covariates_df.sort_index()
+    # Make sure they are always sorted the same regardless of what run it is.
+    phenotype_df = phenotype_df.loc[phenotype_df1,sorted(phenotype_df.columns, reverse=True)]
+    
     cis.map_nominal(genotype_df, variant_df, 
                     phenotype_df.loc[phenotype_df1], 
                     phenotype_pos_df.loc[phenotype_df1],
-                    covariates_df=covariates_df,prefix='cis_inter1',
+                    covariates_df=covariates_df.loc[phenotype_df.columns],prefix='cis_inter1',
                     maf_threshold=interaction_maf, maf_threshold_interaction=interaction_maf, output_dir=outdir, write_top=True, write_stats=map_nominal,
                     interaction_df=interaction_df,
                     run_eigenmt=True)

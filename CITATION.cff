@@ -1,0 +1,36 @@
+cff-version: 1.2.0
+message: "If you use this pipeline, please cite it as below."
+title: "QTLight: Quantitative Trait Loci mapping pipeline"
+version: "v1.61"
+date-released: 2025-05-19
+repository-code: https://github.com/wtsi-hgi/QTLight
+url: https://github.com/wtsi-hgi/QTLight
+license: GPL-3.0
+type: pipeline
+doi: 10.5281/zenodo.15601494 
+authors:
+  - family-names: Ozols
+    given-names: Matiss
+    orcid: https://orcid.org/0000-0001-5663-1053
+  - family-names: Cuomo
+    given-names: Anna
+  - family-names: Bonder
+    given-names: Marc Jan
+  - family-names: Ponstingl
+    given-names: Hannes
+  - family-names: Alegbe
+    given-names: Tobi
+  - family-names: Harris
+    given-names: Bradley
+  - family-names: Jang
+    given-names: Haerin
+  - family-names: Iyer
+    given-names: Vivek
+  - family-names: Soranzo
+    given-names: Nicole
+abstract: >
+  QTLight is a flexible and reproducible pipeline for population-scale QTL mapping 
+  using bulk and single-cell data. It integrates TensorQTL, LIMIX, and SAIGE-QTL methods 
+  for eQTL and other molecular trait analysis. The pipeline supports input from VCF or PLINK 
+  formats, incorporates kinship matrices and covariates, and is compatible with both flat and h5ad-formatted phenotypes.
+  Built with Nextflow DSL2, QTLight is modular, scalable, and containerized for HPC or cloud execution.

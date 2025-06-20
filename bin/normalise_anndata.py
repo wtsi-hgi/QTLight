@@ -12,7 +12,7 @@ np.random.seed(42)
 import argparse
 import scipy as sp
 import sys
-
+import warnings
 def PF(X):
     cd=np.asarray(X.sum(1)).ravel()
     avg_cd=cd.mean()
@@ -67,12 +67,17 @@ def main():
     if method not in list(adata.layers.keys()) + available_methods:
         raise ValueError("Method not in adata.layers or available_methods.")
 
+    
     if np.sum(adata.X.todense()[1,:]).is_integer():
         adata.layers['counts'] = adata.X.copy()
-    elif np.sum(adata.layers['counts'].todense()[1,:]).is_integer():
+    elif 'counts' in adata.layers  and np.sum(adata.layers['counts'].todense()[1,:]).is_integer():
         adata.X = adata.layers['counts'].copy()
     else:
-        raise ValueError("Could not find raw counts in layers or X.")
+        adata.layers['counts'] = adata.X.copy()
+        warnings.warn(
+            "Could not find raw counts in layers or X. Data may already be normalized or may be a protein data if you are running pQTLs, so be careful - we set the X as counts",
+            UserWarning
+        )
 
     if method in list(adata.layers.keys()):
         adata.layers['dMean_normalised'] = adata.layers[method]
