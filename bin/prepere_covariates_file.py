@@ -77,6 +77,9 @@ def main():
     phenotype_pcs=options.phenotype_pcs
     covariates_df = pd.read_csv(genotype_pcs, sep='\t', index_col=0)
 
+    sample_map_file=options.sample_mapping
+    sample_mapping = pd.read_csv(sample_map_file,sep='\t')
+    sample_mapping= sample_mapping.set_index('RNA')
         
     if options.phenotype_pcs=='0pcs.tsv':
         phenotype_pcs=pd.DataFrame(index=covariates_df.index)
@@ -99,9 +102,7 @@ def main():
         
     covariates_df = covariates_df.iloc[:,:int(options.nr_gPCs)]
     
-    sample_map_file=options.sample_mapping
-    sample_mapping = pd.read_csv(sample_map_file,sep='\t')
-    sample_mapping= sample_mapping.set_index('RNA')
+
 
     covariates_df = covariates_df.add_prefix('Genotype ')
     phenotype_pcs = phenotype_pcs.add_prefix('Phenotype ')
