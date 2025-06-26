@@ -5,7 +5,8 @@ ${bold}eQTLigt${normal}[https://github.com/wtsi-hgi/eqtl] Nextflow pipeline that
 
 eQTLigt/eQTL module has been set to run in multiple modes:
     ${bold}eqtl -v${normal} :will describe the checkout tag used.
-    ${bold}eqtl test${normal} :will run a OneK1k test dataset.
+    ${bold}eqtl test_bulk${normal} :will run a bulk test dataset.
+    ${bold}eqtl test_scrna${normal} :will run a scRNA test dataset.
     ${bold}eqtl sample_input${normal} :will create a directory sample_input in your current working directory where you will sample input files.
     ${bold}eqtl -c /path/to/input.nf${normal} :will run your samples as defined in input file. If you are unsure how to fill in the info file please refear to this documentation: https://github.com/wtsi-hgi/yascp/blob/main/docs/usage.md
 
