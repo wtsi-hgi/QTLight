@@ -1,5 +1,6 @@
 # Use the latest available Miniforge image
-FROM condaforge/miniforge3:latest
+FROM condaforge/miniforge3:24.7.1-2
+
 
 # Set environment variables
 ENV PATH="/opt/conda/bin:${PATH}" \
@@ -58,6 +59,7 @@ RUN apt-get update && \
 # RUN apt install libtiff-dev  --yes
 # RUN apt-get install libharfbuzz-dev libfribidi-dev libfreetype6-dev libpng-dev libtiff5-dev libjpeg-dev build-essential libcurl4-openssl-dev libxml2-dev libssl-dev libfontconfig1-dev --yes
 # Copy environment.yml and create the Conda environment
+
 COPY environment.yml /tmp/environment.yml
 RUN conda config --set always_yes yes --set changeps1 no && \
     conda env create -f /tmp/environment.yml && \
@@ -66,6 +68,7 @@ RUN conda config --set always_yes yes --set changeps1 no && \
 
 # Activate the Conda environment
 ENV PATH="/opt/conda/envs/eqtl-env/bin:$PATH"
+ENV PKG_CONFIG_PATH=/opt/conda/envs/eqtl-env/lib/pkgconfig
 SHELL ["conda", "run", "-n", "eqtl-env", "/bin/bash", "-c"]
 
 # Install Python libraries
@@ -145,7 +148,29 @@ RUN apt-get update && \
 
 
 RUN R --no-echo -e "install.packages(c(  'SeuratObject'), repos='http://cran.us.r-project.org')"
-RUN R --no-echo -e 'library(remotes); remotes::install_github("satijalab/seurat", "seurat5", quiet = TRUE)'
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    libpng-dev \            
+    libglpk-dev \   
+    libgmp-dev \  
+    libhdf5-dev libzstd-dev libcairo2-dev \ 
+    python3-dev python3-pip \
+    cmake \  
+    && apt-get clean && rm -rf /var/lib/apt/lists/*
+RUN pip install leidenalg
+
+RUN R --version
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    libcurl4-openssl-dev libssl-dev libxml2-dev \
+    libpng-dev libjpeg-dev libtiff-dev libfreetype6-dev \
+    libharfbuzz-dev libfribidi-dev libcairo2-dev \
+    libglpk-dev libgmp-dev libzstd-dev libhdf5-dev \
+    libgit2-dev libx11-dev libxt-dev libfontconfig1-dev \
+    python3-dev libpython3-dev zlib1g-dev build-essential gfortran cmake
+
+RUN R --no-echo -e "install.packages(c(  'curl'), repos='http://cran.us.r-project.org')"
+RUN R --no-echo -e 'library(remotes); remotes::install_github("satijalab/seurat", "seurat5", quiet = FALSE)'
 RUN R --no-echo -e "remotes::install_github(c('mojaveazure/seurat-disk'), dependencies = TRUE)"
 
 # Install QTLtools

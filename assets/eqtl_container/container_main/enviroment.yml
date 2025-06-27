@@ -5,7 +5,18 @@ channels:
   - nodefaults
 dependencies:
   - python=3.8
-  - r-base>=4.3
+  - r-base=4.3.3
+  - r-curl
+  - r-png
+  - r-data.table
+  - r-igraph
+  - r-httpuv
+  - r-reticulate
+  - r-fastdummies
+  - r-plotly
+  - r-leiden
+  - r-remotes
+  - r-devtools
   - h5py
   - pandas
   - numpy
