@@ -140,7 +140,8 @@ workflow EQTL {
 
         if(params.genotype_phenotype_mapping_file!=''){
             // Here user has provided a genotype phenotype file where the provided gt_id_column is contaiming a mapping file instead of actual genotype
-            REMAP_GENOTPE_ID(out2,params.genotype_phenotype_mapping_file)
+            mapping_ch = Channel.fromPath(params.genotype_phenotype_mapping_file)
+            REMAP_GENOTPE_ID(out2.combine(mapping_ch))
             phenotype_condition = REMAP_GENOTPE_ID.out.remap_genotype_phenotype_mapping
             genotype_phenotype_mapping_file = REMAP_GENOTPE_ID.out.genotype_phenotype_mapping
         }else{

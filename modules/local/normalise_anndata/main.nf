@@ -52,8 +52,7 @@ process REMAP_GENOTPE_ID{
     }
 
     input:
-      tuple val(sanitized_columns), path(phenotype_file),  path(adata_emmited_file)
-      each path(mapping_file)
+      tuple val(sanitized_columns), path(phenotype_file),  path(adata_emmited_file), path(mapping_file)
     output:
       tuple val(sanitized_columns), path(phenotype_file),  path("remap_*.tsv"), emit:remap_genotype_phenotype_mapping
       path("remap_*.tsv"),emit: genotype_phenotype_mapping

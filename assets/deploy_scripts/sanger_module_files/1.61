@@ -10,11 +10,11 @@ proc ModulesHelp { } {
     puts stderr NEW: 1) we have handeled the varying betas an p values due to different orders of samples by sorting, 2) we have added new, informative plots to phenotype PCs, 3) we have improved interaction mapping"
     puts stderr "QTLight module has been set to run in multiple modes:"
     puts stderr "	*QTLight -v (or QTLight -v):will describe the checkout tag used."
-    puts stderr " 	*QTLight test (or QTLight test):will run a OneK1k test dataset."
+    puts stderr " 	*QTLight test_bulk (or QTLight test):will run a OneK1k test dataset."
     puts stderr " 	*QTLight sample_input (or QTLight sample_input):will create a directory sample_input in your current working directory where you will sample input files."
 }
  
-module-whatis   "Beta - (please use v1.61) Name: QTLight (https://github.com/wtsi-hgi/QTLight), Version: v1.61 -- beta"
+module-whatis   "Name: QTLight (https://github.com/wtsi-hgi/QTLight), Version: v1.61"
 
 
 set install /software/hgi/pipelines/QTLight/QTLight_v1.61
