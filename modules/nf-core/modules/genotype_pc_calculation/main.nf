@@ -46,6 +46,6 @@ process GENOTYPE_PC_CALCULATION {
 
             plink2 ${pgen_or_bed} "\$plink_dir/\$base_name" ${params.covariates.genotype_pc_filters} --out tmp_gt_plink_freq
             plink2 ${pgen_or_bed} "\$plink_dir/\$base_name" --extract tmp_gt_plink_freq.prune.in --freq --out tmp_gt_plink_freq
-            plink2 --pca 200 --read-freq tmp_gt_plink_freq.afreq --extract tmp_gt_plink_freq.prune.in ${pgen_or_bed} "\$plink_dir/\$base_name" --out gtpca_plink
+            plink2 --pca 10 --read-freq tmp_gt_plink_freq.afreq --extract tmp_gt_plink_freq.prune.in ${pgen_or_bed} "\$plink_dir/\$base_name" --out gtpca_plink
         """
 }

@@ -285,6 +285,7 @@ def main():
     covariates_df = pd.read_csv(covariates_file, sep='\t', index_col=0)
     covariates_df = covariates_df[list(set(phenotype_df.columns).intersection(set(covariates_df.columns)))]
     phenotype_df = phenotype_df[covariates_df.columns]
+    print(phenotype_df.head())
     # have to drop dublicate rownames. and average the repeated measures.
     # phenotype_df.columns = phenotype_df.columns.str.split('.').str[0]
     # covariates_df.columns = covariates_df.columns.str.split('.').str[0]
@@ -341,7 +342,9 @@ def main():
                 os.remove(bf1) 
                 count+=1    
   
+    phenotype_df = phenotype_df[~phenotype_df.index.duplicated(keep="first")]
 
+    phenotype_pos_df = phenotype_pos_df[~phenotype_pos_df.index.duplicated(keep="first")]
     try:
 
         cis_df = cis.map_cis(genotype_df, variant_df, 
@@ -367,6 +370,7 @@ def main():
         # This seems to be caused by failure to aproximate the betas
         # Hence the folowing part of the code if the above fails avoiding beta aproximation and 
         print('----cis eQTLs failed to aproximate betas ------')
+        #import pdb; pdb.set_trace()
         cis_df = cis.map_cis(genotype_df, variant_df, 
                             phenotype_df.loc[phenotype_df_genes],
                             phenotype_pos_df.loc[phenotype_df_genes],nperm=int(options.nperm),

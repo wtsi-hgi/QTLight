@@ -162,7 +162,7 @@ process SAIGE_S1 {
         cat "${genes_list}" | while IFS= read -r i || [ -n "\$i" ]
         do
            {  # try
-            step1_fitNULLGLMM_qtl.R \
+            step1_fitNULLGLMM_qtl_v2.R \
                 --useSparseGRMtoFitNULL=TRUE  \
                 --sparseGRMFile ${sparseGRM} --sparseGRMSampleIDFile ${sparseGRM_samples} --relatednessCutoff ${params.SAIGE.relatednessCutoff} \
                 --useGRMtoFitNULL=FALSE \
@@ -493,8 +493,8 @@ process PHENOTYPE_PCs{
     }   
 
     memory { 
-        sizeInGB = saige_filt_expr_input.size() / 1e9 * 2 * task.attempt
-        return (sizeInGB ).toString() + 'GB' 
+        sizeInGB = saige_filt_expr_input.size() / 1e9 * 8 * task.attempt
+        return '8GB' 
     }   
 
     input:
