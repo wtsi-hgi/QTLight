@@ -8,9 +8,15 @@ process PREP_OPTIMISE_PCS {
     label 'process_low'
     tag "$condition, $interaction"
     input:
-    tuple val(condition), val(interaction), val(paths)
+      tuple val(condition), val(interaction), val(paths)
     output:
-    tuple val(condition), val(interaction), path("${condition}_${interaction}_symlink")
+      tuple val(condition), val(interaction), path("${condition}_${interaction}_symlink")
+
+    if (workflow.containerEngine == 'singularity' && !params.singularity_pull_docker_container) {
+        container "${params.eqtl_container}"
+    } else {
+        container "${params.eqtl_docker}"
+    }
 
     script:
     paths_str = paths.join(" ")

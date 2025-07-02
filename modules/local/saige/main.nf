@@ -162,7 +162,7 @@ process SAIGE_S1 {
         cat "${genes_list}" | while IFS= read -r i || [ -n "\$i" ]
         do
            {  # try
-            step1_fitNULLGLMM_qtl_v2.R \
+            step1_fitNULLGLMM_qtl.R \
                 --useSparseGRMtoFitNULL=TRUE  \
                 --sparseGRMFile ${sparseGRM} --sparseGRMSampleIDFile ${sparseGRM_samples} --relatednessCutoff ${params.SAIGE.relatednessCutoff} \
                 --useGRMtoFitNULL=FALSE \
