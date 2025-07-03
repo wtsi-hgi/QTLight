@@ -606,6 +606,7 @@ process H5AD_TO_SAIGE_FORMAT {
             --sample_id ${params.sample_column} \
             --general_file_dir ./output_agg \
             --nperc \$nperc \
+            --gtf_gene_identifier ${params.gtf_gene_identifier} \
             --min ${params.n_min_cells} \
             --scale_covariates \$scale_covariates \
             --expression_pca \$expression_pca --cell_percentage_threshold ${params.cell_percentage_threshold} \
@@ -688,7 +689,7 @@ process DETERMINE_TSS_AND_TEST_REGIONS {
     script:
     """
         echo 'Lets prepeare the regions file'
-        prepeare_Saige_regions_for_cis.py --annotation_file ${annotation_file} --genes ${genes_list} --gtf_type ${params.gtf_type} --window ${params.windowSize}
+        prepeare_Saige_regions_for_cis.py --annotation_file ${annotation_file} --genes ${genes_list} --gtf_type ${params.gtf_type} --window ${params.windowSize} --gtf_gene_identifier ${params.gtf_gene_identifier}
     """
 }
 

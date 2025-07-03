@@ -54,6 +54,15 @@ def main():
         required=True,
         help='window +- from tss region to test the QTLs'
     )
+    
+    parser.add_argument(
+        '-gtf_gid', '--gtf_gene_identifier',
+        action='store',
+        dest='gtf_gid',
+        required=False,
+        default='gene_id',
+        help='the size of chunks to use'
+    )
 
     options = parser.parse_args()
     
@@ -73,7 +82,7 @@ def main():
         df = read_gtf(annotation_file)
         if (gtf_type=='gene'):
             df2= df.filter(df["feature"] == "gene").to_pandas()
-            Gene_Chr_Start_End_Data =df2[['gene_name','start','end','strand','seqname']]
+            Gene_Chr_Start_End_Data =df2[[options.gtf_gid,'start','end','strand','seqname']]
         elif (gtf_type=='transcript'):
             df2= df.filter(df["feature"] == "transcript").to_pandas()
             Gene_Chr_Start_End_Data =df2[['transcript_id','start','end','strand','seqname']]
@@ -85,7 +94,7 @@ def main():
         Gene_Chr_Start_End_Data = pd.read_csv(annotation_file,index_col=None,sep='\t')
 
     if (gtf_type=='gene'):
-        Gene_Chr_Start_End_Data.rename(columns={'gene_name':'feature_id','seqname':'chromosome'},inplace=True)
+        Gene_Chr_Start_End_Data.rename(columns={options.gtf_gid:'feature_id','seqname':'chromosome'},inplace=True)
     elif (gtf_type=='transcript'):
         Gene_Chr_Start_End_Data.rename(columns={'transcript_id':'feature_id','seqname':'chromosome'},inplace=True)
     else:

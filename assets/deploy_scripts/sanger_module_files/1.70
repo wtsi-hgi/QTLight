@@ -1,12 +1,12 @@
 #%Module1.0
-set version v1.61
+set version v1.70
 set program QTLight
 
 set version [file tail [module-info version [module-info name]]]
  
 proc ModulesHelp { } {
     global version
-    puts stderr "Pipeline QTLight (https://github.com/wtsi-hgi/QTLight) is a nextflow pipeline that performs QTL analysis of scRNA, bulk, ATAC, Chip, Prot-QTLs and any other QTLs"
+    puts stderr "Pipeline QTLight (https://github.com/wtsi-hgi/QTLight) is a nextflow pipeline that performs QTL analysis of scRNA, bulk, ATAC, Chip and any other QTLs"
     puts stderr NEW: 1) we have handeled the varying betas an p values due to different orders of samples by sorting, 2) we have added new, informative plots to phenotype PCs, 3) we have improved interaction mapping"
     puts stderr "QTLight module has been set to run in multiple modes:"
     puts stderr "	*QTLight -v (or QTLight -v):will describe the checkout tag used."
@@ -14,10 +14,10 @@ proc ModulesHelp { } {
     puts stderr " 	*QTLight sample_input (or QTLight sample_input):will create a directory sample_input in your current working directory where you will sample input files."
 }
  
-module-whatis   "Name: QTLight (https://github.com/wtsi-hgi/QTLight), Version: v1.61"
+module-whatis   "BETA (active development): Name: QTLight (https://github.com/wtsi-hgi/QTLight), Version: v1.70"
 
 
-set install /software/hgi/pipelines/QTLight/QTLight_v1.61
+set install /software/hgi/pipelines/QTLight/QTLight_v1.70
 module load ISG/singularity/3.11.4
 module load HGI/common/nextflow/24.10.4
-prepend-path PATH "/software/hgi/pipelines/QTLight/QTLight_v1.61/assets/deploy_scripts/module_exacutables"
+prepend-path PATH "/software/hgi/pipelines/QTLight/QTLight_v1.70/assets/deploy_scripts/module_exacutables"

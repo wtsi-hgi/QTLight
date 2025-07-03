@@ -107,6 +107,16 @@ def parse_options():
     parser.add_argument('-genome', '--genome', required=False, default=None)
     parser.add_argument('-sc', '--scale_covariates', required=True)
     parser.add_argument('-br', '--bridge', default=None)
+    
+    parser.add_argument(
+        '-gtf_gid', '--gtf_gene_identifier',
+        action='store',
+        dest='gtf_gid',
+        required=False,
+        default='gene_id',
+        help='the size of chunks to use'
+    )
+    
     return parser.parse_args()
 
     
@@ -142,8 +152,8 @@ def main():
         df = df.filter(df["feature"] == "gene")
         # df = read_gtf(inherited_options.genome)
         # df = df[df.feature == 'gene']  #Old way, also old way doesnt need .to_pandas()
-        Gene_Chr_Start_End_Data =df[['gene_name','start','end','strand','seqname']].to_pandas()
-        Gene_Chr_Start_End_Data.rename(columns={'gene_name':'feature_id','seqname':'chromosome'},inplace=True)
+        Gene_Chr_Start_End_Data =df[[inherited_options.gtf_gid,'start','end','strand','seqname']].to_pandas()
+        Gene_Chr_Start_End_Data.rename(columns={inherited_options.gtf_gid:'feature_id','seqname':'chromosome'},inplace=True)
         chrs = inherited_options.chr.split(',')
         all_genes = set(Gene_Chr_Start_End_Data[Gene_Chr_Start_End_Data['chromosome'].isin(chrs)]['feature_id'])
         
