@@ -7,7 +7,7 @@ process NORMALISE_and_PCA_PHENOTYPE{
     scratch false      // use tmp directory
     label 'process_medium'
 
-    publishDir  path: "${params.outdir}/norm_data/${condition}_${prefix}",
+    publishDir  path: "${params.outdir}/norm_data/${condition}__${prefix}",
                 mode: "${params.copy_mode}",
                 overwrite: "true"
 
@@ -32,7 +32,7 @@ process NORMALISE_and_PCA_PHENOTYPE{
     script:
         matcher = (phenotype_file =~ /^([^_]+)___/)
         prefix = matcher ? matcher[0][1] : 'all'
-        outname = "${condition}_${prefix}"
+        outname = "${condition}__${prefix}"
         """  
             echo ${prefix}
             echo ${outname}

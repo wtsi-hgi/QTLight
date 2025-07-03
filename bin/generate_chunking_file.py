@@ -77,11 +77,11 @@ def main():
     try:
         df = read_gtf(options.genome_annotation)
         df2 = df.filter(df["feature"] == "gene")
-        Gene_Chr_Start_End_Data =df2[['gene_id','start','end','seqname','strand']].to_pandas()
+        Gene_Chr_Start_End_Data =df2[['gene_name','start','end','seqname','strand']].to_pandas()
     except:
         Gene_Chr_Start_End_Data = pd.read_csv(options.genome_annotation,index_col=None,sep='\t')
         
-    Gene_Chr_Start_End_Data.rename(columns={'gene_id':'feature_id','seqname':'chromosome'},inplace=True)
+    Gene_Chr_Start_End_Data.rename(columns={'gene_name':'feature_id','seqname':'chromosome'},inplace=True)
     Data=Gene_Chr_Start_End_Data
 
     Phenotype_file = pd.read_csv(options.phenotype_file,sep='\t',index_col=0)

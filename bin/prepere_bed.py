@@ -88,7 +88,7 @@ def main():
         if (gtf_type=='gene'):
             # df2 = df[df.feature == 'gene'] #Old way, also old way doesnt need .to_pandas()
             df2 = df.filter(df["feature"] == "gene")
-            Gene_Chr_Start_End_Data =df2[['gene_id','start','end','strand','seqname']].to_pandas()
+            Gene_Chr_Start_End_Data =df2[['gene_name','start','end','strand','seqname']].to_pandas()
         elif (gtf_type=='transcript'):
             # df2 = df[df.feature == 'transcript'] #Old way, also old way doesnt need .to_pandas()
             df2 = df.filter(df["feature"] == "transcript")
@@ -102,7 +102,7 @@ def main():
         
         
     if (gtf_type=='gene'):
-        Gene_Chr_Start_End_Data.rename(columns={'gene_id':'feature_id','seqname':'chromosome'},inplace=True)
+        Gene_Chr_Start_End_Data.rename(columns={'gene_name':'feature_id','seqname':'chromosome'},inplace=True)
     elif (gtf_type=='transcript'):
         Gene_Chr_Start_End_Data.rename(columns={'transcript_id':'feature_id','seqname':'chromosome'},inplace=True)
     else:

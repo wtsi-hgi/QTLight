@@ -341,7 +341,8 @@ def main():
                 os.remove(bf1) 
                 count+=1    
   
-
+    phenotype_df = phenotype_df[~phenotype_df.index.duplicated(keep="first")]
+    phenotype_pos_df = phenotype_pos_df[~phenotype_pos_df.index.duplicated(keep="first")]
     try:
 
         cis_df = cis.map_cis(genotype_df, variant_df, 
@@ -367,6 +368,7 @@ def main():
         # This seems to be caused by failure to aproximate the betas
         # Hence the folowing part of the code if the above fails avoiding beta aproximation and 
         print('----cis eQTLs failed to aproximate betas ------')
+        #import pdb; pdb.set_trace()
         cis_df = cis.map_cis(genotype_df, variant_df, 
                             phenotype_df.loc[phenotype_df_genes],
                             phenotype_pos_df.loc[phenotype_df_genes],nperm=int(options.nperm),

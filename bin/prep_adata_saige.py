@@ -142,8 +142,8 @@ def main():
         df = df.filter(df["feature"] == "gene")
         # df = read_gtf(inherited_options.genome)
         # df = df[df.feature == 'gene']  #Old way, also old way doesnt need .to_pandas()
-        Gene_Chr_Start_End_Data =df[['gene_id','start','end','strand','seqname']].to_pandas()
-        Gene_Chr_Start_End_Data.rename(columns={'gene_id':'feature_id','seqname':'chromosome'},inplace=True)
+        Gene_Chr_Start_End_Data =df[['gene_name','start','end','strand','seqname']].to_pandas()
+        Gene_Chr_Start_End_Data.rename(columns={'gene_name':'feature_id','seqname':'chromosome'},inplace=True)
         chrs = inherited_options.chr.split(',')
         all_genes = set(Gene_Chr_Start_End_Data[Gene_Chr_Start_End_Data['chromosome'].isin(chrs)]['feature_id'])
         
