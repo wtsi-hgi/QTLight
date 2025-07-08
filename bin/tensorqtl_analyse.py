@@ -316,6 +316,8 @@ def main():
     # Make sure they are always sorted the same regardless of what run it is.
     phenotype_df = phenotype_df.loc[phenotype_df_genes,sorted(phenotype_df.columns, reverse=True)]
     covariates_df = covariates_df.loc[phenotype_df.columns]
+    phenotype_df = phenotype_df[~phenotype_df.index.duplicated(keep="first")]
+    phenotype_pos_df = phenotype_pos_df[~phenotype_pos_df.index.duplicated(keep="first")]
     
     if options.chrom_to_map_trans:
         print("Running trans analysis")
@@ -341,8 +343,7 @@ def main():
                 os.remove(bf1) 
                 count+=1    
   
-    phenotype_df = phenotype_df[~phenotype_df.index.duplicated(keep="first")]
-    phenotype_pos_df = phenotype_pos_df[~phenotype_pos_df.index.duplicated(keep="first")]
+    
     try:
 
         cis_df = cis.map_cis(genotype_df, variant_df, 
