@@ -100,8 +100,8 @@ process TENSORQTL {
       ${tensor_qtl_script} --plink_prefix_path "\$plink_dir/\$base_name" --expression_bed Expression_Data.sorted.bed --covariates_file ${covariates_tsv} -window ${params.windowSize} ${dosage} --maf ${params.maf} --outdir ${outpath} ${map_nominal_flag} ${chrom_to_map_trans} ${map_independent_qtls}
       cd ${outpath} && ln ../../../${covariates_tsv} ./ && ln ../../../Expression_Data.sorted.bed ./ && ln ../../../${interaction_file} ./
       if [[ "$map_nominal_flag" == "--map_nominal" ]]; then
-          cat ${outpath}/cis_nominal1.cis_qtl_pairs.1.tsv >> ${outpath}/${condition}_full_sumtats.tsv
-          cat ${outpath}/cis_nominal1.cis_qtl_pairs.{2..22}.tsv | grep -v variant_id >> ${outpath}/${condition}_full_sumtats.tsv
+          cat ${outpath}/cis_nominal1.cis_qtl_pairs.1.tsv >> ${outpath}/${condition}_full_sumstats.tsv
+          cat ${outpath}/cis_nominal1.cis_qtl_pairs.{2..22}.tsv | grep -v variant_id >> ${outpath}/${condition}_full_sumstats.tsv
       fi
     """
 }
