@@ -10,7 +10,7 @@ include {LIMIX_eqtls} from '../modules/local/limix/main'
 include {PREPROCESS_SAMPLE_MAPPING} from '../modules/local/preprocess_sample_mapping/main'
 include {NORMALISE_ANNDATA; REMAP_GENOTPE_ID} from '../modules/local/normalise_anndata/main'
 include {AGGREGATE_UMI_COUNTS; SPLIT_AGGREGATION_ADATA; ORGANISE_AGGREGATED_FILES} from '../modules/local/aggregate_UMI_counts/main'
-include {PREPERE_EXP_BED;PREPERE_COVARIATES} from '../modules/local/prepere_exp_bed/main'
+include {PREPERE_EXP_BED;PREPERE_COVARIATES; PREP_SAIGE_COVS} from '../modules/local/prepere_exp_bed/main'
 include {TENSORQTL_eqtls} from '../modules/local/tensorqtl/main'
 include {SAIGE_qtls} from '../modules/local/saige/main'
 include {SUBSET_PCS} from '../modules/local/covar_processing/main'
@@ -287,14 +287,19 @@ workflow EQTL {
     // SAIGE SCRNA QTL mapping method
     if (params.method=='single_cell'){
         if (params.SAIGE.run){
-
             if (params.genotype_phenotype_mapping_file==''){
                 saige_genotype_phenotype_mapping_file = Channel.of("$projectDir/assets/fake_file.fq")
             }else{
                 saige_genotype_phenotype_mapping_file = Channel.fromPath(params.genotype_phenotype_mapping_file, followLinks: true, checkIfExists: true)
             }
 
-            SAIGE_qtls(genotype_pcs_file,adata,bim_bed_fam,genome_annotation,saige_genotype_phenotype_mapping_file)
+            if (params.covariates.extra_covariates_file==''){
+                extra_covariates_file = Channel.of("$projectDir/assets/fake_file.fq")
+            }else{
+                extra_covariates_file = Channel.fromPath(params.covariates.extra_covariates_file, followLinks: true, checkIfExists: true)
+            }
+            covs_Saige = PREP_SAIGE_COVS(genotype_pcs_file,extra_covariates_file)
+            SAIGE_qtls(covs_Saige,adata,bim_bed_fam,genome_annotation,saige_genotype_phenotype_mapping_file)
         }
     }
 

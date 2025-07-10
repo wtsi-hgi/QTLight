@@ -72,3 +72,31 @@ process PREPERE_COVARIATES {
       prepere_covariates_file.py --genotype_pcs ${genotype_pcs} --phenotype_pcs ${phenotype_pcs} ${sample_covar} --sample_mapping ${mapping_file} --nr_gPCs ${params.covariates.nr_genotype_pcs}
     """
 }
+
+process PREP_SAIGE_COVS {
+  label 'process_medium'
+  tag "$condition"
+  if (workflow.containerEngine == 'singularity' && !params.singularity_pull_docker_container) {
+      container "${params.eqtl_container}"
+  } else {
+      container "${params.eqtl_docker}"
+  }
+
+  input:
+    path(genotype_pcs)
+    path(extra_covariates_file)
+  output:
+    path('G_E_Covariates.tsv')
+
+  script:
+
+    if(params.covariates.extra_covariates_file==''){
+      sample_covar =''
+    }else{
+      sample_covar ="--sample_covariates ${extra_covariates_file}"
+    }
+    // subset to number of gPCs required and also append the extra covariates that may be provided. 
+    """
+      repere_covariates_file_SAIGE.py --genotype_pcs ${genotype_pcs} ${sample_covar} --nr_gPCs ${params.covariates.nr_genotype_pcs}
+    """
+}
