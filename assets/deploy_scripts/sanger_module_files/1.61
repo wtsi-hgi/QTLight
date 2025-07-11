@@ -6,7 +6,7 @@ set version [file tail [module-info version [module-info name]]]
  
 proc ModulesHelp { } {
     global version
-    puts stderr "Pipeline QTLight (https://github.com/wtsi-hgi/QTLight) is a nextflow pipeline that performs QTL analysis of scRNA, bulk, ATAC, Chip and any other QTLs"
+    puts stderr "Pipeline QTLight (https://github.com/wtsi-hgi/QTLight) is a nextflow pipeline that performs QTL analysis of scRNA, bulk, ATAC, Chip, Prot-QTLs and any other QTLs"
     puts stderr NEW: 1) we have handeled the varying betas an p values due to different orders of samples by sorting, 2) we have added new, informative plots to phenotype PCs, 3) we have improved interaction mapping"
     puts stderr "QTLight module has been set to run in multiple modes:"
     puts stderr "	*QTLight -v (or QTLight -v):will describe the checkout tag used."

@@ -66,6 +66,15 @@ def main():
     )    
     
     parser.add_argument(
+        '-gtf_gid', '--gtf_gene_identifier',
+        action='store',
+        dest='gtf_gid',
+        required=False,
+        default='gene_id',
+        help='the size of chunks to use'
+    )
+    
+    parser.add_argument(
         '-cs', '--chunk_size',
         action='store',
         dest='chunk_size',
@@ -77,11 +86,11 @@ def main():
     try:
         df = read_gtf(options.genome_annotation)
         df2 = df.filter(df["feature"] == "gene")
-        Gene_Chr_Start_End_Data =df2[['gene_id','start','end','seqname','strand']].to_pandas()
+        Gene_Chr_Start_End_Data =df2[[options.gtf_gid,'start','end','seqname','strand']].to_pandas()
     except:
         Gene_Chr_Start_End_Data = pd.read_csv(options.genome_annotation,index_col=None,sep='\t')
         
-    Gene_Chr_Start_End_Data.rename(columns={'gene_id':'feature_id','seqname':'chromosome'},inplace=True)
+    Gene_Chr_Start_End_Data.rename(columns={options.gtf_gid:'feature_id','seqname':'chromosome'},inplace=True)
     Data=Gene_Chr_Start_End_Data
 
     Phenotype_file = pd.read_csv(options.phenotype_file,sep='\t',index_col=0)

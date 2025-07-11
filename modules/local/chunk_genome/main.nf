@@ -21,7 +21,7 @@ process CHUNK_GENOME{
     script:
         nr_phenotype_pcs = phenotype_pcs.getSimpleName()
         """
-            generate_chunking_file.py --genome_annotation ${genome_annotation} --chunk_size ${params.chunkSize} --phenotype_file ${phenotype_file} --covar_file ${phenotype_pcs} --condition ${condition}  --genotype_phenotype_file ${mapping_file}
+            generate_chunking_file.py --genome_annotation ${genome_annotation} --chunk_size ${params.chunkSize} --phenotype_file ${phenotype_file} --covar_file ${phenotype_pcs} --condition ${condition}  --genotype_phenotype_file ${mapping_file} --gtf_gene_identifier ${params.gtf_gene_identifier}
         """
     
 }
