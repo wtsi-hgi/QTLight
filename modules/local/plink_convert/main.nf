@@ -97,7 +97,7 @@ process PGEN_CONVERT{
     input:
         path(file__vcf)
     output:
-        path("plink_genotypes_bgen"), emit: plink_path
+        path("plink_genotypes_pgen"), emit: plink_path
 
     script:
 
@@ -110,8 +110,8 @@ process PGEN_CONVERT{
         }
 
         """
-            mkdir plink_genotypes_bgen
-            plink2 ${ext1} --max-alleles 2 --make-pgen ${params.plink2_filters} --hwe ${params.hwe} --out plink_genotypes_bgen/plink_genotypes
+            mkdir plink_genotypes_pgen
+            plink2 ${ext1} --max-alleles 2 --make-pgen ${params.plink2_filters} --hwe ${params.hwe} --out plink_genotypes_pgen/plink_genotypes
         """
     
     

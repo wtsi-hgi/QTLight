@@ -58,14 +58,52 @@ On release, automated continuous integration tests run the pipeline on a full-si
     ```
 
 4. Prepeare the input.nf parameters file:
-    ```console
-    params{
-        method= 'single_cell' //or a [bulk | single_cell] (if single cell used the *phenotype_file* is a h5ad file)
-        input_vcf ='/path/to/genotype/vcf/file.vcf'
-        genotype_phenotype_mapping_file = '' //if bulk RNA seq data is fed in then need a tsv file with 3 columns - [Genotype	RNA	Sample_Category]
-        annotation_file = './assets/annotation_file.txt'
-        phenotype_file = 'path/to/adata.h5ad' //this should point to h5ad file in a single cell experiments or a star counts matrices for the bulk rna seq data
-        aggregation_collumn='Azimuth:predicted.celltype.l2' // for scRNA seq data since we feed in the h5ad file we specify here which obs entry to account for for aggregating data.
+     ```console
+     params {
+      method = 'single_cell' 
+      // Options: 'single_cell' or 'bulk'
+      // - If 'single_cell': phenotype_file must be a .h5ad file (AnnData object)
+      // - If 'bulk': phenotype_file should point to gene expression count tables (e.g., STAR featureCounts outputs)
+  
+      input_vcf = '/path/to/genotype.vcf'
+      // Optional if using preprocessed genotypes (e.g., PGEN, BED, or BGEN)
+      // Leave blank if providing `preprocessed_pgen_file`, `preprocessed_bed_file`, or `preprocessed_bgen_file`
+  
+      genotype_phenotype_mapping_file = '' 
+      // A TSV with three columns: [Genotype_ID    Phenotype_ID    Sample_Category]
+      // - Genotype_ID: must match the IID in PLINK .psam/.fam/.pvar
+      // - Phenotype_ID: sample ID from expression data
+      // - Sample_Category: optional grouping column (e.g., stimulation/timepoint); if not needed, set all values to 'default'
+  
+      annotation_file = './path/to/annotation.gtf'
+      // Required. Defines genomic coordinates of features (e.g., genes, peaks).
+      // Accepts either:
+      // - A standard GTF file (recommended for gene-level QTLs)
+      // - A custom 4-column TSV with no header, containing:
+      //   [feature_id   start   end   chromosome]
+      //   Example:
+      //     ENSG00000160072   1471765   1497848   1
+      // The pipeline will extract TSS/midpoint depending on the `position` setting.
+  
+      phenotype_file = 'path/to/adata.h5ad'
+      // - For 'single_cell': must be a .h5ad file containing raw or normalized counts
+      // - For 'bulk': can point to a folder with STAR/featureCounts matrices (one per sample)
+  
+      aggregation_collumn = 'Azimuth:predicted.celltype.l2'
+      // Used when method = 'single_cell'
+      // This should match a column in the `.obs` of the h5ad file
+      // Defines how cells are grouped for pseudobulk aggregation (e.g., by cell type or cluster)
+  
+      extra_covariates_file = ''
+      // Optional: path to a TSV file with additional covariates.
+      // - Format: rows = covariate names, columns = sample IDs (matching genotype IDs, i.e., IID)
+      // - These covariates will be included alongside principal components in SAIGE/TensorQTL models.
+      // Example:
+      //
+      //         sample   682_683  683_684  684_685  685_686  686_687  687_688  688_689  689_690  690_691  691_692  692_693  693_694
+      //         cov1          1        2        0        2        2        3        2        1        0        0        0        1
+      //
+      // - Sample IDs must match the IID column in the PLINK .psam or genotype_phenotype_mapping_file.
     }
     ```
     example genotype_phenotype_mapping_file
@@ -74,6 +112,8 @@ On release, automated continuous integration tests run the pipeline on a full-si
     |HPSI0713i-aehn_22|	MM_oxLDL7159503|	M0_Ctrl|
     |HPSI0713i-aehn_22|	MM_oxLDL7159504|	M0_oxLDL|
     |HPSI0713i-aehn_22	|MM_oxLDL7159505	|M1_oxLDL|
+
+
 
 4. Start running your own analysis!
 

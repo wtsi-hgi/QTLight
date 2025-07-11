@@ -7,14 +7,14 @@ set version [file tail [module-info version [module-info name]]]
 proc ModulesHelp { } {
     global version
     puts stderr "Pipeline QTLight (https://github.com/wtsi-hgi/QTLight) is a nextflow pipeline that performs QTL analysis of scRNA, bulk, ATAC, Chip and any other QTLs"
-    puts stderr NEW: 1) we have handeled the varying betas an p values due to different orders of samples by sorting, 2) we have added new, informative plots to phenotype PCs, 3) we have improved interaction mapping"
+    puts stderr NEW: 1) Matched Covariates between Saige QTL and TensorQTL. 2) Handeled parths better to work on k8 clusters and docker images 3) possibility to give a new gtf gene id column.
     puts stderr "QTLight module has been set to run in multiple modes:"
     puts stderr "	*QTLight -v (or QTLight -v):will describe the checkout tag used."
     puts stderr " 	*QTLight test_bulk (or QTLight test):will run a OneK1k test dataset."
     puts stderr " 	*QTLight sample_input (or QTLight sample_input):will create a directory sample_input in your current working directory where you will sample input files."
 }
  
-module-whatis   "BETA (active development): Name: QTLight (https://github.com/wtsi-hgi/QTLight), Version: v1.70"
+module-whatis   "Name: QTLight (https://github.com/wtsi-hgi/QTLight), Version: v1.70"
 
 
 set install /software/hgi/pipelines/QTLight/QTLight_v1.70

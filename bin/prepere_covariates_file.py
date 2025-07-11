@@ -61,18 +61,9 @@ def main():
         help=''
     )
 
-    parser.add_argument(
-        '-pfile', '--pfile',
-        action='store_true',
-        dest='pfile',
-        default=False,
-        help=''
-    )
-
     options = parser.parse_args()
     genotype_pcs=options.genotype_pcs
-    pfile=options.pfile
-    
+
     
     phenotype_pcs=options.phenotype_pcs
     covariates_df = pd.read_csv(genotype_pcs, sep='\t', index_col=0)
