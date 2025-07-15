@@ -85,9 +85,9 @@ On release, automated continuous integration tests run the pipeline on a full-si
       //     ENSG00000160072   1471765   1497848   1
       // The pipeline will extract TSS/midpoint depending on the `position` setting.
   
-      phenotype_file = 'path/to/adata.h5ad'
+      phenotype_file = 'path/to/expression_file.tsv|h5ad'
       // - For 'single_cell': must be a .h5ad file containing raw or normalized counts
-      // - For 'bulk': can point to a folder with STAR/featureCounts matrices (one per sample)
+      // - For 'bulk': can point to a file with STAR/featureCounts matrix
   
       aggregation_collumn = 'Azimuth:predicted.celltype.l2'
       // Used when method = 'single_cell'
