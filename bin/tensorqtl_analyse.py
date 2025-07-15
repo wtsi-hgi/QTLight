@@ -335,14 +335,18 @@ def main():
                             output_dir=outdir, write_top=map_nominal, write_stats=map_nominal)
         
             all_files = glob.glob(f'{outdir}/cis_nominal*.parquet')
-            All_Data = pd.DataFrame()
+            all_dfs = []
             count=0
             for bf1 in all_files:
                 # print(bf1)
                 df = pd.read_parquet(bf1)
+                all_dfs.append(df)
                 df.to_csv(bf1.replace('.parquet','.tsv'),sep='\t',index=False)
                 os.remove(bf1) 
-                count+=1    
+                count+=1
+
+            All_Data = pd.concat(all_dfs, ignore_index=True) 
+            All_Data.to_csv(f'{outdir}/cis_nominal_full_sumstats.tsv', sep='\t',index=False)  
   
 
     try:

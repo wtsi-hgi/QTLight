@@ -155,6 +155,7 @@ def main():
         Gene_Chr_Start_End_Data =df[[inherited_options.gtf_gid,'start','end','strand','seqname']].to_pandas()
         Gene_Chr_Start_End_Data.rename(columns={inherited_options.gtf_gid:'feature_id','seqname':'chromosome'},inplace=True)
         chrs = inherited_options.chr.split(',')
+        Gene_Chr_Start_End_Data['chromosome'] = Gene_Chr_Start_End_Data['chromosome'].str.replace('chr', '')
         all_genes = set(Gene_Chr_Start_End_Data[Gene_Chr_Start_End_Data['chromosome'].isin(chrs)]['feature_id'])
         
         genes = list(all_genes.intersection(genes))
