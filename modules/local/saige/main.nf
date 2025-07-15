@@ -106,9 +106,8 @@ process CREATE_SPARSE_GRM {
     if (workflow.containerEngine == 'singularity' && !params.singularity_pull_docker_container) {
         container "${params.saige_grm_container}"
     } else {
-        container "${params.saige_docker}"
+        container "${params.saige_grm_docker}"
     }    
-
 
     input:
         tuple path(plink_bim), path(plink_bed), path(plink_fam)
