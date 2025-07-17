@@ -18,7 +18,7 @@ process AGGREGATE_QTL_RESULTS{
         tuple val(condition), path(full_output_list)
         
     output:
-        tuple val(), path("merged_cis_scores.tsv.gz"), emit: limix_qtl_path
+        tuple val("${group0}__${group1}__${group2}"), path("*merged_cis_scores.tsv.gz"), emit: jax_qtl_path
 
     script:
         all_qtl_results = "${condition}".replaceFirst(/.*\.tsv$/, '')
@@ -30,7 +30,38 @@ process AGGREGATE_QTL_RESULTS{
 
         """
             echo "${condition} ${group1} ${group2} ${group0}"
-            merge_chunks.py
+            merge_chunks.py -o ${group0}__${group1}__${group2}__${group4}__merged_cis_scores.tsv.gz
+        """
+}
+
+
+process OPTIM_PCS{
+    tag { condition }
+    scratch false      // use tmp directory
+    label 'process_low'
+    if (workflow.containerEngine == 'singularity' && !params.singularity_pull_docker_container) {
+        container "${params.eqtl_container}"
+    } else {
+        container "${params.eqtl_docker}"
+    }    
+    
+
+    publishDir  path: "${params.outdir}/JAX_eQTLS/${condition}/OPTIM_PCs",
+                mode: "${params.copy_mode}",
+                overwrite: "true"
+
+    input:
+        tuple val(condition), path(full_combined_lists)
+        
+    output:
+        tuple val(condition), path("results/optimise_nPCs-FDR*_optimal_PC.txt"), emit: optimal_pc_file
+        path('results/*')
+
+    script:
+
+        """
+            echo "${full_combined_lists}"
+            plot_optimal_pcs.R ./ 0.05 "${condition}" ./results
         """
 }
 
@@ -163,10 +194,25 @@ workflow JAXQTL_eqtls{
       // Combine results and do Qval correction
 
       AGGREGATE_QTL_RESULTS(inp_ch2) // QTL results are then aggregated.
-      // MULTIPLE_TESTING_CORRECTION(AGGREGATE_QTL_RESULTS.out.limix_qtl_path) // Multiple testing is performed.
 
+      all_basic_results = AGGREGATE_QTL_RESULTS.out.jax_qtl_path
+        .groupTuple(by: 0)
       // Estimate the OptimPCs
+      OPTIM_PCS(all_basic_results)
+      optimal_pc_file = OPTIM_PCS.out.optimal_pc_file
+      optimal_pc_file
+        .map { condition, file ->
+            def content = file.text.trim()
+            if (content) {
+            return [condition, content as Integer]
+            } else {
+            return null // or [condition, null] if you want to propagate condition
+            }
+        }
+        .filter { it != null } // Skip if file was empty
+        .set { optimal_pc_values }
 
+      optimal_pc_values.subscribe { println "optimal_pc_values: $it" }
       // Run the nominal QTLs.
 
 }
