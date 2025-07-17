@@ -16,7 +16,7 @@ process PREPERE_EXP_BED {
     each path(annotation_file)
 
   output:
-    tuple(val(condition),path("Expression_Data.bed.gz"), emit: exp_bed)
+    tuple(val("${condition}__${phenotype_pcs}"),path("Expression_Data.bed.gz"), emit: exp_bed)
 
   script:
     if(params.covariates.extra_covariates_file==''){
@@ -24,14 +24,10 @@ process PREPERE_EXP_BED {
     }else{
       sample_covar ="--sample_covariates ${params.covariates.extra_covariates_file}"
     }
-    if (params.TensorQTL.use_gt_dosage && params.TensorQTL.run) {
-      pfile = "-pfile"
-    }else{
-    pfile = ""
-        }
 
-    if ("${params.TensorQTL.chromosomes_to_test}"!=''){
-        chromosomes_as_string = params.TensorQTL.chromosomes_to_test.join(',')
+
+    if ("${params.chromosomes_to_test}"!=''){
+        chromosomes_as_string = params.chromosomes_to_test.join(',')
         cond2 = " --chr ${chromosomes_as_string}"
     }else{
         cond2 = " "
@@ -57,7 +53,7 @@ process PREPERE_COVARIATES {
     each path(genotype_pcs)
 
   output:
-    tuple(val(condition),path('Covariates.tsv'), val(nr_phenotype_pcs), emit: exp_bed)
+    tuple(val("${condition}__${phenotype_pcs}"),path('Covariates.tsv'), val(nr_phenotype_pcs), emit: exp_bed)
 
   script:
     nr_phenotype_pcs = phenotype_pcs.getSimpleName()

@@ -577,8 +577,8 @@ process H5AD_TO_SAIGE_FORMAT {
         cond1 = " --condition_col '${aggregation_columns}' --condition '${params.aggregation_subentry}' "
     }
 
-    if ("${params.SAIGE.chromosomes_to_test}"!=''){
-        chromosomes_as_string = params.SAIGE.chromosomes_to_test.join(',')
+    if ("${params.chromosomes_to_test}"!=''){
+        chromosomes_as_string = params.chromosomes_to_test.join(',')
         cond2 = " --chr ${chromosomes_as_string} --genome ${genome_annotation}"
     }else{
         cond2 = " "
@@ -743,7 +743,7 @@ workflow SAIGE_qtls{
         result.combine(pheno, by: 0).set{pheno_chunk}
 
         
-        Channel.fromList(params.SAIGE.chromosomes_to_test)
+        Channel.fromList(params.chromosomes_to_test)
                 .set{chromosomes_to_test}        
         CREATE_SPARSE_GRM(bim_bed_fam)
         sparseGRM = CREATE_SPARSE_GRM.out.sparseGRM

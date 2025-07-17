@@ -12,6 +12,7 @@ include {NORMALISE_ANNDATA; REMAP_GENOTPE_ID} from '../modules/local/normalise_a
 include {AGGREGATE_UMI_COUNTS; SPLIT_AGGREGATION_ADATA; ORGANISE_AGGREGATED_FILES} from '../modules/local/aggregate_UMI_counts/main'
 include {PREPERE_EXP_BED;PREPERE_COVARIATES; PREP_SAIGE_COVS} from '../modules/local/prepere_exp_bed/main'
 include {TENSORQTL_eqtls} from '../modules/local/tensorqtl/main'
+include {JAXQTL_eqtls} from '../modules/local/jaxqtl/main'
 include {SAIGE_qtls} from '../modules/local/saige/main'
 include {SUBSET_PCS} from '../modules/local/covar_processing/main'
 include {KINSHIP_CALCULATION} from "$projectDir/modules/local/kinship_calculation/main"
@@ -180,7 +181,7 @@ workflow EQTL {
         plink_convert_input=Channel.of()
     }
 
-    if (params.SAIGE.run || (params.genotypes.use_gt_dosage == false)) {
+    if (params.SAIGE.run || (params.genotypes.use_gt_dosage == false) || params.JAXQTL.run) {
         if (params.genotypes.preprocessed_bed_file==''){
             // BED file preparation
             PLINK_CONVERT(plink_convert_input)
@@ -238,6 +239,7 @@ workflow EQTL {
     NORMALISE_and_PCA_PHENOTYPE(phenotype_condition)
     Channel.of(params.covariates.nr_phenotype_pcs).splitCsv().flatten().set{pcs}
     NORMALISE_and_PCA_PHENOTYPE.out.for_bed.combine(pcs).set{test123}
+    
     SUBSET_PCS(test123)
 
     // LIMIX QTL mapping method
@@ -272,15 +274,24 @@ workflow EQTL {
     for_bed_channel = SUBSET_PCS.out.for_bed.map { tuple ->  [tuple[3],[[tuple[0],tuple[1],tuple[2]]]]}.flatten().collate(4)
     PREPERE_COVARIATES(for_bed_channel,genotype_pcs_file)
     covs = PREPERE_COVARIATES.out.exp_bed
+    // covs.subscribe { println "covs: $it" }
+
+    PREPERE_EXP_BED(for_bed_channel,genome_annotation)
+    beds = PREPERE_EXP_BED.out.exp_bed
+    beds.combine(covs,by:0).set{tensorqtl_input}
+    // beds.subscribe { println "beds: $it" }
 
     if (params.TensorQTL.run){
-        PREPERE_EXP_BED(for_bed_channel,genome_annotation)
-        beds = PREPERE_EXP_BED.out.exp_bed
-        beds.combine(covs,by:0).set{tensorqtl_input}
-
         TENSORQTL_eqtls(
             tensorqtl_input,
             plink_path,
+        )
+    }
+
+    if (params.JAXQTL.run){
+        JAXQTL_eqtls(
+            tensorqtl_input,
+            plink_path_bed,
         )
     }
 
