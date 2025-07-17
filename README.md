@@ -6,7 +6,7 @@ It takes your vcf files (or pgen/bed) alongside flat quantification data (such a
 
 
 <p align="center">
-  <img src="https://github.com/wtsi-hgi/eqtl/blob/main/assets/images/Logo.png" width="60%"/>
+  <img src="https://github.com/wtsi-hgi/QTLight/blob/v1.80/assets/images//Logo.png" width="60%"/>
 </p>
 
 This pipeline is running TensorQTL and/or LIMIX and/or jaxQTL on bulk and/or SAIGE-qtl on single cell RNA seq datasets and assessed the overlap of the eGenes identified by both methodologies. While TensorQTL is very fast, this methodology uses linear regression which may not be capable in adequately represent the underlying population structure and other covariates, whereas Limix, while very computationally intensive is based on the linear mixed models (LMM) where the kinship matrices can be provided and hence accounting for random effects in a better manner. 
@@ -19,23 +19,23 @@ On release, automated continuous integration tests run the pipeline on a full-si
 
 ### TensorQTL
 <p align="center">
-  <img src="https://github.com/wtsi-hgi/eqtl/blob/main/assets/images/Yascp_workflow-03eqtl_workflow.png" width="100%"/>
+  <img src="https://github.com/wtsi-hgi/QTLight/blob/v1.80/assets/images//Yascp_workflow-03eqtl_workflow.png" width="100%"/>
 </p>
 
 ### SaigeQTL
 <p align="center">
-  <img src="https://github.com/wtsi-hgi/eqtl/blob/main/assets/images/Yascp_workflow-03eqtl_workflow_saige.png" width="100%"/>
+  <img src="https://github.com/wtsi-hgi/QTLight/blob/v1.80/assets/images//Yascp_workflow-03eqtl_workflow_saige.png" width="100%"/>
 </p>
 
 
 ### LIMIX
 <p align="center">
-  <img src="https://github.com/wtsi-hgi/eqtl/blob/main/assets/images/Yascp_workflow-03eqtl_workflow_limix.png" width="100%"/>
+  <img src="https://github.com/wtsi-hgi/QTLight/blob/v1.80/assets/images//Yascp_workflow-03eqtl_workflow_limix.png" width="100%"/>
 </p>
 
 ### jaxQTL
 <p align="center">
-  <img src="https://github.com/wtsi-hgi/eqtl/blob/main/assets/images/Yascp_workflow-03eqtl_workflow_jax.png" width="100%"/>
+  <img src="https://github.com/wtsi-hgi/QTLight/blob/v1.80/assets/images//Yascp_workflow-03eqtl_workflow_jax.png" width="100%"/>
 </p>
 
 ## Pipeline summary
