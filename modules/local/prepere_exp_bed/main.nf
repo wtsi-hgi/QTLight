@@ -16,7 +16,7 @@ process PREPERE_EXP_BED {
     each path(annotation_file)
 
   output:
-    tuple(val(condition),path("Expression_Data.bed.gz"), emit: exp_bed)
+    tuple(val("${condition}__${phenotype_pcs}"),path("Expression_Data.bed.gz"), emit: exp_bed)
 
   script:
     if(params.covariates.extra_covariates_file==''){
@@ -57,7 +57,7 @@ process PREPERE_COVARIATES {
     each path(genotype_pcs)
 
   output:
-    tuple(val(condition),path('Covariates.tsv'), val(nr_phenotype_pcs), emit: exp_bed)
+    tuple(val("${condition}__${phenotype_pcs}"),path('Covariates.tsv'), val(nr_phenotype_pcs), emit: exp_bed)
 
   script:
     nr_phenotype_pcs = phenotype_pcs.getSimpleName()
