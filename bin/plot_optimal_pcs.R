@@ -60,12 +60,6 @@ if (nrow(sig_df) == 0) {
   plot.optimal.pc.sig.sum.df <- pc_summary %>% filter(optimal_PC_eGenes)
 }
 
-# Annotate for optimal PC selection
-pc_summary <- sig_df %>%
-  group_by(num_PCs) %>%
-  summarise(num_eGenes = n(), .groups = "drop") %>%
-  mutate(is_max_egenes = num_eGenes == max(num_eGenes)) %>%
-  mutate(optimal_PC_eGenes = is_max_egenes & num_PCs == min(num_PCs[is_max_egenes]))
 
 # Get annotation name from first filename if not provided
 if (annot_name == "auto_detect") {
@@ -106,14 +100,14 @@ if (all(pc_summary$num_eGenes == 0)) {
   message("All PCs have 0 eGenes — writing empty file for optimal_PC.")
   write("", file = paste0(out_base, "_optimal_PC.txt"))
 } else {
-  best_pcs <- pc_summary %>%
+  selected_pc <- pc_summary %>%
     filter(num_eGenes == max(num_eGenes)) %>%
+    arrange(num_PCs) %>%
+    slice(1) %>%
     pull(num_PCs)
 
-  # Pick one at random if multiple tied
-  selected_pc <- sample(best_pcs, 1)
-
-  write(selected_pc, file = paste0(out_base, "_optimal_PC.txt"))
+  cat("Selected optimal PC:", selected_pc, "\n")
+  writeLines(as.character(selected_pc), paste0(out_base, "_optimal_PC.txt"))
 }
 
 cat("Done. Plot and summary saved in", out_dir, "\n")

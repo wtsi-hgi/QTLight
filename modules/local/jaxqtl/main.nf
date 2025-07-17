@@ -1,3 +1,4 @@
+include {JAXQTL;JAXQTL as JAXQTL_NOMINAL} from './functions.nf'
 
 process AGGREGATE_QTL_RESULTS{
     tag { condition }
@@ -67,65 +68,9 @@ process OPTIM_PCS{
 
 
 
-process JAXQTL {  
-  tag "$condition, $nr_phenotype_pcs"
-  label "process_high_memory"
-  if (workflow.containerEngine == 'singularity' && !params.singularity_pull_docker_container) {
-    container "${params.eqtl_container}"
-  } else {
-    container "${params.eqtl_docker}"
-  }
 
 
-  input:
-    tuple(
-        val(condition),
-        path(aggrnorm_counts_bed),
-        path(covariates_tsv),
-        val(nr_phenotype_pcs),
-        path(genelist)
-    )
-    each path(plink_files_prefix)
 
-  output:
-    tuple val("${condition}__${nr_phenotype_pcs}"), path('*cis_score.tsv.gz'), emit: qtl_data
-
-  script:
-    outpath = "${nr_phenotype_pcs}/base_output/base"
-    """
-        mkdir -p ${outpath}
-        export DISABLE_PANDERA_IMPORT_WARNING=True
-        plink_dir="${plink_files_prefix}"
-        base_name=""
-        outname=\$(basename ${genelist})
-        if ls "\$plink_dir"/*.psam 1> /dev/null 2>&1; then
-            base_name=\$(basename \$(ls "\$plink_dir"/*.psam | head -n 1) .psam)
-            pgen_or_bed="--pfile"
-        elif ls "\$plink_dir"/*.bed 1> /dev/null 2>&1; then
-            base_name=\$(basename \$(ls "\$plink_dir"/*.bed | head -n 1) .bed)
-            pgen_or_bed="--bfile"
-        else
-            echo "No .psam or .bed file found in \$plink_dir"
-            exit 1
-        fi
-        transpose_covs.py --infile ${covariates_tsv} --outfile Covariates.fixed.tsv
-        jaxqtl \
-        --geno "\$plink_dir/\$base_name"  \
-        --covar Covariates.fixed.tsv \
-        --pheno ${aggrnorm_counts_bed} --genelist ${genelist}  \
-        --model NB \
-        --mode cis \
-        --window ${params.windowSize} \
-        --test-method score \
-        --nperm ${params.numberOfPermutations} \
-        --addpc 0 \
-        --standardize \
-        -p cpu \
-        --out \$outname
-
-    """
-}
-    
 
 process CHUNK_BED_FILE{
     tag "$condition, $nr_phenotype_pcs"
@@ -184,17 +129,17 @@ workflow JAXQTL_eqtls{
 
       JAXQTL(
           result,
-          plink_genotype
+          plink_genotype,
+          'cis'
       )
 
       inp_ch2 = JAXQTL.out.qtl_data
         .groupTuple(by: 0)
         .map { cond, files -> tuple(cond, files.unique { it.toString() }) }
-    //   inp_ch2.subscribe { println "inp_ch2: $it" }
+
       // Combine results and do Qval correction
 
       AGGREGATE_QTL_RESULTS(inp_ch2) // QTL results are then aggregated.
-
       all_basic_results = AGGREGATE_QTL_RESULTS.out.jax_qtl_path
         .groupTuple(by: 0)
       // Estimate the OptimPCs
@@ -204,15 +149,23 @@ workflow JAXQTL_eqtls{
         .map { condition, file ->
             def content = file.text.trim()
             if (content) {
-            return [condition, content as Integer]
+            return ["${condition}__${content}pcs.tsv"]
             } else {
-            return null // or [condition, null] if you want to propagate condition
+            return null
             }
         }
         .filter { it != null } // Skip if file was empty
         .set { optimal_pc_values }
 
-      optimal_pc_values.subscribe { println "optimal_pc_values: $it" }
+      results_for_nominal = result.combine(optimal_pc_values,by:0)
+
+      JAXQTL_NOMINAL(
+          results_for_nominal,
+          plink_genotype,
+          'nominal'
+      )
+
+
       // Run the nominal QTLs.
 
 }
