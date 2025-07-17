@@ -6,10 +6,10 @@ It takes your vcf files (or pgen/bed) alongside flat quantification data (such a
 
 
 <p align="center">
-  <img src="https://github.com/wtsi-hgi/eqtl/blob/main/assets/images/Logo.png" width="60%"/>
+  <img src="https://github.com/wtsi-hgi/QTLight/blob/v1.80/assets/images//Logo.png" width="60%"/>
 </p>
 
-This pipeline is running TensorQTL and/or LIMIX on bulk and/or SAIGE-qtl on single cell RNA seq datasets and assessed the overlap of the eGenes identified by both methodologies. While TensorQTL is very fast, this methodology uses linear regression which may not be capable in adequately represent the underlying population structure and other covariates, whereas Limix, while very computationally intensive is based on the linear mixed models (LMM) where the kinship matrices can be provided and hence accounting for random effects in a better manner. 
+This pipeline is running TensorQTL and/or LIMIX and/or jaxQTL on bulk and/or SAIGE-qtl on single cell RNA seq datasets and assessed the overlap of the eGenes identified by both methodologies. While TensorQTL is very fast, this methodology uses linear regression which may not be capable in adequately represent the underlying population structure and other covariates, whereas Limix, while very computationally intensive is based on the linear mixed models (LMM) where the kinship matrices can be provided and hence accounting for random effects in a better manner. 
 
 
 The pipeline is built using [Nextflow](https://www.nextflow.io), a workflow tool to run tasks across multiple compute infrastructures in a very portable manner. It uses Docker/Singularity containers making installation trivial and results highly reproducible. The [Nextflow DSL2](https://www.nextflow.io/docs/latest/dsl2.html) implementation of this pipeline uses one container per process which makes it much easier to maintain and update software dependencies. Where possible, these processes have been submitted to and installed from [nf-core/modules](https://github.com/nf-core/modules) in order to make them available to all nf-core pipelines, and to everyone within the Nextflow community!
@@ -19,18 +19,23 @@ On release, automated continuous integration tests run the pipeline on a full-si
 
 ### TensorQTL
 <p align="center">
-  <img src="https://github.com/wtsi-hgi/eqtl/blob/main/assets/images/eqtl_workflow.png" width="100%"/>
+  <img src="https://github.com/wtsi-hgi/QTLight/blob/v1.80/assets/images//Yascp_workflow-03eqtl_workflow.png" width="100%"/>
 </p>
 
 ### SaigeQTL
 <p align="center">
-  <img src="https://github.com/wtsi-hgi/eqtl/blob/main/assets/images/eqtl_workflow_saige.png" width="100%"/>
+  <img src="https://github.com/wtsi-hgi/QTLight/blob/v1.80/assets/images//Yascp_workflow-03eqtl_workflow_saige.png" width="100%"/>
 </p>
 
 
 ### LIMIX
 <p align="center">
-  <img src="https://github.com/wtsi-hgi/eqtl/blob/main/assets/images/eqtl_workflow_limix.png" width="100%"/>
+  <img src="https://github.com/wtsi-hgi/QTLight/blob/v1.80/assets/images//Yascp_workflow-03eqtl_workflow_limix.png" width="100%"/>
+</p>
+
+### jaxQTL
+<p align="center">
+  <img src="https://github.com/wtsi-hgi/QTLight/blob/v1.80/assets/images//Yascp_workflow-03eqtl_workflow_jax.png" width="100%"/>
 </p>
 
 ## Pipeline summary
@@ -44,6 +49,7 @@ On release, automated continuous integration tests run the pipeline on a full-si
 5. LIMIX eqtl mapping ([`LIMIX`]( https://github.com/single-cell-genetics/limix_qtl ))
 6. TensorQTL qtl mapping ([`TensorQTL`](https://github.com/broadinstitute/tensorqtl))
 7. SAIGE-QTL mapping ([`SAIGE-QTL`](https://github.com/weizhou0/qtl))
+7. jaxQTL mapping ([`jaxQTL`](https://github.com/mancusolab/jaxqtl))
 
 ## Quick Start
 
