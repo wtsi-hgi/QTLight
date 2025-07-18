@@ -92,7 +92,7 @@ On release, automated continuous integration tests run the pipeline on a full-si
         
             phenotype_file = '/path/to/input_expression.h5ad'
             // For 'single_cell': must be an .h5ad file with raw or normalized counts
-            // For 'bulk': a gene expression matrix (TSV or folder of STAR outputs)
+            // For 'bulk': a gene expression matrix (TSV)
         
             aggregation_columns = 'cell_type'
             // Comma-separated column(s) in `.obs` used for pseudobulk aggregation

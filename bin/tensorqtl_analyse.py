@@ -340,13 +340,53 @@ def main():
             for bf1 in all_files:
                 # print(bf1)
                 df = pd.read_parquet(bf1)
-                all_dfs.append(df)
-                df.to_csv(bf1.replace('.parquet','.tsv'),sep='\t',index=False)
+                
+                variant_parts = df['variant_id'].str.extract(
+                    r'^(chr)?(?P<chr>[0-9XYM]+):(?P<pos>\d+):(?P<a0>[ACGT]+):(?P<a1>[ACGT]+)$'
+                )
+
+                # Check if parsing succeeded (i.e., this is not rsIDs)
+                if variant_parts['chr'].isnull().all():
+                    print("Detected rsIDs in variant_id — merging with variant_df for annotation")
+
+                    # variant_df must have been loaded earlier from genotypeio.load_genotypes()
+                    # and indexed by rsIDs
+                    df = df.merge(
+                        variant_df.reset_index().rename(columns={'index': 'variant_id','id': 'variant_id'})[['variant_id', 'chrom', 'pos']],
+                        on='variant_id', how='left'
+                    )
+                    df = df.rename(columns={'chrom': 'chr'})
+
+                    # Optional: if variant_df has ref/alt columns, use them
+                    if 'ref' in variant_df.columns and 'alt' in variant_df.columns:
+                        ref_alt = variant_df.reset_index()[['index', 'ref', 'alt']].rename(
+                            columns={'index': 'variant_id', 'ref': 'a0', 'alt': 'a1'})
+                        df = df.merge(ref_alt, on='variant_id', how='left')
+                    else:
+                        df['a0'] = None
+                        df['a1'] = None
+                else:
+                    print("Detected chr:pos:ref:alt-style variant IDs — extracting from string")
+                    df['chr'] = variant_parts['chr']
+                    df['pos'] = variant_parts['pos'].astype(int)
+                    df['a0'] = variant_parts['a0']
+                    df['a1'] = variant_parts['a1']
+
+                # Recalculate MAF (minor allele frequency)
+                df['maf'] = df['af'].copy()
+                df.loc[df['maf'] > 0.5, 'maf'] = 1 - df.loc[df['maf'] > 0.5, 'maf']
+
+                # Estimate number of samples (same logic as in Katie's script)
+                df['nsamples'] = (df['ma_count'] / (df['maf'] * 2)).round().astype(int)
+                df.drop(columns=['maf'], inplace=True)
+          
+                # all_dfs.append(df)
+                df.to_csv(bf1.replace('.parquet', '.tsv.gz'), sep='\t', index=False, compression='gzip')
                 os.remove(bf1) 
                 count+=1
 
-            All_Data = pd.concat(all_dfs, ignore_index=True) 
-            All_Data.to_csv(f'{outdir}/cis_nominal_full_sumstats.tsv', sep='\t',index=False)  
+            # All_Data = pd.concat(all_dfs, ignore_index=True) 
+            # All_Data.to_csv(f'{outdir}/cis_nominal_full_sumstats.tsv', sep='\t',index=False)  
   
 
     try:
