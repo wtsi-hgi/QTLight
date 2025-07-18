@@ -59,8 +59,17 @@ workflow EQTL {
             }
             
             if (params.split_aggregation_adata){
-                SPLIT_AGGREGATION_ADATA(pheno,params.aggregation_columns)
-                adata = SPLIT_AGGREGATION_ADATA.out.split_phenotypes.flatten()
+                if (params.existing_split_adata_dir && file(params.existing_split_adata_dir).exists()) {
+                    log.info "Using user-provided split AnnData files from: ${params.existing_split_adata_dir}"
+                    // Get all h5ad files from the provided directory
+                    adata = Channel.fromPath("${params.existing_split_adata_dir}/*.h5ad")
+                } else {
+                    log.info "No precomputed split files provided, running SPLIT_AGGREGATION_ADATA"
+                    // Run the module that generates splits
+                    SPLIT_AGGREGATION_ADATA(pheno, params.aggregation_columns)
+                    // Flatten outputs
+                    adata = SPLIT_AGGREGATION_ADATA.out.split_phenotypes.flatten()
+                }
             }else{
                 adata = pheno
             }   
@@ -73,9 +82,15 @@ workflow EQTL {
                 splits_h5ad = adata
             }
         
-            AGGREGATE_UMI_COUNTS(splits_h5ad,params.aggregation_columns,params.gt_id_column,params.sample_column,params.n_min_cells,params.n_min_individ)
-            phenotype_genotype_file = AGGREGATE_UMI_COUNTS.out.phenotype_genotype_file
-            genotype_phenotype_mappings = AGGREGATE_UMI_COUNTS.out.genotype_phenotype_mapping.flatten()
+            if (!params.SAIGE.run || params.TensorQTL.run || params.LIMIX.run || params.JAXQTL.run) {
+                AGGREGATE_UMI_COUNTS(splits_h5ad, params.aggregation_columns, params.gt_id_column, params.sample_column, params.n_min_cells, params.n_min_individ)
+                phenotype_genotype_file = AGGREGATE_UMI_COUNTS.out.phenotype_genotype_file
+                genotype_phenotype_mappings = AGGREGATE_UMI_COUNTS.out.genotype_phenotype_mapping.flatten()
+            } else {
+                log.info "Skipping AGGREGATE_UMI_COUNTS — only SAIGE is enabled"
+                phenotype_genotype_file = Channel.empty()
+                genotype_phenotype_mappings = Channel.empty()
+            }
         }else{
             log.info "Looking for existing files '___phenotype_file.tsv' and '___genotype_phenotype_mapping.tsv' in ${params.pre_aggregated_counts_folder}/*/*phenotype_file.tsv"
             Channel
@@ -150,7 +165,6 @@ workflow EQTL {
             genotype_phenotype_mapping_file = genotype_phenotype_mappings.flatten()
         }
 
-        // phenotype_genotype_file.subscribe { println "phenotype_genotype_file: $it" }
         genotype_phenotype_mapping_file.splitCsv(header: true, sep: params.input_tables_column_delimiter)
             .map{row->tuple(row.Genotype)}.distinct()
             .set{channel_input_data_table2}
