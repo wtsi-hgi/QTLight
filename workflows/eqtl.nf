@@ -310,7 +310,8 @@ workflow EQTL {
                 extra_covariates_file = Channel.fromPath(params.covariates.extra_covariates_file, followLinks: true, checkIfExists: true)
             }
             covs_Saige = PREP_SAIGE_COVS(genotype_pcs_file,extra_covariates_file)
-            // SAIGE_qtls(covs_Saige,adata,bim_bed_fam,genome_annotation,saige_genotype_phenotype_mapping_file)
+
+            SAIGE_qtls(covs_Saige,adata,bim_bed_fam,genome_annotation,saige_genotype_phenotype_mapping_file)
         }
     }
 

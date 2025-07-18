@@ -744,7 +744,8 @@ workflow SAIGE_qtls{
 
         
         Channel.fromList(params.chromosomes_to_test)
-                .set{chromosomes_to_test}        
+                .set{chromosomes_to_test}    
+                    
         CREATE_SPARSE_GRM(bim_bed_fam)
         sparseGRM = CREATE_SPARSE_GRM.out.sparseGRM
         sparseGRM_sample = CREATE_SPARSE_GRM.out.sparseGRM_sample
