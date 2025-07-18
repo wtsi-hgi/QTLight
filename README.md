@@ -109,11 +109,14 @@ On release, automated continuous integration tests run the pipeline on a full-si
             split_aggregation_adata = true
             // Whether to split .h5ad by Sample_Category before aggregating
         
+            gt_id_column = 'Vacutainer ID'
+            // Column in `.obs` with the **donor/genotype ID**.
+            // Must match the VCF/PLINK ID or the `RNA` column in the genotype–phenotype mapping file.
+
             sample_column = 'pheno_id'
-            // Column in `.obs` with sample/donor ID (can be same as gt_id_column)
-        
-            gt_id_column = 'pheno_id'
-            // Column in `.obs` used to match with Genotype_ID in mapping file
+            // Column in `.obs` with the **sample/library ID**.
+            // Distinguishes multiple measurements from the same donor.
+            // Can be the same as `gt_id_column` if each sample maps to one donor.
         
             norm_method = 'NONE'
             // Normalisation strategy for bulk datasets: DESEQ | TMM | NONE

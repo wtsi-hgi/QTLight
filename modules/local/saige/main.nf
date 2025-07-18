@@ -741,10 +741,10 @@ workflow SAIGE_qtls{
         }
 
         result.combine(pheno, by: 0).set{pheno_chunk}
-
-        
-        Channel.fromList(params.chromosomes_to_test)
-                .set{chromosomes_to_test}    
+ 
+        chromosomes_to_test = (params.chromosomes_to_test && params.chromosomes_to_test.size() > 0)
+            ? Channel.of(params.chromosomes_to_test)
+            : Channel.of((1..24).toList())   
                     
         CREATE_SPARSE_GRM(bim_bed_fam)
         sparseGRM = CREATE_SPARSE_GRM.out.sparseGRM
