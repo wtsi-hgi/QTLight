@@ -36,12 +36,12 @@ parser.add_argument(
 
 options = parser.parse_args()
 
-Mapping_File = pd.read_csv(options.mappings,sep='\t')
+Mapping_File = pd.read_csv(options.mappings, sep='\t', dtype={'Genotype': str,'RNA':str})
 Mapping_File = Mapping_File.set_index('RNA')
-genotype_phenotype_mapping = pd.read_csv(options.genotype_phenotype_mapping,sep='\t')
+genotype_phenotype_mapping = pd.read_csv(options.genotype_phenotype_mapping, sep='\t', dtype={'Genotype': str,'RNA':str})
 genotype_phenotype_mapping = genotype_phenotype_mapping.set_index('Genotype')
 genotype_phenotype_mapping.insert(0,'Genotype','')
-genotype_phenotype_mapping['Genotype']=Mapping_File['Genotype']
+genotype_phenotype_mapping['Genotype'] = Mapping_File['Genotype'].astype(str)
 if not list(set(genotype_phenotype_mapping['Genotype']))[0]==list(set(genotype_phenotype_mapping['Genotype']))[0]:
     # genotype_phenotype_mapping = genotype_phenotype_mapping.drop(columns='Genotype').reset_index()
     genotype_phenotype_mapping = genotype_phenotype_mapping[genotype_phenotype_mapping['Genotype']==genotype_phenotype_mapping['Genotype']]

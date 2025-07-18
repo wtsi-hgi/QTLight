@@ -26,11 +26,11 @@ process PREPERE_EXP_BED {
     }
 
 
-    if ("${params.chromosomes_to_test}"!=''){
+    if (params.chromosomes_to_test && params.chromosomes_to_test.size() > 0) {
         chromosomes_as_string = params.chromosomes_to_test.join(',')
         cond2 = " --chr ${chromosomes_as_string}"
-    }else{
-        cond2 = " "
+    } else {
+        cond2 = ""
     }
 
     """

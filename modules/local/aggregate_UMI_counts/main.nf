@@ -12,6 +12,9 @@ process SPLIT_AGGREGATION_ADATA {
         container "${params.eqtl_docker}"
     }
 
+  publishDir  path: "${params.outdir}/per_condition_adatas/${params.aggregation_subentry}",mode: "${params.copy_mode}",
+              overwrite: "true"
+
   input:
     path(adata) // lists input files per donor
     val(agg_columns)
