@@ -577,11 +577,11 @@ process H5AD_TO_SAIGE_FORMAT {
         cond1 = " --condition_col '${aggregation_columns}' --condition '${params.aggregation_subentry}' "
     }
 
-    if ("${params.chromosomes_to_test}"!=''){
+    if (params.chromosomes_to_test) {
         chromosomes_as_string = params.chromosomes_to_test.join(',')
         cond2 = " --chr ${chromosomes_as_string} --genome ${genome_annotation}"
-    }else{
-        cond2 = " "
+    } else {
+        cond2 = ""
     }
 
     """
@@ -601,9 +601,10 @@ process H5AD_TO_SAIGE_FORMAT {
             --bridge \$bridge \
             --aggregate_on \$aggregate_on \
             --genotype_pc__file ${genotype_pcs} \
-            --genotype_id ${params.gt_id_column} \
-            --sample_id ${params.sample_column} \
+            --genotype_id '${params.gt_id_column}' \
+            --sample_id '${params.sample_column}' \
             --general_file_dir ./output_agg \
+            --covariates '${params.covariates.adata_obs_covariate}' \
             --nperc \$nperc \
             --gtf_gene_identifier ${params.gtf_gene_identifier} \
             --min ${params.n_min_cells} \
@@ -745,6 +746,9 @@ workflow SAIGE_qtls{
         chromosomes_to_test = (params.chromosomes_to_test && params.chromosomes_to_test.size() > 0)
             ? Channel.of(params.chromosomes_to_test)
             : Channel.of((1..24).toList())   
+
+
+        bim_bed_fam.subscribe { println "bim_bed_fam: $it" }
                     
         CREATE_SPARSE_GRM(bim_bed_fam)
         sparseGRM = CREATE_SPARSE_GRM.out.sparseGRM

@@ -90,6 +90,15 @@ def main():
         required=True,
         help='cell_percentage_threshold'
     )
+    
+    parser.add_argument(
+        '-scc', '--covariates',
+        action='store',
+        dest='sample_covariate_column',
+        required=False,
+        default='',
+        help='Optional obs column to extract as covariate per sample'
+    )
 
     options = parser.parse_args()
     methods = options.method
@@ -170,9 +179,11 @@ def main():
                     
                 if (len(cell_adata.obs['adata_phenotype_id'].unique())>=n_individ):
                     aggregated_data_pre=pd.DataFrame()
+                    sample_covariates_pre = []
                     genotype_phenotype_mapping_pre = []
                     for individual_1 in cell_adata.obs['adata_phenotype_id'].unique():
                         # individual_indices = cell_adata.obs['adata_phenotype_id'] == individual_1
+
                         donot_index = set(adata[adata.obs['adata_phenotype_id']==individual_1].obs.index)
                         cell_donor_index = set(cell_index.intersection(donot_index))
                         individual_1_adata = adata[list(cell_donor_index),indexes]
@@ -201,6 +212,23 @@ def main():
                             data_aggregated_for_cell_and_individal.rename(columns={0:Phenotype},inplace=True)
                             aggregated_data_pre=pd.concat([aggregated_data_pre,data_aggregated_for_cell_and_individal],axis=1)
                             genotype_phenotype_mapping_pre.append({'Genotype':Genotype,'RNA':Phenotype,'Sample_Category':type2})
+                            
+                            sample_covariate_columns = options.sample_covariate_column.split(',') if options.sample_covariate_column else []
+
+                            if sample_covariate_columns:
+                                cov_dict = {'RNA': Phenotype}
+                                skip = False
+                                for col in sample_covariate_columns:
+                                    vals = individual_1_adata.obs[col].unique()
+                                    if len(vals) == 1:
+                                        cov_dict[col] = vals[0]
+                                    else:
+                                        print(f"Warning: multiple values found for {col} in sample {Phenotype}. Skipping.")
+                                        skip = True
+                                        break
+                                if not skip:
+                                    sample_covariates_pre.append(cov_dict)
+                                    
                     # assess whether correct number of individuals ended up having right ammount of cells
                     if (len(aggregated_data_pre.columns)>=n_individ):
                         aggregated_data=pd.concat([aggregated_data,aggregated_data_pre],axis=1)
@@ -210,6 +238,10 @@ def main():
                 if(len(genotype_phenotype_mapping)>=10):
                     genotype_phenotype_mapping.to_csv(f'{method}__{modified_agg_col}___genotype_phenotype_mapping.tsv',sep='\t',index=False)
                     aggregated_data.to_csv(f'{method}__{modified_agg_col}___phenotype_file.tsv',sep='\t',index=True)
+                if options.sample_covariate_column and len(sample_covariates_pre) > 0:
+                    pd.DataFrame(sample_covariates_pre).to_csv(
+                        f'{method}__{modified_agg_col}___sample_covariates.tsv', sep='\t', index=False
+                    )
     print('Successfully Finished')
 
 if __name__ == '__main__':

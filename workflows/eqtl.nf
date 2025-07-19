@@ -1,7 +1,7 @@
 
 
 include {PREPROCESS_GENOTYPES} from '../modules/local/preprocess_genotypes/main' 
-include {PLINK_CONVERT;PGEN_CONVERT;BGEN_CONVERT} from '../modules/local/plink_convert/main' 
+include {PLINK_CONVERT;PGEN_CONVERT;BGEN_CONVERT; PGEN_TO_BED_CONVERT} from '../modules/local/plink_convert/main' 
 include {SUBSET_GENOTYPE} from '../modules/local/subset_genotype/main' 
 include {GENOTYPE_PC_CALCULATION} from '../modules/local/genotype_pc_calculation/main' 
 include {SPLIT_PHENOTYPE_DATA} from '../modules/local/split_phenotype_data/main' 
@@ -84,6 +84,13 @@ workflow EQTL {
         
             if (!params.SAIGE.run || params.TensorQTL.run || params.LIMIX.run || params.JAXQTL.run) {
                 AGGREGATE_UMI_COUNTS(splits_h5ad, params.aggregation_columns, params.gt_id_column, params.sample_column, params.n_min_cells, params.n_min_individ)
+
+                covariates_by_name = AGGREGATE_UMI_COUNTS.out.sample_covariates.map { file ->
+                    def fname = file.getBaseName().replaceAll(/___sample_covariates/, '')
+                    return tuple(fname, file)
+                }
+
+                covariates_by_name.subscribe { println "covariates_by_name: $it" }
                 phenotype_genotype_file = AGGREGATE_UMI_COUNTS.out.phenotype_genotype_file
                 genotype_phenotype_mappings = AGGREGATE_UMI_COUNTS.out.genotype_phenotype_mapping.flatten()
             } else {
@@ -197,10 +204,20 @@ workflow EQTL {
 
     if (params.SAIGE.run || (params.genotypes.use_gt_dosage == false) || params.JAXQTL.run) {
         if (params.genotypes.preprocessed_bed_file==''){
-            // BED file preparation
-            PLINK_CONVERT(plink_convert_input)
-            bim_bed_fam = PLINK_CONVERT.out.bim_bed_fam
-            plink_path_bed = PLINK_CONVERT.out.plink_path
+            if (params.input_vcf){
+                // BED file preparation
+                PLINK_CONVERT(plink_convert_input)
+                bim_bed_fam = PLINK_CONVERT.out.bim_bed_fam
+                plink_path_bed = PLINK_CONVERT.out.plink_path
+            }else if (params.genotypes.preprocessed_pgen_file != '') {
+                // BED file preparation from preprocessed PGEN
+                log.info "PGEN provided and BED needed — converting with PGEN_TO_BED_CONVERT"
+                plink_path_pgen = Channel.from(params.genotypes.preprocessed_pgen_file)
+                PGEN_TO_BED_CONVERT(plink_path_pgen)
+                bim_bed_fam    = PGEN_TO_BED_CONVERT.out.bim_bed_fam
+                plink_path_bed = PGEN_TO_BED_CONVERT.out.plink_path_bed
+            }
+
         }else{
             plink_path_bed = Channel.from(params.genotypes.preprocessed_bed_file)
             Channel.fromPath("${params.genotypes.preprocessed_bed_file}/*.bed", followLinks: true)
@@ -286,6 +303,9 @@ workflow EQTL {
     }
 
     for_bed_channel = SUBSET_PCS.out.for_bed.map { tuple ->  [tuple[3],[[tuple[0],tuple[1],tuple[2]]]]}.flatten().collate(4)
+    for_bed_channel.subscribe { println "for_bed_channel: $it" }
+    SUBSET_PCS.out.for_bed.subscribe { println "SUBSET_PCS.out.for_bed: $it" }
+    
     PREPERE_COVARIATES(for_bed_channel,genotype_pcs_file)
     covs = PREPERE_COVARIATES.out.exp_bed
     // covs.subscribe { println "covs: $it" }

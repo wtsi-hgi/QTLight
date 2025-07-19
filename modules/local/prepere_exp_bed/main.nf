@@ -19,12 +19,6 @@ process PREPERE_EXP_BED {
     tuple(val("${condition}__${phenotype_pcs}"),path("Expression_Data.bed.gz"), emit: exp_bed)
 
   script:
-    if(params.covariates.extra_covariates_file==''){
-      sample_covar =''
-    }else{
-      sample_covar ="--sample_covariates ${params.covariates.extra_covariates_file}"
-    }
-
 
     if (params.chromosomes_to_test && params.chromosomes_to_test.size() > 0) {
         chromosomes_as_string = params.chromosomes_to_test.join(',')

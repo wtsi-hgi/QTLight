@@ -30,7 +30,7 @@ import re
 # from pysctransform import vst, get_hvg_residuals, SCTransform
 # Define covariate process function
 def preprocess_covariates(df, scale_covariates):
-    processed_df = pd.get_dummies(df, drop_first=True)  # One-hot encode all categorical columns
+    processed_df = pd.get_dummies(df, drop_first=False, dummy_na=True).astype(int)
     if scale_covariates == "true":
         scaler = StandardScaler()
         for column in processed_df.select_dtypes(include=['float64']).columns:
@@ -187,12 +187,13 @@ def main():
         geno_pcs = geno_pcs.set_index("#IID")
     except:
         geno_pcs = geno_pcs.set_index("IID")
+    geno_pcs.index = geno_pcs.index.astype(str)
     # geno_pcs = geno_pcs.iloc[:,1:]
     geno_pcs.reset_index(inplace=True)
     geno_pcs.rename(columns={"#IID": genotype_id,"IID": genotype_id}, inplace=True)
     geno_pcs.rename(columns={"#FID": genotype_id,"IID": genotype_id}, inplace=True)
     geno_pcs = geno_pcs.set_index(genotype_id)
-
+    geno_pcs.index = geno_pcs.index.astype(str)
     for aggregate_on in aggregate_on_all.split(','):
         levels = set(adata.obs[aggregate_on].unique())
         l1 = len(levels)
@@ -230,7 +231,7 @@ def main():
                 gc.collect() 
                 
             if bridge:
-                br1 = pd.read_csv(bridge, sep='\t').set_index('RNA')
+                br1 = pd.read_csv(bridge, sep='\t',dtype={'Genotype': str,'RNA':str}).set_index('RNA')
                 br2 = temp.obs[genotype_id].map(br1['Genotype'])
                 if br2.isna().all():
                     print('bridge not used')
@@ -280,9 +281,7 @@ def main():
                 # filtered_counts[genotype_id] = genotype_ids
                 counts = filtered_counts
                 del counts_data, summed_counts, genotype_ids, unique_genotypes, count_per_column  # Free memory
-            
-            print('Applying inverse normal transformation')    
-            
+
             print(f"Final shape is: {counts.shape}") 
             if (any(np.array(counts.shape) < 2)):
                 print(f"Final shape is not acceptable, skipping this phenotype: {counts.shape}")
@@ -294,7 +293,7 @@ def main():
                 try:
                     to_add = preprocess_covariates(temp.obs[covariates], scale_covariates)
                     counts = counts.join(to_add)
-                    covariates_string = ','+inherited_options.covariates
+                    covariates_string = ','+','.join(to_add.columns)
                 except:
                     print(f'{covariates} at least one of these do not exist')
             

@@ -75,6 +75,7 @@ def quantile_normalize_rows(matrix):
 def run_pca_and_save(file_path, output_file, n_pcs, covs):
     # Load the data from the flat text file
     counts = pd.read_csv(file_path, sep="\t", header=0, index_col=0)
+    counts.index = counts.index.astype(str)
     with open(covs, 'r') as file:
         first_line = file.readline().strip()
     existing_covs = first_line.split(',')

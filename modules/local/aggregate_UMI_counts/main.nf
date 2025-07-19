@@ -89,6 +89,7 @@ process AGGREGATE_UMI_COUNTS {
   output:
     path("*phenotype_file.tsv", emit:phenotype_file) optional true
     path("*genotype_phenotype_mapping.tsv", emit:genotype_phenotype_mapping) optional true
+    path("*___sample_covariates.tsv", emit:sample_covariates) optional true
     tuple val(sanitized_columns), path("*phenotype_file.tsv"),  path("*genotype_phenotype_mapping.tsv"), emit:phenotype_genotype_file optional true
     path('*.tsv') optional true
 
@@ -96,6 +97,6 @@ process AGGREGATE_UMI_COUNTS {
     sanitized_columns = adata.getName().replaceAll(/[^a-zA-Z0-9]/, '_').replaceAll(/\.h5ad$/, '')
     """
       echo ${sanitized_columns}
-      aggregate_sc_data.py --agg_columns '${agg_columns}' --gt_id_column '${gt_id_column}' --sample_column '${sample_column}' --n_cells ${n_cells_min} -n_individ ${n_donors_min} -h5ad ${adata} --method ${params.aggregation_method} --cell_percentage_threshold ${params.cell_percentage_threshold}
+      aggregate_sc_data.py --agg_columns '${agg_columns}' --gt_id_column '${gt_id_column}' --sample_column '${sample_column}' --n_cells ${n_cells_min} -n_individ ${n_donors_min} -h5ad ${adata} --method ${params.aggregation_method} --cell_percentage_threshold ${params.cell_percentage_threshold} --covariates '${params.covariates.adata_obs_covariate}'
     """
 }
