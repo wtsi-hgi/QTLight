@@ -14,7 +14,7 @@ include {PREPERE_EXP_BED;PREPERE_COVARIATES; PREP_SAIGE_COVS} from '../modules/l
 include {TENSORQTL_eqtls} from '../modules/local/tensorqtl/main'
 include {JAXQTL_eqtls} from '../modules/local/jaxqtl/main'
 include {SAIGE_qtls} from '../modules/local/saige/main'
-include {SUBSET_PCS} from '../modules/local/covar_processing/main'
+include {SUBSET_PCS; MERGE_COVARIATES} from '../modules/local/covar_processing/main'
 include {KINSHIP_CALCULATION} from "$projectDir/modules/local/kinship_calculation/main"
 
 /*
@@ -84,19 +84,17 @@ workflow EQTL {
         
             if (!params.SAIGE.run || params.TensorQTL.run || params.LIMIX.run || params.JAXQTL.run) {
                 AGGREGATE_UMI_COUNTS(splits_h5ad, params.aggregation_columns, params.gt_id_column, params.sample_column, params.n_min_cells, params.n_min_individ)
-
                 covariates_by_name = AGGREGATE_UMI_COUNTS.out.sample_covariates.map { file ->
                     def fname = file.getBaseName().replaceAll(/___sample_covariates/, '')
                     return tuple(fname, file)
                 }
-
-                covariates_by_name.subscribe { println "covariates_by_name: $it" }
                 phenotype_genotype_file = AGGREGATE_UMI_COUNTS.out.phenotype_genotype_file
                 genotype_phenotype_mappings = AGGREGATE_UMI_COUNTS.out.genotype_phenotype_mapping.flatten()
             } else {
                 log.info "Skipping AGGREGATE_UMI_COUNTS — only SAIGE is enabled"
                 phenotype_genotype_file = Channel.empty()
                 genotype_phenotype_mappings = Channel.empty()
+                covariates_by_name = Channel.empty()
             }
         }else{
             log.info "Looking for existing files '___phenotype_file.tsv' and '___genotype_phenotype_mapping.tsv' in ${params.pre_aggregated_counts_folder}/*/*phenotype_file.tsv"
@@ -139,9 +137,7 @@ workflow EQTL {
 
                     if (matches) {
                         println "MATCH: Sample=${sample}, File=${file}, GO Mapping=${gp_mapping}"
-                    } else {
-                        println "NO MATCH: Sample=${sample}, File=${file}, GO Mapping=${gp_mapping}"
-                    }
+                    } 
                     return matches
                 }
         } else {
@@ -272,6 +268,21 @@ workflow EQTL {
     NORMALISE_and_PCA_PHENOTYPE.out.for_bed.combine(pcs).set{test123}
     
     SUBSET_PCS(test123)
+    
+    if (params.covariates.adata_obs_covariate){
+        test123_fixed = SUBSET_PCS.out.for_bed.map { row ->
+            def pheno_full = row[0]
+            def pheno_core = pheno_full.contains('__') ? pheno_full.split('__')[0..1].join('__') : pheno_full
+            tuple(pheno_core, row[0],row[1],row[2],row[3])  // [matching_key, full_row]
+        }
+        test123_fixed.combine(covariates_by_name,by:0).set{for_covs_merge}
+
+        MERGE_COVARIATES(for_covs_merge)
+        for_bed = MERGE_COVARIATES.out.for_bed_covs
+    }else{
+        for_bed = SUBSET_PCS.out.for_bed
+    }
+    // for_bed = SUBSET_PCS.out.for_bed
 
     // LIMIX QTL mapping method
     if (params.LIMIX.run){
@@ -290,7 +301,7 @@ workflow EQTL {
                 plink_path_limix = plink_path_bed
             }
 
-        filtered_pheno_channel = SUBSET_PCS.out.for_bed.map { tuple ->  
+        filtered_pheno_channel = for_bed.map { tuple ->  
             [tuple[3], [tuple[0], tuple[1], tuple[2]]]
         }.flatten().collate(4)
 
@@ -302,9 +313,7 @@ workflow EQTL {
         )
     }
 
-    for_bed_channel = SUBSET_PCS.out.for_bed.map { tuple ->  [tuple[3],[[tuple[0],tuple[1],tuple[2]]]]}.flatten().collate(4)
-    for_bed_channel.subscribe { println "for_bed_channel: $it" }
-    SUBSET_PCS.out.for_bed.subscribe { println "SUBSET_PCS.out.for_bed: $it" }
+    for_bed_channel = for_bed.map { tuple ->  [tuple[3],[[tuple[0],tuple[1],tuple[2]]]]}.flatten().collate(4)
     
     PREPERE_COVARIATES(for_bed_channel,genotype_pcs_file)
     covs = PREPERE_COVARIATES.out.exp_bed

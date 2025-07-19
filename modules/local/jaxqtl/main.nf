@@ -113,12 +113,10 @@ workflow JAXQTL_eqtls{
         plink_genotype
         
     main:
-      // 
-    //   condition_bed.subscribe { println "condition_bed: $it" }
 
       CHUNK_BED_FILE(condition_bed,params.JAXQTL.number_of_genes_per_chunk)
       chunking_channel=CHUNK_BED_FILE.out.chunked_bed_channel
-      chunking_channel.subscribe { println "chunking_channel: $it" }
+
       result = chunking_channel.flatMap { item ->
           def (condition,phenotype_file,phenotype_pcs,nr_phenotype_pcs,chunging_file) = item
           if (!(chunging_file instanceof Collection)) {
@@ -126,7 +124,7 @@ workflow JAXQTL_eqtls{
           }
           return chunging_file.collect { [condition,phenotype_file,phenotype_pcs,nr_phenotype_pcs,it] }
       }
-      result.subscribe { println "chunking_channel: $it" }
+
       JAXQTL(
           result,
           plink_genotype,
