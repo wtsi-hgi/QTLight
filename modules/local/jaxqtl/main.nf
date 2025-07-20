@@ -91,7 +91,7 @@ process CHUNK_BED_FILE{
             val(nr_phenotype_pcs)
         )
         val(chunk_size)
-        path(plink_genotype)
+        each path(plink_genotype) 
 
     output:
         tuple val(condition),path(aggrnorm_counts_bed), path(covariates_tsv),val(nr_phenotype_pcs),path("gene_chunks*.tsv"),path("plink_subset"), emit: chunked_bed_channel optional true
