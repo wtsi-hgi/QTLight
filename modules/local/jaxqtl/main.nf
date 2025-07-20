@@ -121,11 +121,11 @@ process CHUNK_BED_FILE{
             echo "Detected base name: \$base_name"
 
             head -n1 <(zcat "${aggrnorm_counts_bed}") | cut -f5- | tr '\t' '\n' > donors_to_keep.txt
-            awk '{ print \$1, \$1 }' donors_to_keep.txt > donors_to_keep_plink.txt
+            awk '{ print \$1, \$1 }' donors_to_keep.txt >> donors_to_keep.txt
             echo "Subsetting PLINK file to donors present in BED"
             mkdir -p plink_subset
             plink2 --bfile "\$plink_dir/\$base_name" \\
-                --keep donors_to_keep_plink.txt \\
+                --keep donors_to_keep.txt \\
                 --maf ${params.maf} \\
                 --hwe ${params.hwe} \\
                 --make-bed \\

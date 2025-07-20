@@ -317,16 +317,19 @@ workflow EQTL {
     
     PREPERE_COVARIATES(for_bed_channel,genotype_pcs_file)
     covs = PREPERE_COVARIATES.out.exp_bed
-    // covs.subscribe { println "covs: $it" }
 
     PREPERE_EXP_BED(for_bed_channel,genome_annotation)
     beds = PREPERE_EXP_BED.out.exp_bed
     beds.combine(covs,by:0).set{tensorqtl_input}
-    // beds.subscribe { println "beds: $it" }
+
+    tensorqtl_input_ch_cleaned = tensorqtl_input.map { items ->
+        def new_first = items[0].replaceFirst(/__[^_]+pcs\.tsv$/, '')
+        [new_first, *items[1..-1]]
+    }
 
     if (params.TensorQTL.run){
         TENSORQTL_eqtls(
-            tensorqtl_input,
+            tensorqtl_input_ch_cleaned,
             plink_path,
         )
     }
