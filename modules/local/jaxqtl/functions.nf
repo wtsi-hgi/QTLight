@@ -26,9 +26,9 @@ process JAXQTL {
             path(aggrnorm_counts_bed),
             path(covariates_tsv),
             val(nr_phenotype_pcs),
-            path(genelist)
+            path(genelist),
+            path(plink_files_prefix)
         )
-        each path(plink_files_prefix)
         val(mode1)
 
     output:

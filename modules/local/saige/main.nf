@@ -123,7 +123,7 @@ process CREATE_SPARSE_GRM {
         createSparseGRM.R \
             --nThreads=${task.cpus} \
             --outputPrefix=sparseGRM_output \
-            --numRandomMarkerforSparseKin=2000 \
+            --numRandomMarkerforSparseKin=${params.SAIGE.numRandomMarkerforSparseKin} \
             --relatednessCutoff ${params.SAIGE.relatednessCutoff} \
             --famFile ${plink_fam} \
             --bimFile ${plink_bim} \
@@ -571,10 +571,10 @@ process H5AD_TO_SAIGE_FORMAT {
     }
     sizeInGB = h5ad.size() / 1e9 * 3 + 5 * task.attempt
 
-    if ("${params.aggregation_subentry}"==''){
+    if ("${params.analysis_subentry}"==''){
         cond1 = " --condition_col 'NULL' --condition 'NULL' "
     }else{
-        cond1 = " --condition_col '${aggregation_columns}' --condition '${params.aggregation_subentry}' "
+        cond1 = " --condition_col '${aggregation_columns}' --condition '${params.analysis_subentry}' "
     }
 
     if (params.chromosomes_to_test) {
@@ -667,7 +667,7 @@ process CHUNK_GENES {
 }
 
 process DETERMINE_TSS_AND_TEST_REGIONS {
-    label 'process_low'
+    label 'process_medium'
 
     // Specify the number of forks (10k)
     maxForks 200
@@ -705,12 +705,12 @@ workflow SAIGE_qtls{
         log.info('------- Running SAIGE QTLs ------- ')
         pheno =  Channel.of()
         gene =  Channel.of()
-        // Check if aggregation_subentry is provided
-        if (params.SAIGE.aggregation_subentry != '') {
-            log.info("------- Analysing ${params.SAIGE.aggregation_subentry} celltypes ------- ")
-            // Split the aggregation_subentry parameter into a list of patterns
+        // Check if analysis_subentry is provided
+        if (params.analysis_subentry != '') {
+            log.info("------- Analysing ${params.analysis_subentry} celltypes ------- ")
+            // Split the analysis_subentry parameter into a list of patterns
             valid_files = phenotype_file.filter { file ->
-                params.SAIGE.aggregation_subentry.split(',').any { pattern -> "${file}".contains("__${pattern}__") }
+                params.analysis_subentry.split(',').any { pattern -> "${file}".contains("__${pattern}__") }
                 
             }
         } else {

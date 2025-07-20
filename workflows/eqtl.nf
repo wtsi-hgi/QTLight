@@ -127,13 +127,13 @@ workflow EQTL {
             umi_counts_phenotype_genotype_file = phenotype_genotype_file
         }
 
-        if (params.TensorQTL.aggregation_subentry != '') {
-            log.info("------- Analysing ${params.TensorQTL.aggregation_subentry} celltypes ------- ")
-            // Split the aggregation_subentry parameter into a list of patterns
+        if (params.analysis_subentry != '') {
+            log.info("------- Analysing ${params.analysis_subentry} celltypes ------- ")
+            // Split the analysis_subentry parameter into a list of patterns
             valid_files = umi_counts_phenotype_genotype_file
                 .filter { tuple -> 
                     def (sample, file, gp_mapping) = tuple
-                    def matches = params.TensorQTL.aggregation_subentry.split(',').any { pattern -> "${file}".contains("__${pattern}__") }
+                    def matches = params.analysis_subentry.split(',').any { pattern -> "${file}".contains("__${pattern}__") }
 
                     if (matches) {
                         println "MATCH: Sample=${sample}, File=${file}, GO Mapping=${gp_mapping}"

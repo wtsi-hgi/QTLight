@@ -91,9 +91,10 @@ process CHUNK_BED_FILE{
             val(nr_phenotype_pcs)
         )
         val(chunk_size)
+        path(plink_genotype)
 
     output:
-        tuple val(condition),path(aggrnorm_counts_bed), path(covariates_tsv),val(nr_phenotype_pcs),path("gene_chunks*.tsv"), emit: chunked_bed_channel optional true
+        tuple val(condition),path(aggrnorm_counts_bed), path(covariates_tsv),val(nr_phenotype_pcs),path("gene_chunks*.tsv"),path("plink_subset"), emit: chunked_bed_channel optional true
 
     when:
         "${condition}".contains("dSum") //Jax is supposed to work only of dSum
@@ -102,6 +103,33 @@ process CHUNK_BED_FILE{
         """
             echo ${aggrnorm_counts_bed}
             generate_jax_chunking_file.py --chunk_size ${chunk_size} --bed_file ${aggrnorm_counts_bed} --output_prefix gene_chunks
+            echo ${plink_genotype}
+
+            # Detect base name inside pgen_prefix_dir
+            plink_dir="${plink_genotype}"
+            base_name=""
+
+            if ls "\$plink_dir"/*.fam 1> /dev/null 2>&1; then
+                base_name=\$(basename \$(ls "\$plink_dir"/*.fam | head -n 1) .fam)
+            elif ls "\$plink_dir"/*.pvar 1> /dev/null 2>&1; then
+                base_name=\$(basename \$(ls "\$plink_dir"/*.pvar | head -n 1) .pvar)
+            else
+                echo "No .fam or .pvar file found in \$plink_dir"
+                exit 1
+            fi
+
+            echo "Detected base name: \$base_name"
+
+            head -n1 <(zcat "${aggrnorm_counts_bed}") | cut -f5- | tr '\t' '\n' > donors_to_keep.txt
+            awk '{ print \$1, \$1 }' donors_to_keep.txt > donors_to_keep_plink.txt
+            echo "Subsetting PLINK file to donors present in BED"
+            mkdir -p plink_subset
+            plink2 --bfile "\$plink_dir/\$base_name" \\
+                --keep donors_to_keep_plink.txt \\
+                --maf ${params.maf} \\
+                --hwe ${params.hwe} \\
+                --make-bed \\
+                --out plink_subset/plink_subset
         """
     
 }
@@ -114,20 +142,19 @@ workflow JAXQTL_eqtls{
         
     main:
 
-      CHUNK_BED_FILE(condition_bed,params.JAXQTL.number_of_genes_per_chunk)
+      CHUNK_BED_FILE(condition_bed,params.JAXQTL.number_of_genes_per_chunk,plink_genotype)
       chunking_channel=CHUNK_BED_FILE.out.chunked_bed_channel
 
       result = chunking_channel.flatMap { item ->
-          def (condition,phenotype_file,phenotype_pcs,nr_phenotype_pcs,chunging_file) = item
+          def (condition,phenotype_file,phenotype_pcs,nr_phenotype_pcs,chunging_file,plink) = item
           if (!(chunging_file instanceof Collection)) {
               chunging_file = [chunging_file] // Wrap single value in a list
           }
-          return chunging_file.collect { [condition,phenotype_file,phenotype_pcs,nr_phenotype_pcs,it] }
+          return chunging_file.collect { [condition,phenotype_file,phenotype_pcs,nr_phenotype_pcs,it,plink] }
       }
 
       JAXQTL(
           result,
-          plink_genotype,
           'cis'
       )
 
@@ -159,7 +186,6 @@ workflow JAXQTL_eqtls{
 
       JAXQTL_NOMINAL(
           results_for_nominal,
-          plink_genotype,
           'nominal'
       )
 
