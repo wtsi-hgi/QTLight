@@ -250,7 +250,8 @@ process SAIGE_S2_CIS {
                     --markers_per_chunk=${params.SAIGE.markers_per_chunk} ${mode}   2>&1)
 
                 if [ \$? -ne 0 ]; then
-                    echo "step2_tests_qtl.R command failed" >&2
+                    echo "step2_tests_qtl.R command failed with error:" >&2
+                    echo "\$warning_output" >&2
                     return  # Skip the rest of the function and go to the next iteration
                 fi
 
