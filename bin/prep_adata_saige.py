@@ -30,11 +30,21 @@ import re
 # from pysctransform import vst, get_hvg_residuals, SCTransform
 # Define covariate process function
 def preprocess_covariates(df, scale_covariates):
+    # One-hot encode categorical variables (including NaN as category)
     processed_df = pd.get_dummies(df, drop_first=False, dummy_na=True).astype(int)
+
+    # Sanitize column names: remove special characters, replace spaces with underscores
+    processed_df.columns = [
+        re.sub(r'\W+', '_', str(col)).strip('_')  # keep only alphanumeric and underscores
+        for col in processed_df.columns
+    ]
+
+    # Scale numeric columns if requested
     if scale_covariates == "true":
         scaler = StandardScaler()
         for column in processed_df.select_dtypes(include=['float64']).columns:
             processed_df[column] = scaler.fit_transform(processed_df[[column]])
+
     return processed_df
 
 
