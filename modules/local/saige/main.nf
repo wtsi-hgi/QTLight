@@ -743,8 +743,6 @@ workflow SAIGE_qtls{
 
         result.combine(pheno, by: 0).set { all_chunks }
 
-        result.combine(pheno, by: 0).set { all_chunks }
-
         all_chunks
             .map { row -> row[0][0] }
             .distinct()
