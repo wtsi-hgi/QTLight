@@ -743,21 +743,13 @@ workflow SAIGE_qtls{
 
         result.combine(pheno, by: 0).set { all_chunks }
 
-        all_chunks
-            .map { row -> row[0][0] }
-            .distinct()
-            .take(10)
-            .collect()
-            .set { first_10_chunks }
-
-        
-        all_chunks
-            .filter { row -> row[0][0] in first_10_chunks }
-            .set { pheno_chunk_testing }
-
-        
-        (params.SAIGE.testing ? pheno_chunk_testing : all_chunks)
+        if (params.SAIGE.testing){
+            all_chunks
+            .first()
             .set { pheno_chunk }
+        } else{
+            all_chunks.set { pheno_chunk }
+        }
         
 
         
