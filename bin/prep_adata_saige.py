@@ -30,22 +30,44 @@ import re
 # from pysctransform import vst, get_hvg_residuals, SCTransform
 # Define covariate process function
 def preprocess_covariates(df, scale_covariates):
-    # One-hot encode categorical variables (including NaN as category)
-    processed_df = pd.get_dummies(df, drop_first=False, dummy_na=True).astype(int)
+    import re
+    from sklearn.preprocessing import StandardScaler
 
-    # Sanitize column names: remove special characters, replace spaces with underscores
-    processed_df.columns = [
-        re.sub(r'\W+', '_', str(col)).strip('_')  # keep only alphanumeric and underscores
-        for col in processed_df.columns
-    ]
+    # Drop all-NaN columns
+    # df = df.dropna(axis=1, how='all')
+
+    # One-hot encode categorical variables
+    processed_df = pd.get_dummies(df, drop_first=False, dummy_na=False).astype(int)
+
+    # Sanitize column names and ensure uniqueness
+    def sanitize(col):
+        return re.sub(r'\W+', '_', str(col)).strip('_')
+
+    sanitized_columns = [sanitize(col) for col in processed_df.columns]
+
+    # Ensure uniqueness by appending suffixes to duplicates
+    seen = {}
+    unique_columns = []
+    for col in sanitized_columns:
+        if col in seen:
+            seen[col] += 1
+            col = f"{col}_{seen[col]}"
+        else:
+            seen[col] = 0
+        unique_columns.append(col)
+
+    processed_df.columns = unique_columns
 
     # Scale numeric columns if requested
     if scale_covariates == "true":
         scaler = StandardScaler()
-        for column in processed_df.select_dtypes(include=['float64']).columns:
-            processed_df[column] = scaler.fit_transform(processed_df[[column]])
+        float_cols = processed_df.select_dtypes(include=['float64', 'int']).columns
+        if len(float_cols) > 0:
+            processed_df[float_cols] = scaler.fit_transform(processed_df[float_cols])
+
 
     return processed_df
+
 
 
 def quantile_normalize_vector(x):
@@ -302,6 +324,7 @@ def main():
                 print("Extracting and sorting covariates")
                 try:
                     to_add = preprocess_covariates(temp.obs[covariates], scale_covariates)
+                    to_add = to_add.loc[:, ~to_add.columns.duplicated()]
                     counts = counts.join(to_add)
                     covariates_string = ','+','.join(to_add.columns)
                 except:
@@ -320,9 +343,6 @@ def main():
             with open(f"{savedir}/test_genes.txt", 'w') as file:
                 file.write("\n".join(counts.columns))
 
-            
-            
-
             print("Saving")
             with open(f"{savedir}/covariates.txt", 'w') as file:
                     file.write(f"{covariates_string}\n")  
@@ -330,6 +350,10 @@ def main():
             # gene_savdir = f"{savedir}/per_gene_input_files"
             # os.makedirs(gene_savdir, exist_ok=True)
             counts.set_index(genotype_id).to_csv(f"{savedir}/saige_filt_expr_input.tsv", sep="\t", index=True, chunksize=50000)
+            # cleaned = re.sub(r'\W+', '_', genotype_id)
+            # counts = counts.rename(columns={genotype_id: cleaned})
+            # counts.set_index(cleaned).to_csv(f"{savedir}/saige_filt_expr_input.tsv", sep="\t", index=True, chunksize=50000)
+
 
             del counts
             del temp

@@ -169,7 +169,7 @@ process SAIGE_S1 {
                 --phenoCol=\$i       \
                 --covarColList=\$(head -n 1 ${cov})    \
                 --sampleCovarColList=\$(sed -n '2p' ${cov})      \
-                --sampleIDColinphenoFile=${params.gt_id_column} \
+                --sampleIDColinphenoFile='${params.gt_id_column}' \
                 --traitType=count \
                 --outputPrefix=./output/nindep_100_ncell_100_lambda_2_tauIntraSample_0.5_\$i  \
                 --skipVarianceRatioEstimation=FALSE  \
