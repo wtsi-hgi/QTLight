@@ -1,13 +1,13 @@
+jax_label = params.JAXQTL.use_gpu ? 'gpu' : "process_high_memory"   
 
 process JAXQTL {  
     tag "$condition, $nr_phenotype_pcs"
-    label "process_high_memory"
+    label "${jax_label}"
     if (workflow.containerEngine == 'singularity' && !params.singularity_pull_docker_container) {
-        container "${params.eqtl_container}"
+        container "${params.jax_container}"
     } else {
-        container "${params.eqtl_docker}"
+        container "${params.jax_docker}"
     }
-
 
     publishDir path: { "${params.outdir}/JAX_eQTLS/${group0}__${group1}__${group2}/OPTIM_PCs/${mode1}" },
             saveAs: {filename ->
@@ -41,6 +41,13 @@ process JAXQTL {
         group0 = "${condition}".split('__')[0]
         group1 =  "${condition}".split('__')[1]
         group2 =  "${condition}".split('__')[2]
+
+        if (params.JAXQTL.use_gpu){
+            gpu_cpu='gpu'
+        }else{
+            gpu_cpu='cpu'
+        }
+
         """
 
             export DISABLE_PANDERA_IMPORT_WARNING=True
@@ -69,7 +76,7 @@ process JAXQTL {
             --nperm ${params.numberOfPermutations} \
             --addpc 0 \
             --standardize \
-            -p cpu \
+            -p ${gpu_cpu} \
             --out ${mode1}__\$outname
 
 
