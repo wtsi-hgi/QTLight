@@ -328,17 +328,18 @@ def main():
                                phenotype_df1=phenotype_df_genes,covariates_df=covariates_df,outdir=outdir,map_nominal=map_nominal) ## Map all the genes across genome against all SNPs indicated as chrom_to_map parameter. For example if 2 then wil map all the genes across chromosomes against chr2 NPs.
     else:    
         if map_nominal:
+            #Nominal should be run only when we are sure that these are the results we want.
             cis.map_nominal(genotype_df, variant_df,
                             phenotype_df.loc[phenotype_df_genes],
                             phenotype_pos_df.loc[phenotype_df_genes],maf_threshold=maf,
                             covariates_df=covariates_df.loc[phenotype_df.columns],prefix='cis_nominal1',
                             output_dir=outdir, write_top=map_nominal, write_stats=map_nominal)
         
-            all_files = glob.glob(f'{outdir}/cis_nominal*.parquet')
+            # all_files = glob.glob(f'/lustre/scratch124/humgen/projects_v2/cardinal_analysis/analysis/mo11/saige_vs_jax_vs_tensor/work/ac/b881f22aca8487534f4b784587af8d/OPTIM_pcs_bck/base_output/base/cis_nominal*.parquet')
             all_dfs = []
             count=0
             for bf1 in all_files:
-                # print(bf1)
+                print(bf1)
                 df = pd.read_parquet(bf1)
                 
                 variant_parts = df['variant_id'].str.extract(
@@ -388,66 +389,65 @@ def main():
             # All_Data = pd.concat(all_dfs, ignore_index=True) 
             # All_Data.to_csv(f'{outdir}/cis_nominal_full_sumstats.tsv', sep='\t',index=False)  
   
+        else:
+            # If we are not running nominal we are still optimising PCs.
+            # Its redundant to run both as we already performed the cis in previous iterations to get to nominal.
+            try:
+                cis_df = cis.map_cis(genotype_df, variant_df, 
+                                    phenotype_df.loc[phenotype_df_genes],
+                                    phenotype_pos_df.loc[phenotype_df_genes],nperm=int(options.nperm),
+                                    window=int(options.window),
+                                    covariates_df=covariates_df.loc[phenotype_df.columns],maf_threshold=maf,seed=7)
+                
+                print('----cis eQTLs processed ------')
+                cis_df.head()
+                cis_df.to_csv(f"{outdir}/Cis_eqtls.tsv",sep="\t")
+                sv = ~np.isnan(cis_df['pval_beta'])
+                print(f"Dropping {sum(sv)} variants withouth Beta-approximated p-values to\n.")
+                cis_df_dropped = cis_df.loc[sv]
+                # r = stats.pearsonr(cis_df_dropped['pval_perm'], cis_df_dropped['pval_beta'])[0]
+                calculate_qvalues(cis_df_dropped, qvalue_lambda=0.85)
+                cis_df_dropped.to_csv(f"{outdir}/Cis_eqtls_qval.tsv", sep='\t')
 
-    try:
 
-        cis_df = cis.map_cis(genotype_df, variant_df, 
-                            phenotype_df.loc[phenotype_df_genes],
-                            phenotype_pos_df.loc[phenotype_df_genes],nperm=int(options.nperm),
-                            window=int(options.window),
-                            covariates_df=covariates_df.loc[phenotype_df.columns],maf_threshold=maf,seed=7)
-        
-
-        print('----cis eQTLs processed ------')
-        cis_df.head()
-        cis_df.to_csv(f"{outdir}/Cis_eqtls.tsv",sep="\t")
-        sv = ~np.isnan(cis_df['pval_beta'])
-        print(f"Dropping {sum(sv)} variants withouth Beta-approximated p-values to\n.")
-        cis_df_dropped = cis_df.loc[sv]
-        # r = stats.pearsonr(cis_df_dropped['pval_perm'], cis_df_dropped['pval_beta'])[0]
-        calculate_qvalues(cis_df_dropped, qvalue_lambda=0.85)
-        cis_df_dropped.to_csv(f"{outdir}/Cis_eqtls_qval.tsv", sep='\t')
-
-
-    except:
-        # The beta aproximation sometimes doesnt work and results in a failure of the qtl mapping. 
-        # This seems to be caused by failure to aproximate the betas
-        # Hence the folowing part of the code if the above fails avoiding beta aproximation and 
-        print('----cis eQTLs failed to aproximate betas ------')
-        cis_df = cis.map_cis(genotype_df, variant_df, 
-                            phenotype_df.loc[phenotype_df_genes],
-                            phenotype_pos_df.loc[phenotype_df_genes],nperm=int(options.nperm),
-                            window=int(options.window),
-                            covariates_df=covariates_df.loc[phenotype_df.columns],maf_threshold=maf,seed=7,beta_approx=False)
-        print('----cis eQTLs processed ------')
-        cis_df.head()
-        cis_df.to_csv(f"{outdir}/Cis_eqtls.tsv",sep="\t")
-        sv = ~np.isnan(cis_df['pval_beta'])
-        print(f"Dropping {sum(sv)} variants withouth Beta-approximated p-values to\n.")
-        cis_df_dropped = cis_df.loc[sv]
-        # r = stats.pearsonr(cis_df_dropped['pval_perm'], cis_df_dropped['pval_beta'])[0]
-        # calculate_qvalues(cis_df_dropped, qvalue_lambda=0.85)
-        # Perform conditional analysis
-    #######################
-    if options.map_independent_qtls:        
-        try:
-            indep_df = cis.map_independent(genotype_df, variant_df, cis_df_dropped,
-                                            phenotype_df.loc[phenotype_df_genes],       
-                                            phenotype_pos_df.loc[phenotype_df_genes],
-                                            nperm=int(options.nperm), window=int(options.window),
-                                            covariates_df=covariates_df,maf_threshold=maf,seed=7)
-            indep_df.to_csv(f"{outdir}/Cis_eqtls_independent.tsv",sep="\t",index=False)
-        except:
-            print("No significant phenotypes for cis.map_independent")
-        
-    else:
-        print('--Skipping map_independent analysis')
-    
-    if 'qvals' not in cis_df_dropped.columns:
-        # Add 'qvals' column with None values
-        cis_df_dropped['qvals'] = None
-    cis_df_dropped.to_csv(f"{outdir}/Cis_eqtls_qval.tsv", sep='\t')
-
+            except:
+                # The beta aproximation sometimes doesnt work and results in a failure of the qtl mapping. 
+                # This seems to be caused by failure to aproximate the betas
+                # Hence the folowing part of the code if the above fails avoiding beta aproximation and 
+                print('----cis eQTLs failed to aproximate betas ------')
+                cis_df = cis.map_cis(genotype_df, variant_df, 
+                                    phenotype_df.loc[phenotype_df_genes],
+                                    phenotype_pos_df.loc[phenotype_df_genes],nperm=int(options.nperm),
+                                    window=int(options.window),
+                                    covariates_df=covariates_df.loc[phenotype_df.columns],maf_threshold=maf,seed=7,beta_approx=False)
+                print('----cis eQTLs processed ------')
+                cis_df.head()
+                cis_df.to_csv(f"{outdir}/Cis_eqtls.tsv",sep="\t")
+                sv = ~np.isnan(cis_df['pval_beta'])
+                print(f"Dropping {sum(sv)} variants withouth Beta-approximated p-values to\n.")
+                cis_df_dropped = cis_df.loc[sv]
+                # r = stats.pearsonr(cis_df_dropped['pval_perm'], cis_df_dropped['pval_beta'])[0]
+                # calculate_qvalues(cis_df_dropped, qvalue_lambda=0.85)
+                # Perform conditional analysis
+            #######################
+            if options.map_independent_qtls:        
+                try:
+                    indep_df = cis.map_independent(genotype_df, variant_df, cis_df_dropped,
+                                                    phenotype_df.loc[phenotype_df_genes],       
+                                                    phenotype_pos_df.loc[phenotype_df_genes],
+                                                    nperm=int(options.nperm), window=int(options.window),
+                                                    covariates_df=covariates_df,maf_threshold=maf,seed=7)
+                    indep_df.to_csv(f"{outdir}/Cis_eqtls_independent.tsv",sep="\t",index=False)
+                except:
+                    print("No significant phenotypes for cis.map_independent")
+                
+            else:
+                print('--Skipping map_independent analysis')
+            
+            if 'qvals' not in cis_df_dropped.columns:
+                # Add 'qvals' column with None values
+                cis_df_dropped['qvals'] = None
+            cis_df_dropped.to_csv(f"{outdir}/Cis_eqtls_qval.tsv", sep='\t')
 
 if __name__ == '__main__':
     main()
