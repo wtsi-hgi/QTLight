@@ -482,6 +482,43 @@ process AGGREGATE_QTL_ALLVARS{
         """
 }
 
+process CONCAT_QTL_ALLVARS_BY_EXP {
+    tag { exp }
+    scratch false
+    label 'process_low'
+
+    if (workflow.containerEngine == 'singularity' && !params.singularity_pull_docker_container) {
+        container "${params.eqtl_container}"
+    } else {
+        container "${params.eqtl_docker}"
+    }
+
+    publishDir path: "${params.outdir}/Saige_eQTLS/${exp}",
+               mode: "${params.copy_mode}",
+               overwrite: true
+
+    input:
+        tuple val(exp), path(all_var_files)
+
+    output:
+        path("${exp}__all_chroms_all_vars_genes.tsv.gz")
+
+    script:
+        """
+        first_file=true
+
+        for f in ${all_var_files.collect { it.getName() }.join(' ')}; do
+            if [ "\$first_file" = true ]; then
+                gzip -dc "\$f" >> ${exp}__all_chroms_all_vars_genes.tsv
+                first_file=false
+            else
+                gzip -dc "\$f" | tail -n +2 >> ${exp}__all_chroms_all_vars_genes.tsv
+            fi
+        done
+        gzip ${exp}__all_chroms_all_vars_genes.tsv
+        """
+}
+
 process PHENOTYPE_PCs{
     // label 'process_medium'
     tag { sanitized_columns }
@@ -810,5 +847,16 @@ workflow SAIGE_qtls{
         AGGREGATE_QTL_ALLVARS(SAIGE_S2_for_aggregation.groupTuple(by: 0))
         AGGREGATE_ACAT_RESULTS(SAIGE_S3_for_aggregation_ACAT.groupTuple(by: 0))
         // CONDITIONAL_QTL(SAIGE_QVAL_COR.out.for_conditioning)
+
+        AGGREGATE_QTL_ALLVARS.out.all
+            .map { group, file -> 
+                def parts = group.split('__')
+                def exp = parts[-3]
+                tuple(exp, file)
+            }
+            .groupTuple()
+            .set { grouped_all_var_files }
+
+        CONCAT_QTL_ALLVARS_BY_EXP(grouped_all_var_files)
 
 }
