@@ -491,6 +491,10 @@ process PHENOTYPE_PCs{
         container "${params.eqtl_docker}"
     }   
 
+    publishDir  path: "${params.outdir}/Saige_eQTLS/PHENOTYPE_PCs/${sanitized_columns}",
+        mode: "${params.copy_mode}",
+        overwrite: "true"
+    
     memory { 
         sizeInGB = saige_filt_expr_input.size() / 1e9 * 2 * task.attempt
         return (sizeInGB ).toString() + 'GB' 
@@ -529,25 +533,10 @@ process H5AD_TO_SAIGE_FORMAT {
         sizeInGB = adata.size() / 1e9 * 1.25 * task.attempt
         return (sizeInGB ).toString() + 'GB' 
     }   
-    publishDir  path: "${params.outdir}/Saige_eQTLS",
-        saveAs: { filename ->
-            if (filename.contains("covariates.txt")) {
-                return null
-            } else if (filename.contains("saige_filt_expr_input.tsv")) {
-                return null
-            } else if (filename.contains("test_genes.txt")) {
-                return null
-            } else if (filename.contains("output_agg/")) {
-                // Assuming `filename` contains the full path including directories
-                // Remove 'output_agg/azimuth.celltyp.l0/' from the path
-                def newFilename = filename.replaceAll(".*output_agg/[^/]+/", "")
-                return newFilename
-            } else {
-                return null
-            }
-        },
+    publishDir  path: "${params.outdir}/Saige_eQTLS/H5AD_TO_SAIGE_FORMAT/${sanitized_columns}",
         mode: "${params.copy_mode}",
         overwrite: "true"
+
     input:
         each path(h5ad)  
         path(bridge)  
@@ -611,29 +600,6 @@ process H5AD_TO_SAIGE_FORMAT {
             --scale_covariates \$scale_covariates \
             --expression_pca \$expression_pca --cell_percentage_threshold ${params.cell_percentage_threshold} \
             ${cov_col} ${cond1} ${cond2}
-    """
-}
-
-
-process TEST {
-    label 'process_low'
-
-    // Specify the number of forks (10k)
-    // maxForks 1000
-
-    if (workflow.containerEngine == 'singularity' && !params.singularity_pull_docker_container) {
-        container "${params.saige_container}"
-    } else {
-        container "${params.saige_docker}"
-    }    
-
-    input:
-        tuple val(sanitized_columns), path(saige_filt_expr_input),path(test_genes) 
-
-    script:
-    """
-        echo ${sanitized_columns}
-        echo ${test_genes}
     """
 }
 
