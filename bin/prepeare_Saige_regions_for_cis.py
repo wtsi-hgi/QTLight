@@ -136,6 +136,7 @@ def main():
     # BED_Formated_Data["idx"]=Gene_Chr_Start_End_Data.feature_id
     # BED_Formated_Data=BED_Formated_Data.set_index("idx")
     BED_Formated_Data['#chr']=BED_Formated_Data['#chr'].astype(str)    
+    BED_Formated_Data['#chr']=BED_Formated_Data['#chr'].str.replace('chr', '')
     BED_Formated_Data.to_csv("gene_regions_to_test.tsv", sep='\t', header=False)
     print('Done')     
 
