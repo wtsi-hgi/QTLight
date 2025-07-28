@@ -41,10 +41,20 @@ process PGEN_TO_BED_CONVERT_FOR_QTLS {
         echo "Detected base name: \$base_name"
 
         mkdir plink_genotypes_bed
+        mkdir plink_genotypes_tmp
 
+        # Step 1: Convert pgen to bed with relaxed hard-call threshold
         plink2 --pfile "\$plink_dir/\$base_name" \\
-               --make-bed \\
-               --out plink_genotypes_bed/plink_genotypes
+            --make-bed \\
+            --hard-call-threshold ${params.genotypes.hard_call_threshold} \\
+            --out plink_genotypes_tmp/plink_genotypes
+
+        # Step 2: Filter SNPs with missing
+        plink2 --bfile plink_genotypes_tmp/plink_genotypes \\
+            --geno ${params.genotypes.geno} \\
+            --make-bed \\
+            --out plink_genotypes_bed/plink_genotypes
+        rm -r plink_genotypes_tmp
         """
 }
 
@@ -105,7 +115,7 @@ process PGEN_TO_BED_CONVERT_FOR_GRM {
 
         # Step 3: LD pruning
         plink2 --bfile plink_genotypes_bed/tmp_filtered \\
-               --indep-pairwise 200kb 50 0.5 \\
+               ${params.covariates.genotype_pc_filters} \\
                --out plink_genotypes_bed/prune
 
         # Step 4: Extract pruned SNPs
@@ -169,6 +179,7 @@ process BGEN_CONVERT{
             echo "Detected base name: \$base_name"
 
             plink2 --pfile "\$plink_dir/\$base_name" --export bgen-1.2 ref-first --out genotypes_bgen
+            bgenix -g genotypes_bgen.bgen -index
         """    
 }
 

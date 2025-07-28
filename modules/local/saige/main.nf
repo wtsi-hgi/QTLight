@@ -285,7 +285,7 @@ process SAIGE_S2_CIS {
             }
             
         }
-        plink_base = plink.replaceFirst(/\.bgen$/, '')
+        plink_base = "${plink}".replaceFirst(/\.bgen$/, '')
 
         if ("${plink}".contains(".bgen")) {
             base_run = ""
@@ -321,7 +321,7 @@ process SAIGE_S2_CIS {
                 --SAIGEOutputFile=output_${name}___\${chr1}/\${chr1}___nindep_100_ncell_100_lambda_2_tauIntraSample_0.5_cis_\${variable} \
                 --minMAF=${params.SAIGE.minMAF} \
                 --minMAC=${params.SAIGE.minMAC} \
-                --LOCO=FALSE \
+                --LOCO=${params.SAIGE.LOCO} \
                 --varianceRatioFile=\${step1prefix}_\${variable}.varianceRatio.txt \
                 --GMMATmodelFile=\${step1prefix}_\${variable}.rda    \
                 --SPAcutoff=${params.SAIGE.SPAcutoff} \
