@@ -94,7 +94,7 @@ process CHUNK_BED_FILE{
         each path(plink_genotype) 
 
     output:
-        tuple val(condition),path(aggrnorm_counts_bed), path(covariates_tsv),val(nr_phenotype_pcs),path("gene_chunks*.tsv"),path("plink_subset"), emit: chunked_bed_channel optional true
+        tuple val(condition),path(aggrnorm_counts_bed), path(covariates_tsv),val(nr_phenotype_pcs),path("gene_chunks*.tsv"),path(plink_genotype), emit: chunked_bed_channel optional true
 
     when:
         "${condition}".contains("dSum") //Jax is supposed to work only of dSum
@@ -103,33 +103,6 @@ process CHUNK_BED_FILE{
         """
             echo ${aggrnorm_counts_bed}
             generate_jax_chunking_file.py --chunk_size ${chunk_size} --bed_file ${aggrnorm_counts_bed} --output_prefix gene_chunks
-            echo ${plink_genotype}
-
-            # Detect base name inside pgen_prefix_dir
-            plink_dir="${plink_genotype}"
-            base_name=""
-
-            if ls "\$plink_dir"/*.fam 1> /dev/null 2>&1; then
-                base_name=\$(basename \$(ls "\$plink_dir"/*.fam | head -n 1) .fam)
-            elif ls "\$plink_dir"/*.pvar 1> /dev/null 2>&1; then
-                base_name=\$(basename \$(ls "\$plink_dir"/*.pvar | head -n 1) .pvar)
-            else
-                echo "No .fam or .pvar file found in \$plink_dir"
-                exit 1
-            fi
-
-            echo "Detected base name: \$base_name"
-
-            head -n1 <(zcat "${aggrnorm_counts_bed}") | cut -f5- | tr '\t' '\n' > donors_to_keep.txt
-            awk '{ print \$1, \$1 }' donors_to_keep.txt >> donors_to_keep.txt
-            echo "Subsetting PLINK file to donors present in BED"
-            mkdir -p plink_subset
-            plink2 --bfile "\$plink_dir/\$base_name" \\
-                --keep donors_to_keep.txt \\
-                --maf ${params.maf} \\
-                --hwe ${params.hwe} \\
-                --make-bed \\
-                --out plink_subset/plink_subset
         """
     
 }

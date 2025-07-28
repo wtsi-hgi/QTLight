@@ -308,7 +308,7 @@ workflow EQTL {
             plink_path_limix = Channel.from(params.genotypes.preprocessed_bgen_file)
             genotypes_saige = Channel.from(params.genotypes.preprocessed_bgen_file)
         }
-    }else{
+    }else if (params.LIMIX.run || params.SAIGE.run){
         plink_path_limix = plink_path_bed
         genotypes_saige = plink_path_bed
     }
