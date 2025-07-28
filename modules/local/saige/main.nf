@@ -228,7 +228,7 @@ process SAIGE_S1 {
                 --bimFile "\$plink_dir/\$base_name.bim" \
                 --bedFile "\$plink_dir/\$base_name.bed" \
                 --IsOverwriteVarianceRatioFile=TRUE \
-                --maxiterPCG=${params.SAIGE.maxiterPCG} --invNormalize=${params.SAIGE.invNormalize} \
+                --maxiterPCG=${params.SAIGE.maxiterPCG} --invNormalize=${params.SAIGE.invNormalize} --minCovariateCount=${params.SAIGE.minCovariateCount} \
                 --minMAFforGRM=${params.SAIGE.minMAFforGRM} \
                 --maxMissingRateforGRM=${params.SAIGE.maxMissingRateforGRM} \
                 --useGRMtoFitNULL=${params.SAIGE.useGRMtoFitNULL} \
