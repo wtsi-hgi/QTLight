@@ -109,8 +109,13 @@ process CREATE_SPARSE_GRM {
         container "${params.saige_grm_docker}"
     }    
 
+
+    publishDir  path: "${params.outdir}/SPARSE_GRM",
+                mode: "${params.copy_mode}",
+                overwrite: "true"
+
     input:
-        tuple path(plink_bim), path(plink_bed), path(plink_fam)
+        path(plink)
         
     output:
         // tuple val(name),path(genes_list),path("output"),emit:output
@@ -120,14 +125,30 @@ process CREATE_SPARSE_GRM {
     // Define the Bash script to run for each array job
     script:
     """
+
+        plink_dir="${plink}"
+        base_name=""
+
+        if ls "\$plink_dir"/*.bed 1> /dev/null 2>&1; then
+            base_name=\$(basename \$(ls "\$plink_dir"/*.bed | head -n 1) .bed)
+        elif ls "\$plink_dir"/*.bim 1> /dev/null 2>&1; then
+            base_name=\$(basename \$(ls "\$plink_dir"/*.bim | head -n 1) .bim)
+        else
+            echo "No .bed or .bim file found in \$plink_dir"
+            exit 1
+        fi
+
+        echo "Detected base name: \$base_name"
+
+
         createSparseGRM.R \
             --nThreads=${task.cpus} \
             --outputPrefix=sparseGRM_output \
             --numRandomMarkerforSparseKin=${params.SAIGE.numRandomMarkerforSparseKin} \
             --relatednessCutoff ${params.SAIGE.relatednessCutoff} \
-            --famFile ${plink_fam} \
-            --bimFile ${plink_bim} \
-            --bedFile ${plink_bed} 
+            --famFile  "\$plink_dir/\$base_name.fam" \
+            --bimFile  "\$plink_dir/\$base_name.bim" \
+            --bedFile  "\$plink_dir/\$base_name.bed" 
     """  
 }
 
@@ -145,7 +166,7 @@ process SAIGE_S1 {
 
 
     input:
-        tuple val(name),path(genes_list),path(pheno_file),path(cov),path(plink_bim), path(plink_bed), path(plink_fam)
+        tuple val(name),path(genes_list),path(pheno_file),path(cov),path(plink)
         each path(sparseGRM)
         each path(sparseGRM_samples)
     output:
@@ -155,39 +176,72 @@ process SAIGE_S1 {
     // Define the Bash script to run for each array job
     script:
     """
+
+        plink_dir="${plink}"
+        base_name=""
+
+        if ls "\$plink_dir"/*.bed 1> /dev/null 2>&1; then
+            base_name=\$(basename \$(ls "\$plink_dir"/*.bed | head -n 1) .bed)
+        elif ls "\$plink_dir"/*.bim 1> /dev/null 2>&1; then
+            base_name=\$(basename \$(ls "\$plink_dir"/*.bim | head -n 1) .bim)
+        else
+            echo "No .bed or .bim file found in \$plink_dir"
+            exit 1
+        fi
+
+        echo "Detected base name: \$base_name"
+
+
+
         # Execute with the bash executable in an array (one job per gene within level)
         #// Genome wide for this we send a list of genes in chunks 
         mkdir -p output
         cat "${genes_list}" | while IFS= read -r i || [ -n "\$i" ]
         do
            {  # try
-            step1_fitNULLGLMM_qtl.R \
-                --useSparseGRMtoFitNULL=TRUE  \
-                --sparseGRMFile ${sparseGRM} --sparseGRMSampleIDFile ${sparseGRM_samples} --relatednessCutoff ${params.SAIGE.relatednessCutoff} \
-                --useGRMtoFitNULL=FALSE \
-                --phenoFile=${pheno_file}	\
-                --phenoCol=\$i       \
-                --covarColList=\$(head -n 1 ${cov})    \
-                --sampleCovarColList=\$(sed -n '2p' ${cov})      \
+                step1_fitNULLGLMM_qtl.R \
+                --useSparseGRMtoFitNULL=${params.SAIGE.useSparseGRMtoFitNULL} \
+                --useSparseGRMforVarRatio=${params.SAIGE.useSparseGRMforVarRatio} \
+                --isCateVarianceRatio=${params.SAIGE.isCateVarianceRatio} \
+                --cateVarRatioMinMACVecExclude=${params.SAIGE.cateVarRatioMinMACVecExclude} \
+                --cateVarRatioMaxMACVecInclude=${params.SAIGE.cateVarRatioMaxMACVecInclude} \
+                --numRandomMarkerforVarianceRatio=${params.SAIGE.numRandomMarkerforVarianceRatio} \
+                --relatednessCutoff=${params.SAIGE.relatednessCutoff} \
+                --skipModelFitting=${params.SAIGE.skipModelFitting} \
+                --skipVarianceRatioEstimation=${params.SAIGE.skipVarianceRatioEstimation} \
+                --isCovariateTransform=${params.SAIGE.isCovariateTransform} \
+                --isCovariateOffset=${params.SAIGE.isCovariateOffset} \
+                --isRemoveZerosinPheno=${params.SAIGE.isRemoveZerosinPheno} \
+                --tol=${params.SAIGE.tol} \
+                --traceCVcutoff=${params.SAIGE.traceCVcutoff} \
+                --nrun=${params.SAIGE.nrun} \
+                --sparseGRMFile ${sparseGRM} \
+                --sparseGRMSampleIDFile ${sparseGRM_samples} \
+                --phenoFile=${pheno_file} \
+                --phenoCol=\$i \
+                --covarColList=\$(head -n 1 ${cov}) \
+                --sampleCovarColList=\$(sed -n '2p' ${cov}) \
                 --sampleIDColinphenoFile='${params.gt_id_column}' \
                 --traitType=count \
-                --outputPrefix=./output/nindep_100_ncell_100_lambda_2_tauIntraSample_0.5_\$i  \
-                --skipVarianceRatioEstimation=FALSE  \
-                --isRemoveZerosinPheno=FALSE \
-                --isCovariateOffset=FALSE  \
-                --isCovariateTransform=TRUE  \
-                --skipModelFitting=FALSE  \
-                --tol=0.00001 --traceCVcutoff 0.005 --nrun 15  \
-                --famFile ${plink_fam} \
-                --bimFile ${plink_bim} \
-                --bedFile ${plink_bed} \
-                --IsOverwriteVarianceRatioFile=TRUE ${params.SAIGE.step1_extra_flags}
+                --outputPrefix=./output/nindep_100_ncell_100_lambda_2_tauIntraSample_0.5_\$i \
+                --famFile "\$plink_dir/\$base_name.fam" \
+                --bimFile "\$plink_dir/\$base_name.bim" \
+                --bedFile "\$plink_dir/\$base_name.bed" \
+                --IsOverwriteVarianceRatioFile=TRUE \
+                --maxiterPCG=${params.SAIGE.maxiterPCG} --invNormalize=${params.SAIGE.invNormalize} \
+                --minMAFforGRM=${params.SAIGE.minMAFforGRM} \
+                --maxMissingRateforGRM=${params.SAIGE.maxMissingRateforGRM} \
+                --useGRMtoFitNULL=${params.SAIGE.useGRMtoFitNULL} \
+                ${params.SAIGE.step1_extra_flags}
             } || {
                 # catch
                 sed -i '/\$i/d' ${genes_list}
                 echo \$i >> \${i}_genes_droped_from_s1_due_to_error.tsv
             }
         done
+
+
+
 
         cat "${genes_list}" | while IFS= read -r i || [ -n "\$i" ]
         do
@@ -212,12 +266,12 @@ process SAIGE_S2_CIS {
     }    
 
     input:
-        tuple (val(name),path(genes_list),path(output),path(genome_regions),path(plink_bim), path(plink_bed), path(plink_fam))
+        tuple (val(name),path(genes_list),path(output),path(genome_regions),val(plink))
         each path(sparseGRM)
         each path(sparseGRM_samples)
 
     output:
-        tuple val("${name}"),path("genes_list2.tsv"),path("output_${name}___*"),path(output),path(genome_regions),path(plink_bim), path(plink_bed), path(plink_fam),emit:output optional true
+        tuple val("${name}"),path("genes_list2.tsv"),path("output_${name}___*"),path(output),path(genome_regions),val(plink),emit:output optional true
         tuple val("${name}"),path("output_${name}___*/*___nindep_100_ncell_100_lambda_2_tauIntraSample_0.5_cis_*"),emit:for_aggregation  optional true
 
     script:
@@ -231,30 +285,58 @@ process SAIGE_S2_CIS {
             }
             
         }
-    
+        plink_base = plink.replaceFirst(/\.bgen$/, '')
+
+        if ("${plink}".contains(".bgen")) {
+            base_run = ""
+            genotype_input = "--bgenFile ${plink} --bgenFileIndex ${plink}.bgi --sampleFile ${plink_base}.sample \\"
+        }else{
+            base_run =  """plink_dir="${plink}"
+                            base_name=""
+                            if ls "\$plink_dir"/*.bed 1> /dev/null 2>&1; then
+                                base_name=\$(basename \$(ls "\$plink_dir"/*.bed | head -n 1) .bed)
+                            elif ls "\$plink_dir"/*.bim 1> /dev/null 2>&1; then
+                                base_name=\$(basename \$(ls "\$plink_dir"/*.bim | head -n 1) .bim)
+                            else
+                                echo "No .bed or .bim file found in \$plink_dir"
+                                exit 1
+                            fi
+                            echo "Detected base name: \$base_name" """
+
+            genotype_input = """--bedFile="\$plink_dir/\$base_name.bed" \\
+                            --bimFile="\$plink_dir/\$base_name.bim" \\
+                            --famFile="\$plink_dir/\$base_name.fam" \\"""
+        }
+
     """
+
+        ${base_run}
+
         run_step2_tests_qtl() {
             { 
-                warning_output=\$(step2_tests_qtl.R       \
-                    --bedFile=${plink_bed}      \
-                    --bimFile=${plink_bim}      \
-                    --famFile=${plink_fam}      \
-                    --sparseGRMFile ${sparseGRM} --sparseGRMSampleIDFile ${sparseGRM_samples} --relatednessCutoff=${params.SAIGE.relatednessCutoff} \
-                    --SAIGEOutputFile=output_${name}___\${chr1}/\${chr1}___nindep_100_ncell_100_lambda_2_tauIntraSample_0.5_cis_\${variable}    \
-                    --minMAF=${params.SAIGE.minMAF} \
-                    --minMAC=${params.SAIGE.minMAC} \
-                    --LOCO=FALSE    \
-                    --varianceRatioFile=\${step1prefix}_\${variable}.varianceRatio.txt    \
-                    --GMMATmodelFile=\${step1prefix}_\${variable}.rda    \
-                    --SPAcutoff=${params.SAIGE.SPAcutoff} \
-                    --markers_per_chunk=${params.SAIGE.markers_per_chunk} ${mode}   2>&1)
+                warning_output_file=\$(mktemp)
+                step2_tests_qtl.R \
+                ${genotype_input}
+                --sparseGRMFile ${sparseGRM} --sparseGRMSampleIDFile ${sparseGRM_samples} --relatednessCutoff=${params.SAIGE.relatednessCutoff} \
+                --SAIGEOutputFile=output_${name}___\${chr1}/\${chr1}___nindep_100_ncell_100_lambda_2_tauIntraSample_0.5_cis_\${variable} \
+                --minMAF=${params.SAIGE.minMAF} \
+                --minMAC=${params.SAIGE.minMAC} \
+                --LOCO=FALSE \
+                --varianceRatioFile=\${step1prefix}_\${variable}.varianceRatio.txt \
+                --GMMATmodelFile=\${step1prefix}_\${variable}.rda    \
+                --SPAcutoff=${params.SAIGE.SPAcutoff} \
+                --markers_per_chunk=${params.SAIGE.markers_per_chunk} ${mode}  > "\$warning_output_file" 2>&1
+                exit_code=\$?
+                warning_output=\$(cat "\$warning_output_file")
+                rm "\$warning_output_file"
 
-                if [ \$? -ne 0 ]; then
+                if [ \$exit_code -ne 0 ]; then
                     echo "step2_tests_qtl.R command failed" >&2
-                    return  # Skip the rest of the function and go to the next iteration
+                    echo "\$warning_output"
+                    return
                 fi
 
-                if [[ \$? -eq 0 && "\$warning_output" != *"Input/output error"* ]]; then
+                if [[ "\$warning_output" != *"Input/output error"* ]]; then
                     echo "proceed"
                 else
                     echo "warning exists"
@@ -281,8 +363,6 @@ process SAIGE_S2_CIS {
 
         step1prefix=${output}/nindep_100_ncell_100_lambda_2_tauIntraSample_0.5           
         
-        
-        
         cat "${genome_regions}" | while IFS= read -r gene || [ -n "\$gene" ]
         do
             echo "\$gene" | cut -f2- >> regions_cis.tsv
@@ -290,6 +370,7 @@ process SAIGE_S2_CIS {
             echo \${variable}
             chr1=\$(echo "\$gene" | cut -f2)
             step2prefix=output_${name}___\${chr1}/\${chr1}___nindep_100_ncell_100_lambda_2_tauIntraSample_0.5_cis
+            
             mkdir -p output_${name}___\${chr1}
             run_step2_tests_qtl
             rm regions_cis.tsv
@@ -313,11 +394,11 @@ process SAIGE_QVAL_COR {
     }
 
     input:
-        tuple val(name),path(genes_list),path(output),path(output_rda),path(regions),path(plink_bim), path(plink_bed), path(plink_fam)
+        tuple val(name),path(genes_list),path(output),path(output_rda),path(regions),path(plink)
 
     output:
         tuple val(name),path(genes_list),path(output),emit:output
-        tuple val(name),path(output),path(output_rda),path('output3'),path('for_conditioning.csv'),path(regions),path(plink_bim), path(plink_bed), path(plink_fam), emit: for_conditioning optional true
+        tuple val(name),path(output),path(output_rda),path('output3'),path('for_conditioning.csv'),path(regions),path(plink), emit: for_conditioning optional true
         tuple val(name),path("output3/*_minimum_q.txt"), emit: q_out
     script:
 
@@ -533,7 +614,7 @@ process H5AD_TO_SAIGE_FORMAT {
         sizeInGB = adata.size() / 1e9 * 1.25 * task.attempt
         return (sizeInGB ).toString() + 'GB' 
     }   
-    publishDir  path: "${params.outdir}/Saige_eQTLS/H5AD_TO_SAIGE_FORMAT/${sanitized_columns}",
+    publishDir  path: "${params.outdir}/Saige_eQTLS/PHENOTYPE_PCs/${sanitized_columns}",
         mode: "${params.copy_mode}",
         overwrite: "true"
 
@@ -663,7 +744,8 @@ workflow SAIGE_qtls{
     take:
         genotype_pcs
         phenotype_file
-        bim_bed_fam
+        plink_path
+        genotypes_saige
         genome_annotation
         genotype_phenotype_mapping_file
 
@@ -684,19 +766,39 @@ workflow SAIGE_qtls{
             valid_files = phenotype_file
         }
 
+        if (params.existing_phenotype_pcs && file(params.existing_phenotype_pcs).exists()) {
+            Channel
+                .fromPath("${params.existing_phenotype_pcs}/*/*_with_pheno_pcs.tsv", checkIfExists: true)
+                .map { pcs_file ->
+                    def parent_dir = pcs_file.parent.name
+                    def cov_file = pcs_file.parent.resolve("covariates_new.txt")
+                    tuple(parent_dir, pcs_file, cov_file)
+                }
+                .set { pheno }
 
-        H5AD_TO_SAIGE_FORMAT(
-            valid_files,
-            genotype_phenotype_mapping_file,
-            params.aggregation_columns,
-            genotype_pcs,
-            genome_annotation
-        )
-        pheno = H5AD_TO_SAIGE_FORMAT.out.output_pheno
-        gene = H5AD_TO_SAIGE_FORMAT.out.gene_chunk
+            Channel
+                .fromPath("${params.existing_phenotype_pcs}/*/test_genes.txt", checkIfExists: true)
+                .map { genes_file ->
+                    def parent_dir = genes_file.parent.name
+                    tuple(parent_dir, genes_file)
+                }
+                .set { gene }
+        }else{
 
-        PHENOTYPE_PCs(pheno,params.SAIGE.nr_expression_pcs)
-        pheno = PHENOTYPE_PCs.out.output_pheno
+            H5AD_TO_SAIGE_FORMAT(
+                valid_files,
+                genotype_phenotype_mapping_file,
+                params.aggregation_columns,
+                genotype_pcs,
+                genome_annotation
+            )
+            pheno = H5AD_TO_SAIGE_FORMAT.out.output_pheno
+            gene = H5AD_TO_SAIGE_FORMAT.out.gene_chunk
+
+            PHENOTYPE_PCs(pheno,params.SAIGE.nr_expression_pcs)
+            pheno = PHENOTYPE_PCs.out.output_pheno
+        }
+
 
         CHUNK_GENES(gene,params.chunkSize)
         result = CHUNK_GENES.out.output_genes.flatMap { item ->
@@ -714,17 +816,19 @@ workflow SAIGE_qtls{
             : Channel.of((1..24).toList())   
 
 
-        bim_bed_fam.subscribe { println "bim_bed_fam: $it" }
+        genotypes_saige.subscribe { println "genotypes_saige: $it" }
                     
-        CREATE_SPARSE_GRM(bim_bed_fam)
+        CREATE_SPARSE_GRM(plink_path)
         sparseGRM = CREATE_SPARSE_GRM.out.sparseGRM
         sparseGRM_sample = CREATE_SPARSE_GRM.out.sparseGRM_sample
-        SAIGE_S1(pheno_chunk.combine(bim_bed_fam),sparseGRM,sparseGRM_sample)
+        SAIGE_S1(pheno_chunk.combine(plink_path),sparseGRM,sparseGRM_sample)
 
         DETERMINE_TSS_AND_TEST_REGIONS(SAIGE_S1.out.output,genome_annotation)
         for_cis_input = DETERMINE_TSS_AND_TEST_REGIONS.out.output_genes
-        SAIGE_S2_CIS(for_cis_input.combine(bim_bed_fam),sparseGRM,sparseGRM_sample)
+        SAIGE_S2_CIS(for_cis_input.combine(genotypes_saige),sparseGRM,sparseGRM_sample)
         output_s2 = SAIGE_S2_CIS.out.output
+        // output_s2.subscribe { println "output_s2: $it" }
+        
         agg_output = SAIGE_S2_CIS.out.for_aggregation
 
         // HERE WE either run the cis or trans qtl mapping. For cis we loop through each of the chunks whereas in trans we can run all together.

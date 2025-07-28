@@ -1,7 +1,7 @@
 
 
 include {PREPROCESS_GENOTYPES} from '../modules/local/preprocess_genotypes/main' 
-include {PLINK_CONVERT;PGEN_CONVERT;BGEN_CONVERT; PGEN_TO_BED_CONVERT} from '../modules/local/plink_convert/main' 
+include {PLINK_CONVERT;PGEN_CONVERT;BGEN_CONVERT; PGEN_TO_BED_CONVERT_FOR_QTLS; PGEN_TO_BED_CONVERT_FOR_GRM} from '../modules/local/plink_convert/main' 
 include {SUBSET_GENOTYPE} from '../modules/local/subset_genotype/main' 
 include {GENOTYPE_PC_CALCULATION} from '../modules/local/genotype_pc_calculation/main' 
 include {SPLIT_PHENOTYPE_DATA} from '../modules/local/split_phenotype_data/main' 
@@ -195,9 +195,14 @@ workflow EQTL {
             plink_convert_input=subset_genotypes  
         }
     }else{
-        plink_convert_input=Channel.of()
+        if (params.genotypes.preprocessed_pgen_file==''){
+            plink_convert_input=Channel.of()
+        }else{
+            plink_convert_input=Channel.from(params.genotypes.preprocessed_pgen_file)
+        }
     }
 
+    // This block is necesary for Saige as it needs BED for GRM construction and if we dont use dosages we also need this for the QTL matrix construction
     if (params.SAIGE.run || (params.genotypes.use_gt_dosage == false) || params.JAXQTL.run) {
         if (params.genotypes.preprocessed_bed_file==''){
             if (params.input_vcf){
@@ -205,13 +210,21 @@ workflow EQTL {
                 PLINK_CONVERT(plink_convert_input)
                 bim_bed_fam = PLINK_CONVERT.out.bim_bed_fam
                 plink_path_bed = PLINK_CONVERT.out.plink_path
+                bim_bed_fam__GRM    = bim_bed_fam
+                plink_path_bed__GRM = plink_path_bed
             }else if (params.genotypes.preprocessed_pgen_file != '') {
                 // BED file preparation from preprocessed PGEN
                 log.info "PGEN provided and BED needed — converting with PGEN_TO_BED_CONVERT"
                 plink_path_pgen = Channel.from(params.genotypes.preprocessed_pgen_file)
-                PGEN_TO_BED_CONVERT(plink_path_pgen)
-                bim_bed_fam    = PGEN_TO_BED_CONVERT.out.bim_bed_fam
-                plink_path_bed = PGEN_TO_BED_CONVERT.out.plink_path_bed
+
+                // Here we are creating two bed files - 1 that goes to QTL analysis for tools that only support BED formated genotypes and the other goes to GRM construction
+                PGEN_TO_BED_CONVERT_FOR_QTLS(plink_path_pgen)
+                bim_bed_fam    = PGEN_TO_BED_CONVERT_FOR_QTLS.out.bim_bed_fam
+                plink_path_bed = PGEN_TO_BED_CONVERT_FOR_QTLS.out.plink_path_bed
+
+                PGEN_TO_BED_CONVERT_FOR_GRM(plink_path_pgen)
+                bim_bed_fam__GRM    = PGEN_TO_BED_CONVERT_FOR_QTLS.out.bim_bed_fam
+                plink_path_bed__GRM = PGEN_TO_BED_CONVERT_FOR_QTLS.out.plink_path_bed
             }
 
         }else{
@@ -226,7 +239,9 @@ workflow EQTL {
                 .set { fam_files }
             bim_bed_fam = bim_files
                         .combine(bed_files)
-                        .combine(fam_files)  
+                        .combine(fam_files) 
+            bim_bed_fam__GRM    = bim_bed_fam
+            plink_path_bed__GRM = plink_path_bed 
         }
     }
 
@@ -282,24 +297,26 @@ workflow EQTL {
     }else{
         for_bed = SUBSET_PCS.out.for_bed
     }
-    // for_bed = SUBSET_PCS.out.for_bed
+
+
+    if(params.genotypes.use_gt_dosage && (params.LIMIX.run || params.SAIGE.run )){
+        if (params.genotypes.preprocessed_bgen_file==''){
+            BGEN_CONVERT(plink_convert_input)
+            plink_path_limix = BGEN_CONVERT.out.plink_path
+            genotypes_saige =  BGEN_CONVERT.out.plink_path
+        }else{
+            plink_path_limix = Channel.from(params.genotypes.preprocessed_bgen_file)
+            genotypes_saige = Channel.from(params.genotypes.preprocessed_bgen_file)
+        }
+    }else{
+        plink_path_limix = plink_path_bed
+        genotypes_saige = plink_path_bed
+    }
 
     // LIMIX QTL mapping method
     if (params.LIMIX.run){
         KINSHIP_CALCULATION(plink_path)
         kinship_file = KINSHIP_CALCULATION.out.kinship_matrix
-
-        
-            if(params.genotypes.use_gt_dosage){
-                if (params.genotypes.preprocessed_bgen_file==''){
-                    BGEN_CONVERT(plink_convert_input)
-                    plink_path_limix = BGEN_CONVERT.out.plink_path
-                }else{
-                    plink_path_limix = Channel.from(params.genotypes.preprocessed_bgen_file)
-                }
-            }else{
-                plink_path_limix = plink_path_bed
-            }
 
         filtered_pheno_channel = for_bed.map { tuple ->  
             [tuple[3], [tuple[0], tuple[1], tuple[2]]]
@@ -357,7 +374,7 @@ workflow EQTL {
             }
             covs_Saige = PREP_SAIGE_COVS(genotype_pcs_file,extra_covariates_file)
 
-            SAIGE_qtls(covs_Saige,adata,bim_bed_fam,genome_annotation,saige_genotype_phenotype_mapping_file)
+            SAIGE_qtls(covs_Saige,adata,plink_path_bed__GRM,genotypes_saige,genome_annotation,saige_genotype_phenotype_mapping_file)
         }
     }
 
