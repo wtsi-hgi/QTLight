@@ -661,7 +661,7 @@ process H5AD_TO_SAIGE_FORMAT {
         condition_col="${aggregation_columns}" #Specify 'NULL' if want to include all cells
         condition="${aggregation_columns}" #Specify 'NULL' if want to include all cells
         
-        scale_covariates=true
+        scale_covariates=${params.SAIGE.scale_covariates}
         expression_pca=${params.SAIGE.nr_expression_pcs}
         aggregate_on="${aggregation_columns}"
 
