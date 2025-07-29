@@ -75,6 +75,8 @@ def quantile_normalize_rows(matrix):
 def run_pca_and_save(file_path, output_file, n_pcs, covs):
     # Load the data from the flat text file
     counts = pd.read_csv(file_path, sep="\t", header=0, index_col=0)
+    counts = counts.astype(np.float32)
+
     counts.index = counts.index.astype(str)
     with open(covs, 'r') as file:
         first_line = file.readline().strip()
@@ -83,51 +85,19 @@ def run_pca_and_save(file_path, output_file, n_pcs, covs):
     counts = counts.drop(columns=existing_covs, errors='ignore')
     # 
     # Convert to AnnData object
-    adata = sc.AnnData(X=counts)
+    from scipy import sparse
+    counts_sparse = sparse.csr_matrix(counts.values)
+    adata = sc.AnnData(X=counts_sparse)
     pheno_id = counts.index.name
     adata.var_names = counts.columns
     adata.obs_names = counts.index
-    
-    counts_orig = counts.copy()
-    # counts_orig = pd.DataFrame(PF(counts), index=counts.index, columns= counts.columns)
-    # counts_orig= pd.DataFrame(sc.pp.log1p(sc.pp.normalize_total(adata,
-    #                                                         target_sum=1e4,
-    #                                                         exclude_highly_expressed=False,
-    #                                                         inplace=False)['X']), index=counts.index, columns= counts.columns)
-    # import rpy2.robjects as ro
-    # from rpy2.robjects import pandas2ri
-
-    # # Activate pandas conversion for rpy2
-    # pandas2ri.activate()
-
-    # # Load R libraries
-    # ro.r('library(Seurat)')
-    # "done"
-    # counts_r = pandas2ri.py2rpy(counts_orig.T)
-
-    # ro.globalenv['counts'] = counts_r
-    # ro.r('''
-    # seurat_obj <- CreateSeuratObject(counts = counts)
-    # seurat_obj <- SCTransform(seurat_obj, verbose = FALSE)
-    # normalized_counts <- as.data.frame(seurat_obj[["SCT"]]@scale.data)
-    # ''')
-    # normalized_counts = ro.r('normalized_counts')
-    # normalized_counts = pandas2ri.rpy2py(normalized_counts)
-    # min_value = normalized_counts.min().min()
-    # if min_value < 0:
-    #     normalized_counts += abs(min_value)  # Shift all values to make them non-negative  
-    
+    adata.X = adata.X.astype(np.float32)
+    counts_orig = counts
       
-    # Normalize the data
-    sc.pp.normalize_total(adata, target_sum=1e4)
-
-    # Log-transform the data
-    sc.pp.log1p(adata)
-
-    # Identify highly variable genes
     sc.pp.highly_variable_genes(adata, flavor="seurat", n_top_genes=2000)
-
-    # Scale the data
+    adata = adata[:, adata.var['highly_variable']]
+    sc.pp.normalize_total(adata)
+    sc.pp.log1p(adata)
     sc.pp.scale(adata, max_value=10)
 
     # Perform PCA

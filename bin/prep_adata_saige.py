@@ -226,6 +226,7 @@ def main():
     geno_pcs.rename(columns={"#FID": genotype_id,"IID": genotype_id}, inplace=True)
     geno_pcs = geno_pcs.set_index(genotype_id)
     geno_pcs.index = geno_pcs.index.astype(str)
+    adata.obs[aggregate_on] = adata.obs[aggregate_on].str.replace(r'[^a-zA-Z0-9]', '_', regex=True)
     for aggregate_on in aggregate_on_all.split(','):
         levels = set(adata.obs[aggregate_on].unique())
         l1 = len(levels)

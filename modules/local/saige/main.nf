@@ -626,8 +626,8 @@ process H5AD_TO_SAIGE_FORMAT {
         path(genome_annotation)
 
     output:
-        tuple val(sanitized_columns), path("output_agg/*/*/saige_filt_expr_input.tsv"),path("output_agg/*/*/covariates.txt"),emit:output_pheno optional true
-        tuple val(sanitized_columns),path("output_agg/*/*/test_genes.txt"),emit:gene_chunk optional true
+        tuple val(sanitized_columns), path("output_agg/*/*/saige_filt_expr_input.tsv"),path("output_agg/*/*/covariates.txt"),emit:output_pheno
+        tuple val(sanitized_columns),path("output_agg/*/*/test_genes.txt"),emit:gene_chunk
         path("output_agg/*"),emit:output_agg optional true
 
 
@@ -794,7 +794,8 @@ workflow SAIGE_qtls{
             )
             pheno = H5AD_TO_SAIGE_FORMAT.out.output_pheno
             gene = H5AD_TO_SAIGE_FORMAT.out.gene_chunk
-
+            pheno.subscribe { println "pheno: $it" }
+        
             PHENOTYPE_PCs(pheno,params.SAIGE.nr_expression_pcs)
             pheno = PHENOTYPE_PCs.out.output_pheno
         }
@@ -816,11 +817,23 @@ workflow SAIGE_qtls{
             : Channel.of((1..24).toList())   
 
 
-        genotypes_saige.subscribe { println "genotypes_saige: $it" }
-                    
-        CREATE_SPARSE_GRM(plink_path)
-        sparseGRM = CREATE_SPARSE_GRM.out.sparseGRM
-        sparseGRM_sample = CREATE_SPARSE_GRM.out.sparseGRM_sample
+        if (params.existing_sparse_grm){
+            sparseGRM = Channel
+                .fromPath(params.existing_sparse_grm + "/sparseGRM_*.mtx")
+                .ifEmpty { error " No sparseGRM .mtx file found in ${params.existing_sparse_grm}" }
+
+            sparseGRM_sample = Channel
+                .fromPath(params.existing_sparse_grm + "/sparseGRM_*.sampleIDs.txt")
+                .ifEmpty { error " No sparseGRM sample ID file found in ${params.existing_sparse_grm}" }
+
+        }else{
+            CREATE_SPARSE_GRM(plink_path)
+            sparseGRM = CREATE_SPARSE_GRM.out.sparseGRM
+            sparseGRM_sample = CREATE_SPARSE_GRM.out.sparseGRM_sample
+        }
+
+
+
         SAIGE_S1(pheno_chunk.combine(plink_path),sparseGRM,sparseGRM_sample)
 
         DETERMINE_TSS_AND_TEST_REGIONS(SAIGE_S1.out.output,genome_annotation)

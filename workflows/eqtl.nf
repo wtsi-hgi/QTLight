@@ -99,7 +99,7 @@ workflow EQTL {
         }else{
             log.info "Looking for existing files '___phenotype_file.tsv' and '___genotype_phenotype_mapping.tsv' in ${params.pre_aggregated_counts_folder}/*/*phenotype_file.tsv"
             Channel
-                .fromPath(params.pre_aggregated_counts_folder+'/*/*___phenotype_file.tsv').ifEmpty { error "No FASTQ files found in data/ directory" }
+                .fromPath(params.pre_aggregated_counts_folder+'/*/*___phenotype_file.tsv').ifEmpty { error "No files found in data/ directory" }
                 .map{file1 ->
                     def parts = "${file1}".split('___')
                     def name_pre = parts[ parts.size() - 2 ]
@@ -110,6 +110,18 @@ workflow EQTL {
                     tuple( name, file(file1), file(replacedFullPath) )  }
                 .set { phenotype_genotype_file }
             
+            Channel
+                .fromPath(params.pre_aggregated_counts_folder + '/*/*___sample_covariates.tsv')
+                .ifEmpty { error "No sample_covariates files found in ${params.pre_aggregated_counts_folder}" }
+                .map { file1 ->
+                    def parts = "${file1}".split('___')
+                    def name_pre = parts[ parts.size() - 2 ]
+                    def name_parts = "${name_pre}".split('/')
+                    def name = name_parts[ name_parts.size() - 1 ]
+                    tuple(name, file(file1))
+                }
+                .set { covariates_by_name }
+                
             Channel
                 .fromPath(params.pre_aggregated_counts_folder+'/*/*___phenotype_file.tsv').ifEmpty { error "No FASTQ files found in data/ directory" }
                 .map{file1 ->
@@ -281,17 +293,21 @@ workflow EQTL {
     NORMALISE_and_PCA_PHENOTYPE(phenotype_condition)
     Channel.of(params.covariates.nr_phenotype_pcs).splitCsv().flatten().set{pcs}
     NORMALISE_and_PCA_PHENOTYPE.out.for_bed.combine(pcs).set{test123}
-    
+         
     SUBSET_PCS(test123)
-    
+
+    // covariates_by_name.subscribe { println "covariates_by_name: $it" }
+
     if (params.covariates.adata_obs_covariate){
         test123_fixed = SUBSET_PCS.out.for_bed.map { row ->
             def pheno_full = row[0]
-            def pheno_core = pheno_full.contains('__') ? pheno_full.split('__')[0..1].join('__') : pheno_full
+            def pheno_core = pheno_full.contains('__') ? pheno_full.split('__')[0..-2].join('__') : pheno_full
             tuple(pheno_core, row[0],row[1],row[2],row[3])  // [matching_key, full_row]
         }
+        // test123_fixed.subscribe { println "test123_fixed: $it" }
+       
         test123_fixed.combine(covariates_by_name,by:0).set{for_covs_merge}
-
+        
         MERGE_COVARIATES(for_covs_merge)
         for_bed = MERGE_COVARIATES.out.for_bed_covs
     }else{
