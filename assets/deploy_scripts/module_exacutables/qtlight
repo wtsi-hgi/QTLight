@@ -32,9 +32,9 @@ else
     fi
 fi
 
+BRANCH_NAME=$(git -C "$SCRIPT_DIR" rev-parse --abbrev-ref HEAD 2>/dev/null || echo "unknown")
+COMMIT_HASH=$(git -C "$SCRIPT_DIR" rev-parse HEAD 2>/dev/null || echo "unknown")
 if [[ $1 == "-v" ]]; then
-    BRANCH_NAME=$(git -C "$SCRIPT_DIR" rev-parse --abbrev-ref HEAD 2>/dev/null || echo "unknown")
-    COMMIT_HASH=$(git -C "$SCRIPT_DIR" rev-parse HEAD 2>/dev/null || echo "unknown")
     echo -e "eqtl branch: $BRANCH_NAME\nAvailable at https://github.com/wtsi-hgi/eqtl\ncommit: $COMMIT_HASH"
 elif [[ $1 == "sample_input" ]]; then
     command cp -r $SCRIPT_DIR/../../../sample_input ./
@@ -45,8 +45,10 @@ elif [[ $1 == "test_bulk" ]]; then
     echo "queue: $QUEUE"
     command bash $SCRIPT_DIR/../bsub_test_bulk.sh "$@"   
 elif [[ $1 == "info" ]]; then
+    echo -e "eqtl branch: $BRANCH_NAME\nAvailable at https://github.com/wtsi-hgi/eqtl\ncommit: $COMMIT_HASH"
     command cat "${SCRIPT_DIR}/help.info" | sed "s/\${bold}/$(echo -e "\033[1m")/g; s/\${normal}/$(echo -e "\033[0m")/g"    
 elif [[ $1 == "-h" ]]; then
+    echo -e "eqtl branch: $BRANCH_NAME\nAvailable at https://github.com/wtsi-hgi/eqtl\ncommit: $COMMIT_HASH"
     command cat "${SCRIPT_DIR}/help.info" | sed "s/\${bold}/$(echo -e "\033[1m")/g; s/\${normal}/$(echo -e "\033[0m")/g"
 else   
     echo "queue: $QUEUE"
