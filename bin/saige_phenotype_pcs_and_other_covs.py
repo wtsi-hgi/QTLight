@@ -85,9 +85,9 @@ def run_pca_and_save(file_path, output_file, n_pcs, covs):
     counts = counts.drop(columns=existing_covs, errors='ignore')
     # 
     # Convert to AnnData object
-    from scipy import sparse
-    counts_sparse = sparse.csr_matrix(counts.values)
-    adata = sc.AnnData(X=counts_sparse)
+    # from scipy import sparse
+    # counts_sparse = sparse.csr_matrix(counts.values)
+    adata = sc.AnnData(X=counts)
     pheno_id = counts.index.name
     adata.var_names = counts.columns
     adata.obs_names = counts.index

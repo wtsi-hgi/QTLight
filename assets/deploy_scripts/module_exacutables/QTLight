@@ -7,7 +7,7 @@ normal=$(tput sgr0)
 
 if [[ "$QUEUE" == '' ]];
     then
-        export QUEUE='long'
+        export QUEUE='oversubscribed'
     else
         export QUEUE="$QUEUE"
 fi
