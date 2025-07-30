@@ -14,6 +14,7 @@ fi
 
 
 echo "queue: $QUEUE"
+echo "to change QUEUE please do export QUEUE='QUEUE OF INTEREST (normal?)'"
 if [[ $1 == "-v" || $1 == "-info" ||  $1 == "info" || $1 == "-h" ]]; then
     _=''
 else
