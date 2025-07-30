@@ -15,6 +15,7 @@ fi
 
 echo "queue: $QUEUE"
 echo "to change QUEUE please do export QUEUE='QUEUE OF INTEREST (normal?)'"
+echo ''
 if [[ $1 == "-v" || $1 == "-info" ||  $1 == "info" || $1 == "-h" ]]; then
     _=''
 else
@@ -32,7 +33,9 @@ else
 fi
 
 if [[ $1 == "-v" ]]; then
-    command echo -e "eqtl v=1.1; \n Available at https://github.com/wtsi-hgi/eqtl \n commit bd43f9baea487aa3811129bd2e01f0d682ce3a7d"
+    BRANCH_NAME=$(git -C "$SCRIPT_DIR" rev-parse --abbrev-ref HEAD 2>/dev/null || echo "unknown")
+    COMMIT_HASH=$(git -C "$SCRIPT_DIR" rev-parse HEAD 2>/dev/null || echo "unknown")
+    echo -e "eqtl branch: $BRANCH_NAME\nAvailable at https://github.com/wtsi-hgi/eqtl\ncommit: $COMMIT_HASH"
 elif [[ $1 == "sample_input" ]]; then
     command cp -r $SCRIPT_DIR/../../../sample_input ./
 elif [[ $1 == "test_scrna" ]]; then
