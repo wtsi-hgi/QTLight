@@ -163,10 +163,10 @@ process BGEN_CONVERT{
 
         """
             ${ext1}
-
+            mkdir temp
             plink_dir="temp"
             base_name=""
-
+            
             if ls "\$plink_dir"/*.psam 1> /dev/null 2>&1; then
                 base_name=\$(basename \$(ls "\$plink_dir"/*.psam | head -n 1) .psam)
             elif ls "\$plink_dir"/*.pvar 1> /dev/null 2>&1; then
