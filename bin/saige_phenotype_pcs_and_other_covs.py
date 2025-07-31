@@ -75,34 +75,35 @@ def quantile_normalize_rows(matrix):
 def run_pca_and_save(file_path, output_file, n_pcs, covs):
     # Load the data from the flat text file
     counts = pd.read_csv(file_path, sep="\t", header=0, index_col=0)
+    # Convert counts to float32
     counts = counts.astype(np.float32)
-
     counts.index = counts.index.astype(str)
+
+    # Remove covariates
     with open(covs, 'r') as file:
         first_line = file.readline().strip()
     existing_covs = first_line.split(',')
     genotype_pcs = counts[existing_covs]
     counts = counts.drop(columns=existing_covs, errors='ignore')
-    # 
-    # Convert to AnnData object
-    # from scipy import sparse
-    # counts_sparse = sparse.csr_matrix(counts.values)
+    counts_orig = counts.copy()
+    # Make AnnData
     adata = sc.AnnData(X=counts)
     pheno_id = counts.index.name
     adata.var_names = counts.columns
     adata.obs_names = counts.index
-    adata.X = adata.X.astype(np.float32)
-    counts_orig = counts
-      
+    del counts
+    # Normalize and log-transform first
+    sc.pp.normalize_total(adata, target_sum=1e4)
+    sc.pp.log1p(adata)
+
+    # Then HVG
     sc.pp.highly_variable_genes(adata, flavor="seurat", n_top_genes=2000)
     adata = adata[:, adata.var['highly_variable']]
-    sc.pp.normalize_total(adata)
-    sc.pp.log1p(adata)
+    
+    # Scale and PCA
     sc.pp.scale(adata, max_value=10)
-
-    # Perform PCA
     try:
-        sc.tl.pca(adata, svd_solver='arpack',n_comps=n_pcs)
+        sc.tl.pca(adata, svd_solver='randomized', n_comps=n_pcs)
     except:
         print(f'Can not compute {n_pcs}; most likely not enough data')
         exit()
