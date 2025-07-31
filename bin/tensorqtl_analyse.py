@@ -334,8 +334,8 @@ def main():
                             phenotype_pos_df.loc[phenotype_df_genes],maf_threshold=maf,
                             covariates_df=covariates_df.loc[phenotype_df.columns],prefix='cis_nominal1',
                             output_dir=outdir, write_top=map_nominal, write_stats=map_nominal)
-        
-            # all_files = glob.glob(f'/lustre/scratch124/humgen/projects_v2/cardinal_analysis/analysis/mo11/saige_vs_jax_vs_tensor/work/ac/b881f22aca8487534f4b784587af8d/OPTIM_pcs_bck/base_output/base/cis_nominal*.parquet')
+            all_files = glob.glob(f'{outdir}/cis_nominal*.parquet')
+            # all_files = glob.glob(f'/lustre/scratch124/humgen/projects_v2/cardinal_analysis/analysis/mo11/saige_vs_jax_vs_tensor/work/1a/b597eb67164a7c977e8fb20015e407/OPTIM_pcs/base_output/base/cis_nominal*.parquet')
             all_dfs = []
             count=0
             for bf1 in all_files:
