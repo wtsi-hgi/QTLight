@@ -162,8 +162,9 @@ process BGEN_CONVERT{
         }
 
         """
+            mkdir -p temp
             ${ext1}
-            mkdir temp
+            
             plink_dir="temp"
             base_name=""
             
