@@ -745,6 +745,7 @@ workflow SAIGE_qtls{
         genotype_pcs
         phenotype_file
         plink_path
+        plink_path_bed
         genotypes_saige
         genome_annotation
         genotype_phenotype_mapping_file
@@ -834,7 +835,7 @@ workflow SAIGE_qtls{
 
 
 
-        SAIGE_S1(pheno_chunk.combine(plink_path),sparseGRM,sparseGRM_sample)
+        SAIGE_S1(pheno_chunk.combine(plink_path_bed),sparseGRM,sparseGRM_sample)
 
         DETERMINE_TSS_AND_TEST_REGIONS(SAIGE_S1.out.output,genome_annotation)
         for_cis_input = DETERMINE_TSS_AND_TEST_REGIONS.out.output_genes

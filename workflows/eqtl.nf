@@ -235,8 +235,8 @@ workflow EQTL {
                 plink_path_bed = PGEN_TO_BED_CONVERT_FOR_QTLS.out.plink_path_bed
 
                 PGEN_TO_BED_CONVERT_FOR_GRM(plink_path_pgen)
-                bim_bed_fam__GRM    = PGEN_TO_BED_CONVERT_FOR_QTLS.out.bim_bed_fam
-                plink_path_bed__GRM = PGEN_TO_BED_CONVERT_FOR_QTLS.out.plink_path_bed
+                bim_bed_fam__GRM    = PGEN_TO_BED_CONVERT_FOR_GRM.out.bim_bed_fam
+                plink_path_bed__GRM = PGEN_TO_BED_CONVERT_FOR_GRM.out.plink_path_bed
             }
 
         }else{
@@ -390,7 +390,7 @@ workflow EQTL {
             }
             covs_Saige = PREP_SAIGE_COVS(genotype_pcs_file,extra_covariates_file)
 
-            SAIGE_qtls(covs_Saige,adata,plink_path_bed__GRM,genotypes_saige,genome_annotation,saige_genotype_phenotype_mapping_file)
+            SAIGE_qtls(covs_Saige,adata,plink_path_bed__GRM,plink_path_bed,genotypes_saige,genome_annotation,saige_genotype_phenotype_mapping_file)
         }
     }
 
