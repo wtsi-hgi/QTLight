@@ -232,7 +232,7 @@ The nf-core/eqtl pipeline comes with documentation about the pipeline [usage](./
 
 ## Credits
 
-QTLight was developed by Matiss Ozols, Anna Cuomo, Marc Jan Bonder, Hannes Ponstingl, Tobi Alegbe, Bradley Harris, Haerin Jang, Vivek Iyer, Nicole Soranzo.
+QTLight was developed by Matiss Ozols, Tobi Alegbe, Anna Cuomo, Marc Jan Bonder, Hannes Ponstingl, Bradley Harris, Haerin Jang, Vivek Iyer, Nicole Soranzo.
 <!-- 
 ## Contributions and Support
 
