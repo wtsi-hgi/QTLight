@@ -67,9 +67,9 @@ def main():
     
     phenotype_pcs=options.phenotype_pcs
     covariates_df = pd.read_csv(genotype_pcs, sep='\t', index_col=0)
-
+    covariates_df.index=covariates_df.index.astype(str)
     sample_map_file=options.sample_mapping
-    sample_mapping = pd.read_csv(sample_map_file,sep='\t')
+    sample_mapping = pd.read_csv(sample_map_file,sep='\t', dtype={'Genotype': str,'RNA':str})
     sample_mapping= sample_mapping.set_index('RNA')
         
     if options.phenotype_pcs=='0pcs.tsv':
@@ -82,7 +82,7 @@ def main():
     if len(idx)==0:
         covariates_df = covariates_df.T
         idx = list(set(phenotype_pcs.index).intersection(set(covariates_df.index)))  
-
+    
     covariates_df=covariates_df.rename(columns={'IID':'Genotype'})
     covariates_df=covariates_df.rename(columns={'#IID':'Genotype'})
     
@@ -91,6 +91,7 @@ def main():
     except:
         print('col already set')
         
+    covariates_df.index=covariates_df.index.astype(str)
     covariates_df = covariates_df.iloc[:,:int(options.nr_gPCs)]
     
 
@@ -99,7 +100,7 @@ def main():
     phenotype_pcs = phenotype_pcs.add_prefix('Phenotype ')
 
 
-    covariates_df = covariates_df.loc[idx]
+    covariates_df = covariates_df.loc[list(idx)]
     phenotype_pcs = phenotype_pcs.loc[list(idx)]
 
     all = {}
@@ -118,6 +119,8 @@ def main():
     if (options.sample_covariates):
         print('yes')
         exctra_covs = pd.read_csv(options.sample_covariates,sep='\t',index_col=0)
+        exctra_covs.columns = exctra_covs.columns.astype(str)
+        exctra_covs.index=exctra_covs.index.astype(str)
         idx2 = set(exctra_covs.columns).intersection(set(data.columns))
         try:
             data = pd.concat([data.loc[:,list(idx2)],exctra_covs.loc[:,list(idx2)]])

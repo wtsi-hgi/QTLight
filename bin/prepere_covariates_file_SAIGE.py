@@ -33,6 +33,7 @@ def main():
         action='store',
         dest='sample_covariates',
         required=False,
+        default='',
         help=''
     )
 
@@ -48,11 +49,12 @@ def main():
     options = parser.parse_args()
     genotype_pcs=options.genotype_pcs
     covariates_df = pd.read_csv(genotype_pcs, sep='\t', index_col=0)
-
+    covariates_df.index = covariates_df.index.astype(str)
     covariates_df=covariates_df.rename(columns={'IID':'#IID'})
     
     try:
         covariates_df=covariates_df.set_index('#IID')
+        covariates_df.index = covariates_df.index.astype(str)
     except:
         print('col already set')
         
@@ -67,9 +69,10 @@ def main():
             data = pd.concat([covariates_df.loc[:,list(idx2)],exctra_covs.loc[:,list(idx2)]])
         except:
             exctra_covs=exctra_covs.T
-            data = pd.concat([data.loc[:,list(idx2)],exctra_covs.loc[:,list(idx2)]])
+            data = pd.concat([covariates_df.loc[:,list(idx2)],exctra_covs.loc[:,list(idx2)]])
     else:
         print('no')
+        data = covariates_df  # fallback to genotype PCs only
     data2 = data.T
     res = data2.reset_index()
     res = res.rename(columns={'index': '#IID'})

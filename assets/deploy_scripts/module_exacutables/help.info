@@ -1,13 +1,13 @@
-#####eQTLigt/eQTL 1.61#####
+
 ##########################
-${bold}eQTLigt${normal}[https://github.com/wtsi-hgi/eqtl] Nextflow pipeline that that performs eQTL analysis of scRNA, bulk, ATAC, Chip and any other QTLs
+${bold}QTLigt${normal}[https://github.com/wtsi-hgi/qtlight] Nextflow pipeline that that performs eQTL analysis of scRNA, bulk, ATAC, Chip and any other QTLs
 ##########################
 
-eQTLigt/eQTL module has been set to run in multiple modes:
+QTLight/qtlight module has been set to run in multiple modes:
     ${bold}qtlight -v${normal} :will describe the checkout tag used.
     ${bold}qtlight test_bulk${normal} :will run a bulk test dataset.
     ${bold}qtlight test_scrna${normal} :will run a scRNA test dataset.
     ${bold}qtlight sample_input${normal} :will create a directory sample_input in your current working directory where you will sample input files.
     ${bold}qtlight -c /path/to/input.nf${normal} :will run your samples as defined in input file. If you are unsure how to fill in the info file please refear to this documentation: https://github.com/wtsi-hgi/yascp/blob/main/docs/usage.md
 
- For the data interpretation please folow this documentation: https://github.com/wtsi-hgi/yascp/tree/main/docs
+ For the data interpretation please folow this documentation: https://github.com/wtsi-hgi/qtlight

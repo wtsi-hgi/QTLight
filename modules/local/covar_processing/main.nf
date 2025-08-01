@@ -1,3 +1,37 @@
+process MERGE_COVARIATES {
+
+    tag { condition }
+    //cache false        // cache results from run
+    scratch false      // use tmp directory
+    label 'process_low'
+
+
+    if (workflow.containerEngine == 'singularity' && !params.singularity_pull_docker_container) {
+        container "${params.eqtl_container}"
+        
+    } else {
+        container "${params.eqtl_docker}"
+    }
+
+    input:
+        tuple(val(condition),val(condition2),path(mappings_handeling_repeats),path(normalised_phenotype),path(pc1),path(extra_cove))
+
+    output:
+        tuple val(condition2),path(mappings_handeling_repeats),path(normalised_phenotype),path("proc_*pcs.tsv"), emit: for_bed_covs optional true
+
+    script:
+
+        """
+            echo "Phenotype: ${condition}"
+            echo "Mapping: ${condition2}"
+            echo "PCs: ${mappings_handeling_repeats}"
+            echo "Sample covariates: ${normalised_phenotype}"
+            echo "Sample covariates: ${extra_cove}"
+
+            merge_pc_and_meta.py --meta ${extra_cove} --pc ${pc1} --output proc_${pc1}
+        """
+}
+
 process SUBSET_PCS{
 
      
@@ -30,7 +64,4 @@ process SUBSET_PCS{
         """  
             PC_subset.R ${all__pcs} ${pc1}
         """
-    
-
-
 }

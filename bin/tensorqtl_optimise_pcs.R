@@ -39,12 +39,12 @@ if (is.na(interaction.name)){
 }
 list.of.sumstat.dfs <- lapply(sumstat.files, function(file.name) {
   # Get info from filename
-  # file.name='dMean__CD4_T_all_symlink/10pcs__base_output__base/Cis_eqtls_qval.tsv'
+  # file.name='dMean__CD4_T_all_symlink/proc_10pcs__base_output__base/Cis_eqtls_qval.tsv'
   split.file.name <- str_split(file.name,'/')[[1]]
   symlink.dir <- split.file.name[2]
   split.symlink.dir <- str_split(symlink.dir,'__')[[1]]
-  n.pcs <- split.symlink.dir[1]
-  
+  n.pcs.raw <- split.symlink.dir[1]
+  n.pcs <- gsub('^proc_', '', n.pcs.raw)
   
   # Read file
   df <- read_tsv(paste0(sumstats.dir, file.name),show_col_types = FALSE)

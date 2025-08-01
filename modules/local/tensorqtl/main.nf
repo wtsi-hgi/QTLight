@@ -77,7 +77,16 @@ process OPTIMISE_PCS{
           mkdir -p ${outpath}
           mkdir -p ${tensor_input_path}
           tensorqtl_optimise_pcs.R ./ ${alpha} ${interaction} ${condition} ${outpath}
-          var=\$(grep TRUE ${outpath}/optimise_nPCs-FDR${alpha_text}.txt | cut -f 1) && cp -r ${condition}_${interaction}_symlink/"\$var"pcs__${outpath_end}/* ${tensor_input_path}
+          var=\$(grep TRUE ${outpath}/optimise_nPCs-FDR${alpha_text}.txt | cut -f 1)
+          
+          # Try both with and without 'proc_' prefix
+          for prefix in "proc_" ""; do
+            src="${condition}_${interaction}_symlink/\${prefix}\${var}pcs__${outpath_end}"
+            if [[ -d "\$src" ]]; then
+              cp -r "\$src"/* ${tensor_input_path}
+              break
+            fi
+          done  
           echo \${var} >> ${outpath}/optim_pcs.txt
         """
 }
@@ -327,20 +336,6 @@ workflow TENSORQTL_eqtls{
           }
       }
 
-
-      // if (params.TensorQTL.aggregation_subentry != '') {
-      //     log.info("------- Analysing ${params.SAIGE.aggregation_subentry} celltypes ------- ")
-      //     // Split the aggregation_subentry parameter into a list of patterns
-      //     valid_files = phenotype_file.filter { file ->
-      //         params.SAIGE.aggregation_subentry.split(',').any { pattern -> "${file}".contains("__${pattern}__") }
-      //     }
-      // } else {
-      //     log.info('------- Analysing all celltypes ------- ')
-      //     valid_files = phenotype_file
-      // }
-
-      // dMean__CD4_Naive_all, /lustre/scratch127/humgen/teams/hgi/mo11/tmp_projects127/sle_project/8.eqtl_analysis/work/6b/2a35dfd61dcea16e2a43d45eaffd0d/Expression_Data.bed.gz, /lustre/scratch127/humgen/teams/hgi/mo11/tmp_projects127/sle_project/8.eqtl_analysis/work/6b/2a35dfd61dcea16e2a43d45eaffd0d/Covariates.tsv, 20pcs, /software/hgi/pipelines/QTLight/QTLight_v1.41/assets/fake_file.fq
-      // plink_genotype.subscribe { println "TENSORQTL dist: $it" }
       TENSORQTL(
           condition_bed,
           plink_genotype,

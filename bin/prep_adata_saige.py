@@ -30,12 +30,44 @@ import re
 # from pysctransform import vst, get_hvg_residuals, SCTransform
 # Define covariate process function
 def preprocess_covariates(df, scale_covariates):
-    processed_df = pd.get_dummies(df, drop_first=True)  # One-hot encode all categorical columns
+    import re
+    from sklearn.preprocessing import StandardScaler
+
+    # Drop all-NaN columns
+    # df = df.dropna(axis=1, how='all')
+
+    # One-hot encode categorical variables
+    processed_df = pd.get_dummies(df, drop_first=False, dummy_na=False).astype(int)
+
+    # Sanitize column names and ensure uniqueness
+    def sanitize(col):
+        return re.sub(r'\W+', '_', str(col)).strip('_')
+
+    sanitized_columns = [sanitize(col) for col in processed_df.columns]
+
+    # Ensure uniqueness by appending suffixes to duplicates
+    seen = {}
+    unique_columns = []
+    for col in sanitized_columns:
+        if col in seen:
+            seen[col] += 1
+            col = f"{col}_{seen[col]}"
+        else:
+            seen[col] = 0
+        unique_columns.append(col)
+
+    processed_df.columns = unique_columns
+
+    # Scale numeric columns if requested
     if scale_covariates == "true":
         scaler = StandardScaler()
-        for column in processed_df.select_dtypes(include=['float64']).columns:
-            processed_df[column] = scaler.fit_transform(processed_df[[column]])
+        float_cols = processed_df.select_dtypes(include=['float64', 'int']).columns
+        if len(float_cols) > 0:
+            processed_df[float_cols] = scaler.fit_transform(processed_df[float_cols])
+
+
     return processed_df
+
 
 
 def quantile_normalize_vector(x):
@@ -187,13 +219,15 @@ def main():
         geno_pcs = geno_pcs.set_index("#IID")
     except:
         geno_pcs = geno_pcs.set_index("IID")
+    geno_pcs.index = geno_pcs.index.astype(str)
     # geno_pcs = geno_pcs.iloc[:,1:]
     geno_pcs.reset_index(inplace=True)
     geno_pcs.rename(columns={"#IID": genotype_id,"IID": genotype_id}, inplace=True)
     geno_pcs.rename(columns={"#FID": genotype_id,"IID": genotype_id}, inplace=True)
     geno_pcs = geno_pcs.set_index(genotype_id)
-
+    geno_pcs.index = geno_pcs.index.astype(str)
     for aggregate_on in aggregate_on_all.split(','):
+        adata.obs[aggregate_on] = adata.obs[aggregate_on].str.replace(r'[^a-zA-Z0-9]', '_', regex=True)
         levels = set(adata.obs[aggregate_on].unique())
         l1 = len(levels)
         conditions=set(condition.split(','))
@@ -230,7 +264,7 @@ def main():
                 gc.collect() 
                 
             if bridge:
-                br1 = pd.read_csv(bridge, sep='\t').set_index('RNA')
+                br1 = pd.read_csv(bridge, sep='\t',dtype={'Genotype': str,'RNA':str}).set_index('RNA')
                 br2 = temp.obs[genotype_id].map(br1['Genotype'])
                 if br2.isna().all():
                     print('bridge not used')
@@ -280,9 +314,7 @@ def main():
                 # filtered_counts[genotype_id] = genotype_ids
                 counts = filtered_counts
                 del counts_data, summed_counts, genotype_ids, unique_genotypes, count_per_column  # Free memory
-            
-            print('Applying inverse normal transformation')    
-            
+
             print(f"Final shape is: {counts.shape}") 
             if (any(np.array(counts.shape) < 2)):
                 print(f"Final shape is not acceptable, skipping this phenotype: {counts.shape}")
@@ -293,8 +325,9 @@ def main():
                 print("Extracting and sorting covariates")
                 try:
                     to_add = preprocess_covariates(temp.obs[covariates], scale_covariates)
+                    to_add = to_add.loc[:, ~to_add.columns.duplicated()]
                     counts = counts.join(to_add)
-                    covariates_string = ','+inherited_options.covariates
+                    covariates_string = ','+','.join(to_add.columns)
                 except:
                     print(f'{covariates} at least one of these do not exist')
             
@@ -311,9 +344,6 @@ def main():
             with open(f"{savedir}/test_genes.txt", 'w') as file:
                 file.write("\n".join(counts.columns))
 
-            
-            
-
             print("Saving")
             with open(f"{savedir}/covariates.txt", 'w') as file:
                     file.write(f"{covariates_string}\n")  
@@ -321,6 +351,10 @@ def main():
             # gene_savdir = f"{savedir}/per_gene_input_files"
             # os.makedirs(gene_savdir, exist_ok=True)
             counts.set_index(genotype_id).to_csv(f"{savedir}/saige_filt_expr_input.tsv", sep="\t", index=True, chunksize=50000)
+            # cleaned = re.sub(r'\W+', '_', genotype_id)
+            # counts = counts.rename(columns={genotype_id: cleaned})
+            # counts.set_index(cleaned).to_csv(f"{savedir}/saige_filt_expr_input.tsv", sep="\t", index=True, chunksize=50000)
+
 
             del counts
             del temp

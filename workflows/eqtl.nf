@@ -1,7 +1,7 @@
 
 
 include {PREPROCESS_GENOTYPES} from '../modules/local/preprocess_genotypes/main' 
-include {PLINK_CONVERT;PGEN_CONVERT;BGEN_CONVERT} from '../modules/local/plink_convert/main' 
+include {PLINK_CONVERT;PGEN_CONVERT;BGEN_CONVERT; PGEN_TO_BED_CONVERT_FOR_QTLS; PGEN_TO_BED_CONVERT_FOR_GRM} from '../modules/local/plink_convert/main' 
 include {SUBSET_GENOTYPE} from '../modules/local/subset_genotype/main' 
 include {GENOTYPE_PC_CALCULATION} from '../modules/local/genotype_pc_calculation/main' 
 include {SPLIT_PHENOTYPE_DATA} from '../modules/local/split_phenotype_data/main' 
@@ -12,8 +12,9 @@ include {NORMALISE_ANNDATA; REMAP_GENOTPE_ID} from '../modules/local/normalise_a
 include {AGGREGATE_UMI_COUNTS; SPLIT_AGGREGATION_ADATA; ORGANISE_AGGREGATED_FILES} from '../modules/local/aggregate_UMI_counts/main'
 include {PREPERE_EXP_BED;PREPERE_COVARIATES; PREP_SAIGE_COVS} from '../modules/local/prepere_exp_bed/main'
 include {TENSORQTL_eqtls} from '../modules/local/tensorqtl/main'
+include {JAXQTL_eqtls} from '../modules/local/jaxqtl/main'
 include {SAIGE_qtls} from '../modules/local/saige/main'
-include {SUBSET_PCS} from '../modules/local/covar_processing/main'
+include {SUBSET_PCS; MERGE_COVARIATES} from '../modules/local/covar_processing/main'
 include {KINSHIP_CALCULATION} from "$projectDir/modules/local/kinship_calculation/main"
 
 /*
@@ -58,8 +59,17 @@ workflow EQTL {
             }
             
             if (params.split_aggregation_adata){
-                SPLIT_AGGREGATION_ADATA(pheno,params.aggregation_columns)
-                adata = SPLIT_AGGREGATION_ADATA.out.split_phenotypes.flatten()
+                if (params.existing_split_adata_dir && file(params.existing_split_adata_dir).exists()) {
+                    log.info "Using user-provided split AnnData files from: ${params.existing_split_adata_dir}"
+                    // Get all h5ad files from the provided directory
+                    adata = Channel.fromPath("${params.existing_split_adata_dir}/*.h5ad")
+                } else {
+                    log.info "No precomputed split files provided, running SPLIT_AGGREGATION_ADATA"
+                    // Run the module that generates splits
+                    SPLIT_AGGREGATION_ADATA(pheno, params.aggregation_columns)
+                    // Flatten outputs
+                    adata = SPLIT_AGGREGATION_ADATA.out.split_phenotypes.flatten()
+                }
             }else{
                 adata = pheno
             }   
@@ -72,13 +82,24 @@ workflow EQTL {
                 splits_h5ad = adata
             }
         
-            AGGREGATE_UMI_COUNTS(splits_h5ad,params.aggregation_columns,params.gt_id_column,params.sample_column,params.n_min_cells,params.n_min_individ)
-            phenotype_genotype_file = AGGREGATE_UMI_COUNTS.out.phenotype_genotype_file
-            genotype_phenotype_mappings = AGGREGATE_UMI_COUNTS.out.genotype_phenotype_mapping.flatten()
+            if (!params.SAIGE.run || params.TensorQTL.run || params.LIMIX.run || params.JAXQTL.run) {
+                AGGREGATE_UMI_COUNTS(splits_h5ad, params.aggregation_columns, params.gt_id_column, params.sample_column, params.n_min_cells, params.n_min_individ)
+                covariates_by_name = AGGREGATE_UMI_COUNTS.out.sample_covariates.map { file ->
+                    def fname = file.getBaseName().replaceAll(/___sample_covariates/, '')
+                    return tuple(fname, file)
+                }
+                phenotype_genotype_file = AGGREGATE_UMI_COUNTS.out.phenotype_genotype_file
+                genotype_phenotype_mappings = AGGREGATE_UMI_COUNTS.out.genotype_phenotype_mapping.flatten()
+            } else {
+                log.info "Skipping AGGREGATE_UMI_COUNTS — only SAIGE is enabled"
+                phenotype_genotype_file = Channel.empty()
+                genotype_phenotype_mappings = Channel.empty()
+                covariates_by_name = Channel.empty()
+            }
         }else{
             log.info "Looking for existing files '___phenotype_file.tsv' and '___genotype_phenotype_mapping.tsv' in ${params.pre_aggregated_counts_folder}/*/*phenotype_file.tsv"
             Channel
-                .fromPath(params.pre_aggregated_counts_folder+'/*/*___phenotype_file.tsv').ifEmpty { error "No FASTQ files found in data/ directory" }
+                .fromPath(params.pre_aggregated_counts_folder+'/*/*___phenotype_file.tsv').ifEmpty { error "No files found in data/ directory" }
                 .map{file1 ->
                     def parts = "${file1}".split('___')
                     def name_pre = parts[ parts.size() - 2 ]
@@ -89,6 +110,18 @@ workflow EQTL {
                     tuple( name, file(file1), file(replacedFullPath) )  }
                 .set { phenotype_genotype_file }
             
+            Channel
+                .fromPath(params.pre_aggregated_counts_folder + '/*/*___sample_covariates.tsv')
+                .ifEmpty { error "No sample_covariates files found in ${params.pre_aggregated_counts_folder}" }
+                .map { file1 ->
+                    def parts = "${file1}".split('___')
+                    def name_pre = parts[ parts.size() - 2 ]
+                    def name_parts = "${name_pre}".split('/')
+                    def name = name_parts[ name_parts.size() - 1 ]
+                    tuple(name, file(file1))
+                }
+                .set { covariates_by_name }
+                
             Channel
                 .fromPath(params.pre_aggregated_counts_folder+'/*/*___phenotype_file.tsv').ifEmpty { error "No FASTQ files found in data/ directory" }
                 .map{file1 ->
@@ -106,19 +139,17 @@ workflow EQTL {
             umi_counts_phenotype_genotype_file = phenotype_genotype_file
         }
 
-        if (params.TensorQTL.aggregation_subentry != '') {
-            log.info("------- Analysing ${params.TensorQTL.aggregation_subentry} celltypes ------- ")
-            // Split the aggregation_subentry parameter into a list of patterns
+        if (params.analysis_subentry != '') {
+            log.info("------- Analysing ${params.analysis_subentry} celltypes ------- ")
+            // Split the analysis_subentry parameter into a list of patterns
             valid_files = umi_counts_phenotype_genotype_file
                 .filter { tuple -> 
                     def (sample, file, gp_mapping) = tuple
-                    def matches = params.TensorQTL.aggregation_subentry.split(',').any { pattern -> "${file}".contains("__${pattern}__") }
+                    def matches = params.analysis_subentry.split(',').any { pattern -> "${file}".contains("__${pattern}__") }
 
                     if (matches) {
                         println "MATCH: Sample=${sample}, File=${file}, GO Mapping=${gp_mapping}"
-                    } else {
-                        println "NO MATCH: Sample=${sample}, File=${file}, GO Mapping=${gp_mapping}"
-                    }
+                    } 
                     return matches
                 }
         } else {
@@ -149,7 +180,6 @@ workflow EQTL {
             genotype_phenotype_mapping_file = genotype_phenotype_mappings.flatten()
         }
 
-        // phenotype_genotype_file.subscribe { println "phenotype_genotype_file: $it" }
         genotype_phenotype_mapping_file.splitCsv(header: true, sep: params.input_tables_column_delimiter)
             .map{row->tuple(row.Genotype)}.distinct()
             .set{channel_input_data_table2}
@@ -177,15 +207,38 @@ workflow EQTL {
             plink_convert_input=subset_genotypes  
         }
     }else{
-        plink_convert_input=Channel.of()
+        if (params.genotypes.preprocessed_pgen_file==''){
+            plink_convert_input=Channel.of()
+        }else{
+            plink_convert_input=Channel.from(params.genotypes.preprocessed_pgen_file)
+        }
     }
 
-    if (params.SAIGE.run || (params.genotypes.use_gt_dosage == false)) {
+    // This block is necesary for Saige as it needs BED for GRM construction and if we dont use dosages we also need this for the QTL matrix construction
+    if (params.SAIGE.run || (params.genotypes.use_gt_dosage == false) || params.JAXQTL.run) {
         if (params.genotypes.preprocessed_bed_file==''){
-            // BED file preparation
-            PLINK_CONVERT(plink_convert_input)
-            bim_bed_fam = PLINK_CONVERT.out.bim_bed_fam
-            plink_path_bed = PLINK_CONVERT.out.plink_path
+            if (params.input_vcf){
+                // BED file preparation
+                PLINK_CONVERT(plink_convert_input)
+                bim_bed_fam = PLINK_CONVERT.out.bim_bed_fam
+                plink_path_bed = PLINK_CONVERT.out.plink_path
+                bim_bed_fam__GRM    = bim_bed_fam
+                plink_path_bed__GRM = plink_path_bed
+            }else if (params.genotypes.preprocessed_pgen_file != '') {
+                // BED file preparation from preprocessed PGEN
+                log.info "PGEN provided and BED needed — converting with PGEN_TO_BED_CONVERT"
+                plink_path_pgen = Channel.from(params.genotypes.preprocessed_pgen_file)
+
+                // Here we are creating two bed files - 1 that goes to QTL analysis for tools that only support BED formated genotypes and the other goes to GRM construction
+                PGEN_TO_BED_CONVERT_FOR_QTLS(plink_path_pgen)
+                bim_bed_fam    = PGEN_TO_BED_CONVERT_FOR_QTLS.out.bim_bed_fam
+                plink_path_bed = PGEN_TO_BED_CONVERT_FOR_QTLS.out.plink_path_bed
+
+                PGEN_TO_BED_CONVERT_FOR_GRM(plink_path_pgen)
+                bim_bed_fam__GRM    = PGEN_TO_BED_CONVERT_FOR_GRM.out.bim_bed_fam
+                plink_path_bed__GRM = PGEN_TO_BED_CONVERT_FOR_GRM.out.plink_path_bed
+            }
+
         }else{
             plink_path_bed = Channel.from(params.genotypes.preprocessed_bed_file)
             Channel.fromPath("${params.genotypes.preprocessed_bed_file}/*.bed", followLinks: true)
@@ -198,7 +251,9 @@ workflow EQTL {
                 .set { fam_files }
             bim_bed_fam = bim_files
                         .combine(bed_files)
-                        .combine(fam_files)  
+                        .combine(fam_files) 
+            bim_bed_fam__GRM    = bim_bed_fam
+            plink_path_bed__GRM = plink_path_bed 
         }
     }
 
@@ -238,26 +293,48 @@ workflow EQTL {
     NORMALISE_and_PCA_PHENOTYPE(phenotype_condition)
     Channel.of(params.covariates.nr_phenotype_pcs).splitCsv().flatten().set{pcs}
     NORMALISE_and_PCA_PHENOTYPE.out.for_bed.combine(pcs).set{test123}
+         
     SUBSET_PCS(test123)
+
+    // covariates_by_name.subscribe { println "covariates_by_name: $it" }
+
+    if (params.covariates.adata_obs_covariate){
+        test123_fixed = SUBSET_PCS.out.for_bed.map { row ->
+            def pheno_full = row[0]
+            def pheno_core = pheno_full.contains('__') ? pheno_full.split('__')[0..-2].join('__') : pheno_full
+            tuple(pheno_core, row[0],row[1],row[2],row[3])  // [matching_key, full_row]
+        }
+        // test123_fixed.subscribe { println "test123_fixed: $it" }
+       
+        test123_fixed.combine(covariates_by_name,by:0).set{for_covs_merge}
+        
+        MERGE_COVARIATES(for_covs_merge)
+        for_bed = MERGE_COVARIATES.out.for_bed_covs
+    }else{
+        for_bed = SUBSET_PCS.out.for_bed
+    }
+
+
+    if(params.genotypes.use_gt_dosage && (params.LIMIX.run || params.SAIGE.run )){
+        if (params.genotypes.preprocessed_bgen_file==''){
+            BGEN_CONVERT(plink_convert_input)
+            plink_path_limix = BGEN_CONVERT.out.plink_path
+            genotypes_saige =  BGEN_CONVERT.out.plink_path
+        }else{
+            plink_path_limix = Channel.from(params.genotypes.preprocessed_bgen_file)
+            genotypes_saige = Channel.from(params.genotypes.preprocessed_bgen_file)
+        }
+    }else if (params.LIMIX.run || params.SAIGE.run){
+        plink_path_limix = plink_path_bed
+        genotypes_saige = plink_path_bed
+    }
 
     // LIMIX QTL mapping method
     if (params.LIMIX.run){
         KINSHIP_CALCULATION(plink_path)
         kinship_file = KINSHIP_CALCULATION.out.kinship_matrix
 
-        
-            if(params.genotypes.use_gt_dosage){
-                if (params.genotypes.preprocessed_bgen_file==''){
-                    BGEN_CONVERT(plink_convert_input)
-                    plink_path_limix = BGEN_CONVERT.out.plink_path
-                }else{
-                    plink_path_limix = Channel.from(params.genotypes.preprocessed_bgen_file)
-                }
-            }else{
-                plink_path_limix = plink_path_bed
-            }
-
-        filtered_pheno_channel = SUBSET_PCS.out.for_bed.map { tuple ->  
+        filtered_pheno_channel = for_bed.map { tuple ->  
             [tuple[3], [tuple[0], tuple[1], tuple[2]]]
         }.flatten().collate(4)
 
@@ -269,18 +346,31 @@ workflow EQTL {
         )
     }
 
-    for_bed_channel = SUBSET_PCS.out.for_bed.map { tuple ->  [tuple[3],[[tuple[0],tuple[1],tuple[2]]]]}.flatten().collate(4)
+    for_bed_channel = for_bed.map { tuple ->  [tuple[3],[[tuple[0],tuple[1],tuple[2]]]]}.flatten().collate(4)
+    
     PREPERE_COVARIATES(for_bed_channel,genotype_pcs_file)
     covs = PREPERE_COVARIATES.out.exp_bed
 
-    if (params.TensorQTL.run){
-        PREPERE_EXP_BED(for_bed_channel,genome_annotation)
-        beds = PREPERE_EXP_BED.out.exp_bed
-        beds.combine(covs,by:0).set{tensorqtl_input}
+    PREPERE_EXP_BED(for_bed_channel,genome_annotation)
+    beds = PREPERE_EXP_BED.out.exp_bed
+    beds.combine(covs,by:0).set{tensorqtl_input}
 
+    tensorqtl_input_ch_cleaned = tensorqtl_input.map { items ->
+        def new_first = items[0].replaceFirst(/__[^_]+pcs\.tsv$/, '')
+        [new_first, *items[1..-1]]
+    }
+
+    if (params.TensorQTL.run){
         TENSORQTL_eqtls(
-            tensorqtl_input,
+            tensorqtl_input_ch_cleaned,
             plink_path,
+        )
+    }
+
+    if (params.JAXQTL.run){
+        JAXQTL_eqtls(
+            tensorqtl_input,
+            plink_path_bed,
         )
     }
 
@@ -299,7 +389,8 @@ workflow EQTL {
                 extra_covariates_file = Channel.fromPath(params.covariates.extra_covariates_file, followLinks: true, checkIfExists: true)
             }
             covs_Saige = PREP_SAIGE_COVS(genotype_pcs_file,extra_covariates_file)
-            SAIGE_qtls(covs_Saige,adata,bim_bed_fam,genome_annotation,saige_genotype_phenotype_mapping_file)
+
+            SAIGE_qtls(covs_Saige,adata,plink_path_bed__GRM,plink_path_bed,genotypes_saige,genome_annotation,saige_genotype_phenotype_mapping_file)
         }
     }
 
