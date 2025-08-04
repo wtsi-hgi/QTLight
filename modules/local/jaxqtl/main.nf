@@ -131,12 +131,17 @@ workflow JAXQTL_eqtls{
           'cis'
       )
 
-      inp_ch2 = JAXQTL.out.qtl_data
+    // pre = JAXQTL.out.qtl_data
+    //     .map { cond, files ->
+    //         def safeList = (files instanceof List) ? files : [files]
+    //         tuple(cond, safeList)
+    //     }
+
+    inp_ch2 = JAXQTL.out.qtl_data
         .groupTuple(by: 0)
-        .map { cond, files -> tuple(cond, files.unique { it.toString() }) }
 
-      // Combine results and do Qval correction
-
+    //   pre.subscribe { println "pre: $it" }
+    //   inp_ch2.subscribe { println "inp_ch2: $it" }
       AGGREGATE_QTL_RESULTS(inp_ch2) // QTL results are then aggregated.
       all_basic_results = AGGREGATE_QTL_RESULTS.out.jax_qtl_path
         .groupTuple(by: 0)
