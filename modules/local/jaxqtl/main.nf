@@ -131,17 +131,24 @@ workflow JAXQTL_eqtls{
           'cis'
       )
 
-    // pre = JAXQTL.out.qtl_data
-    //     .map { cond, files ->
-    //         def safeList = (files instanceof List) ? files : [files]
-    //         tuple(cond, safeList)
-    //     }
+      JAXQTL.out.qtl_data
+        .groupTuple(by: 0)  // group by the first element (e.g. 'dSum__NK_Prolif__all__proc_4pcs.tsv__proc_4pcs')
+        .map { key, vals -> 
+            def all_files = vals.collect { it[1] }  // extract just the paths
+            tuple(key, all_files)
+        }
+        .set { inp_ch2 }
 
-    inp_ch2 = JAXQTL.out.qtl_data
-        .groupTuple(by: 0)
+        inp_ch2
+            .collect()
+            .subscribe { it -> 
+                println "inp_ch2 (grouped): ${it[0]} -->"
+                it[1].each { println "  ${it}" }
+            }
 
-    //   pre.subscribe { println "pre: $it" }
-    //   inp_ch2.subscribe { println "inp_ch2: $it" }
+      // Combine results and do Qval correction
+        JAXQTL.out.qtl_data.subscribe { println "JAXQTL.out.qtl_data: $it" }
+      inp_ch2.subscribe { println "inp_ch2: $it" }
       AGGREGATE_QTL_RESULTS(inp_ch2) // QTL results are then aggregated.
       all_basic_results = AGGREGATE_QTL_RESULTS.out.jax_qtl_path
         .groupTuple(by: 0)

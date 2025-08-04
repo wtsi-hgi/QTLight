@@ -540,7 +540,7 @@ process AGGREGATE_QTL_ALLVARS{
     }    
     
 
-    publishDir  path: "${params.outdir}/Saige_eQTLS/${exp}",
+    publishDir  path: "${params.outdir}/Saige_eQTLS/${exp}/nominal",
                 mode: "${params.copy_mode}",
                 overwrite: "true"
 
