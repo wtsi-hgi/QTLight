@@ -134,27 +134,21 @@ workflow JAXQTL_eqtls{
       JAXQTL.out.qtl_data
         .groupTuple(by: 0)  // group by the first element (e.g. 'dSum__NK_Prolif__all__proc_4pcs.tsv__proc_4pcs')
         .map { key, vals -> 
-            def all_files = vals.collect { it[1] }  // extract just the paths
+            def all_files = vals.collect { it }  // extract just the paths
             tuple(key, all_files)
         }
         .set { inp_ch2 }
 
-        inp_ch2
-            .collect()
-            .subscribe { it -> 
-                println "inp_ch2 (grouped): ${it[0]} -->"
-                it[1].each { println "  ${it}" }
-            }
-
       // Combine results and do Qval correction
-        JAXQTL.out.qtl_data.subscribe { println "JAXQTL.out.qtl_data: $it" }
-      inp_ch2.subscribe { println "inp_ch2: $it" }
+
       AGGREGATE_QTL_RESULTS(inp_ch2) // QTL results are then aggregated.
       all_basic_results = AGGREGATE_QTL_RESULTS.out.jax_qtl_path
         .groupTuple(by: 0)
       // Estimate the OptimPCs
       OPTIM_PCS(all_basic_results)
       optimal_pc_file = OPTIM_PCS.out.optimal_pc_file
+    //   result.subscribe { println "result: $it" }
+
       optimal_pc_file
         .map { condition, file ->
             def content = file.text.trim()
@@ -165,7 +159,21 @@ workflow JAXQTL_eqtls{
             }
         }
         .filter { it != null } // Skip if file was empty
-        .set { optimal_pc_values }
+        .set { optimal_pc_values1 }
+
+      optimal_pc_file
+        .map { condition, file ->
+            def content = file.text.trim()
+            if (content) {
+            return ["${condition}__proc_${content}pcs.tsv"]
+            } else {
+            return null
+            }
+        }
+        .filter { it != null } // Skip if file was empty
+        .set { optimal_pc_values2 }
+    optimal_pc_values = optimal_pc_values1.mix(optimal_pc_values2)
+
 
       results_for_nominal = result.combine(optimal_pc_values,by:0)
 

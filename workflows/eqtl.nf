@@ -83,7 +83,26 @@ workflow EQTL {
             }
         
             if (!params.SAIGE.run || params.TensorQTL.run || params.LIMIX.run || params.JAXQTL.run) {
-                AGGREGATE_UMI_COUNTS(splits_h5ad, params.aggregation_columns, params.gt_id_column, params.sample_column, params.n_min_cells, params.n_min_individ)
+
+                if (params.analysis_subentry != '') {
+                    log.info("------- Analysing ${params.analysis_subentry} celltypes ------- ")
+                    // Split the analysis_subentry parameter into a list of patterns
+                    splits_h5ad2 = splits_h5ad
+                        .filter { file -> 
+                            
+                            def matches = params.analysis_subentry.split(',').any { pattern -> "${file}".contains("__${pattern}__") }
+
+                            if (matches) {
+                                println "MATCH: File=${file}"
+                            } 
+                            return matches
+                        }
+                } else {
+                    log.info('------- Analysing all celltypes ------- ')
+                    valid_files =  umi_counts_phenotype_genotype_file
+                }
+
+                AGGREGATE_UMI_COUNTS(splits_h5ad2, params.aggregation_columns, params.gt_id_column, params.sample_column, params.n_min_cells, params.n_min_individ)
                 covariates_by_name = AGGREGATE_UMI_COUNTS.out.sample_covariates.map { file ->
                     def fname = file.getBaseName().replaceAll(/___sample_covariates/, '')
                     return tuple(fname, file)
