@@ -131,9 +131,13 @@ workflow JAXQTL_eqtls{
           'cis'
       )
 
-      inp_ch2 = JAXQTL.out.qtl_data
-        .groupTuple(by: 0)
-        .map { cond, files -> tuple(cond, files.unique { it.toString() }) }
+      JAXQTL.out.qtl_data
+        .groupTuple(by: 0)  // group by the first element (e.g. 'dSum__NK_Prolif__all__proc_4pcs.tsv__proc_4pcs')
+        .map { key, vals -> 
+            def all_files = vals.collect { it }  // extract just the paths
+            tuple(key, all_files)
+        }
+        .set { inp_ch2 }
 
       // Combine results and do Qval correction
 
@@ -143,6 +147,7 @@ workflow JAXQTL_eqtls{
       // Estimate the OptimPCs
       OPTIM_PCS(all_basic_results)
       optimal_pc_file = OPTIM_PCS.out.optimal_pc_file
+
       optimal_pc_file
         .map { condition, file ->
             def content = file.text.trim()
@@ -153,7 +158,21 @@ workflow JAXQTL_eqtls{
             }
         }
         .filter { it != null } // Skip if file was empty
-        .set { optimal_pc_values }
+        .set { optimal_pc_values1 }
+
+      optimal_pc_file
+        .map { condition, file ->
+            def content = file.text.trim()
+            if (content) {
+            return ["${condition}__proc_${content}pcs.tsv"]
+            } else {
+            return null
+            }
+        }
+        .filter { it != null } // Skip if file was empty
+        .set { optimal_pc_values2 }
+        optimal_pc_values = optimal_pc_values1.mix(optimal_pc_values2)
+
 
       results_for_nominal = result.combine(optimal_pc_values,by:0)
 
