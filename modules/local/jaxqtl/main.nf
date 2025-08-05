@@ -147,7 +147,6 @@ workflow JAXQTL_eqtls{
       // Estimate the OptimPCs
       OPTIM_PCS(all_basic_results)
       optimal_pc_file = OPTIM_PCS.out.optimal_pc_file
-    //   result.subscribe { println "result: $it" }
 
       optimal_pc_file
         .map { condition, file ->
@@ -172,7 +171,7 @@ workflow JAXQTL_eqtls{
         }
         .filter { it != null } // Skip if file was empty
         .set { optimal_pc_values2 }
-    optimal_pc_values = optimal_pc_values1.mix(optimal_pc_values2)
+        optimal_pc_values = optimal_pc_values1.mix(optimal_pc_values2)
 
 
       results_for_nominal = result.combine(optimal_pc_values,by:0)
