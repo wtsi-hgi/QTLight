@@ -436,7 +436,7 @@ def main():
                                                     phenotype_df.loc[phenotype_df_genes],       
                                                     phenotype_pos_df.loc[phenotype_df_genes],
                                                     nperm=int(options.nperm), window=int(options.window),
-                                                    covariates_df=covariates_df,maf_threshold=maf,seed=7)
+                                                    covariates_df=covariates_df.loc[phenotype_df.columns],maf_threshold=maf,seed=7)
                     indep_df.to_csv(f"{outdir}/Cis_eqtls_independent.tsv",sep="\t",index=False)
                 except:
                     print("No significant phenotypes for cis.map_independent")
