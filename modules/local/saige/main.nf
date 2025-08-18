@@ -45,6 +45,7 @@ process CONDITIONAL_QTL {
                     --GMMATmodelFile=\${step1prefix}_\${variable}.rda    \
                     --SPAcutoff=${params.SAIGE.SPAcutoff} \
                     --condition=\$topvariant \
+                    --max_MAC_for_ER=${params.SAIGE.max_MAC_for_ER} ${params.SAIGE.step2_extra_flags} \
                     --markers_per_chunk=${params.SAIGE.markers_per_chunk} ${mode} 
 
                 if [ \$? -ne 0 ]; then
