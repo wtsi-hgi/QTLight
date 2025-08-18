@@ -326,6 +326,7 @@ process SAIGE_S2_CIS {
                 --varianceRatioFile=\${step1prefix}_\${variable}.varianceRatio.txt \
                 --GMMATmodelFile=\${step1prefix}_\${variable}.rda    \
                 --SPAcutoff=${params.SAIGE.SPAcutoff} \
+                --max_MAC_for_ER=${params.SAIGE.max_MAC_for_ER} ${params.SAIGE.step2_extra_flags} \
                 --markers_per_chunk=${params.SAIGE.markers_per_chunk} ${mode}  > "\$warning_output_file" 2>&1
                 exit_code=\$?
                 warning_output=\$(cat "\$warning_output_file")
