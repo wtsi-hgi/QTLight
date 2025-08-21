@@ -45,6 +45,7 @@ process CONDITIONAL_QTL {
                     --GMMATmodelFile=\${step1prefix}_\${variable}.rda    \
                     --SPAcutoff=${params.SAIGE.SPAcutoff} \
                     --condition=\$topvariant \
+                    --max_MAC_for_ER=${params.SAIGE.max_MAC_for_ER} ${params.SAIGE.step2_extra_flags} \
                     --markers_per_chunk=${params.SAIGE.markers_per_chunk} ${mode} 
 
                 if [ \$? -ne 0 ]; then
@@ -325,6 +326,7 @@ process SAIGE_S2_CIS {
                 --varianceRatioFile=\${step1prefix}_\${variable}.varianceRatio.txt \
                 --GMMATmodelFile=\${step1prefix}_\${variable}.rda    \
                 --SPAcutoff=${params.SAIGE.SPAcutoff} \
+                --max_MAC_for_ER=${params.SAIGE.max_MAC_for_ER} ${params.SAIGE.step2_extra_flags} \
                 --markers_per_chunk=${params.SAIGE.markers_per_chunk} ${mode}  > "\$warning_output_file" 2>&1
                 exit_code=\$?
                 warning_output=\$(cat "\$warning_output_file")
@@ -888,6 +890,8 @@ workflow SAIGE_qtls{
         AGGREGATE_QTL_RESULTS(SAIGE_S3_for_aggregation.groupTuple(by: 0))
         AGGREGATE_QTL_ALLVARS(SAIGE_S2_for_aggregation.groupTuple(by: 0))
         AGGREGATE_ACAT_RESULTS(SAIGE_S3_for_aggregation_ACAT.groupTuple(by: 0))
+        
+        // TODO:
         // CONDITIONAL_QTL(SAIGE_QVAL_COR.out.for_conditioning)
 
 }

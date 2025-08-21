@@ -1,7 +1,7 @@
 jax_label = params.JAXQTL.use_gpu ? 'gpu' : "process_high_memory"   
 
 process JAXQTL {  
-    tag "$condition, $nr_phenotype_pcs"
+    tag "$condition, $nr_phenotype_pcs, $genelist"
     label "${jax_label}"
     if (workflow.containerEngine == 'singularity' && !params.singularity_pull_docker_container) {
         container "${params.jax_container}"
@@ -51,6 +51,11 @@ process JAXQTL {
         """
 
             export DISABLE_PANDERA_IMPORT_WARNING=True
+            export XLA_PYTHON_CLIENT_PREALLOCATE=false
+            export XLA_PYTHON_CLIENT_MEM_FRACTION=0.4
+            export XLA_PYTHON_CLIENT_ALLOCATOR=platform
+            export XLA_FLAGS="--xla_gpu_force_compilation_parallelism=1"
+
             plink_dir="${plink_files_prefix}"
             base_name=""
             outname=\$(basename ${genelist})

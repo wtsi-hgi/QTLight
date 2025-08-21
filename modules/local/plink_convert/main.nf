@@ -215,10 +215,86 @@ process PLINK_CONVERT{
             ext1 = "--bcf"
         }
 
-
         """
             mkdir plink_genotypes_bed
-            plink2 ${ext1} ${file__vcf} --make-bed ${params.plink2_filters} --hwe ${params.hwe} --out plink_genotypes_bed/plink_genotypes
+            mkdir plink_genotypes_tmp
+
+            # Step 1: Convert pgen to bed with relaxed hard-call threshold
+            plink2 ${ext1} ${file__vcf} \\
+                --make-bed \\
+                --hard-call-threshold ${params.genotypes.hard_call_threshold} --hwe ${params.hwe}  \\
+                --out plink_genotypes_tmp/plink_genotypes
+
+            # Step 2: Filter SNPs with missing
+            plink2 --bfile plink_genotypes_tmp/plink_genotypes \\
+                --geno ${params.genotypes.geno} \\
+                --make-bed \\
+                --out plink_genotypes_bed/plink_genotypes
+            rm -r plink_genotypes_tmp
+
+        """
+    
+}
+
+process PLINK_CONVERT__GRM{
+    
+    // Converts VCF to PLINK format, makes bed/bim/fam if use_gt_dosage param is false
+    // otherwise makes pgen/psam/pvar with dosages
+
+    scratch false      // use tmp directory
+    label 'process_medium'
+    if (workflow.containerEngine == 'singularity' && !params.singularity_pull_docker_container) {
+        container "${params.eqtl_container}"
+
+    publishDir  path: "${params.outdir}/genotypes",
+                mode: "${params.copy_mode}",
+                overwrite: "true"        
+        
+    } else {
+        container "${params.eqtl_docker}"
+    }
+
+    input:
+        path(file__vcf)
+    output:
+        path("plink_genotypes_bed"), emit: plink_path
+        tuple path("plink_genotypes_bed/plink_genotypes.bim"),path("plink_genotypes_bed/plink_genotypes.bed"),path("plink_genotypes_bed/plink_genotypes.fam"), emit: bim_bed_fam
+
+    script:
+        if ("${file__vcf}".contains(".vcf")) {
+            ext1 = "--vcf"
+        } else {
+            ext1 = "--bcf"
+        }
+
+
+        """
+            mkdir -p plink_genotypes_bed
+
+            # Step 1: Convert PGEN to BED with hard-call threshold
+            plink2 ${ext1} ${file__vcf}  \\
+                --hard-call-threshold 0.05 \\
+                --make-bed \\
+                --out plink_genotypes_bed/tmp_hardcall
+
+            # Step 2: Filter missingness (approximate --geno 0.01)
+            plink2 --bfile plink_genotypes_bed/tmp_hardcall \\
+                --geno 0.01 \\
+                --make-bed \\
+                --out plink_genotypes_bed/tmp_filtered
+
+            # Step 3: LD pruning
+            plink2 --bfile plink_genotypes_bed/tmp_filtered \\
+                ${params.covariates.genotype_pc_filters} \\
+                --out plink_genotypes_bed/prune
+
+            # Step 4: Extract pruned SNPs
+            plink2 --bfile plink_genotypes_bed/tmp_filtered \\
+                --extract plink_genotypes_bed/prune.prune.in \\
+                --make-bed \\
+                --out plink_genotypes_bed/plink_genotypes
+
+            rm plink_genotypes_bed/tmp_hardcall.* plink_genotypes_bed/tmp_filtered.*
 
         """
     
