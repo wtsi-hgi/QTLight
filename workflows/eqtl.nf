@@ -449,6 +449,7 @@ workflow EQTL {
                         .combine(fam_files) 
             bim_bed_fam__GRM    = bim_bed_fam
             plink_path_bed__GRM = plink_path_bed 
+            // TODO: need GRM and association PLINK1 option
         }
     }
 
@@ -716,7 +717,7 @@ workflow EQTL {
             plink_path_bed,
         )
     }
-    
+
     // --- SAIGE single-cell QTL mapping ---
     // Controlled by: `params.SAIGE.run` and `params.method == 'single_cell'`.
     //
