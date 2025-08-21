@@ -56,10 +56,6 @@ process JAXQTL {
             export XLA_PYTHON_CLIENT_ALLOCATOR=platform
             export XLA_FLAGS="--xla_gpu_force_compilation_parallelism=1"
 
-            # optional: localize temp files for speed
-            export TMPDIR=/tmp/\$USER/tmp_jax
-            mkdir -p \$TMPDIR
-
             plink_dir="${plink_files_prefix}"
             base_name=""
             outname=\$(basename ${genelist})

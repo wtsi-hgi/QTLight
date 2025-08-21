@@ -1,7 +1,7 @@
 
 
 include {PREPROCESS_GENOTYPES} from '../modules/local/preprocess_genotypes/main' 
-include {PLINK_CONVERT;PGEN_CONVERT;BGEN_CONVERT; PGEN_TO_BED_CONVERT_FOR_QTLS; PGEN_TO_BED_CONVERT_FOR_GRM} from '../modules/local/plink_convert/main' 
+include {PLINK_CONVERT;PLINK_CONVERT__GRM;PGEN_CONVERT;BGEN_CONVERT; PGEN_TO_BED_CONVERT_FOR_QTLS; PGEN_TO_BED_CONVERT_FOR_GRM} from '../modules/local/plink_convert/main' 
 include {SUBSET_GENOTYPE} from '../modules/local/subset_genotype/main' 
 include {GENOTYPE_PC_CALCULATION} from '../modules/local/genotype_pc_calculation/main' 
 include {SPLIT_PHENOTYPE_DATA} from '../modules/local/split_phenotype_data/main' 
@@ -51,7 +51,7 @@ workflow EQTL {
         log.info '------ Scrna analysis ------'
         if (params.pre_aggregated_counts_folder==''){    
             if (params.normalise_before_or_after_aggregation=='before'){
-                // here we normalise the adata all together per splits
+                log.info '------ We are normalising the entire andata together prior spliting by condition defined by  params.aggregation_columns------'
                 NORMALISE_ANNDATA(params.phenotype_file)
                 pheno = NORMALISE_ANNDATA.out.adata
             }else{
@@ -76,6 +76,7 @@ workflow EQTL {
             
             if (params.normalise_before_or_after_aggregation=='after'){
                 // here we normalise the adata per splits
+                log.info '------ We are normalising the split andata defined by params.aggregation_columns------'
                 NORMALISE_ANNDATA(adata)
                 splits_h5ad = NORMALISE_ANNDATA.out.adata
             }else{
@@ -83,15 +84,13 @@ workflow EQTL {
             }
         
             if (!params.SAIGE.run || params.TensorQTL.run || params.LIMIX.run || params.JAXQTL.run) {
-
+                log.info "performing aggregation"
                 if (params.analysis_subentry != '') {
                     log.info("------- Analysing ${params.analysis_subentry} celltypes ------- ")
                     // Split the analysis_subentry parameter into a list of patterns
                     splits_h5ad2 = splits_h5ad
                         .filter { file -> 
-                            
                             def matches = params.analysis_subentry.split(',').any { pattern -> "${file}".contains("__${pattern}__") }
-
                             if (matches) {
                                 println "MATCH: File=${file}"
                             } 
@@ -190,11 +189,13 @@ workflow EQTL {
 
         if(params.genotype_phenotype_mapping_file!=''){
             // Here user has provided a genotype phenotype file where the provided gt_id_column is contaiming a mapping file instead of actual genotype
+            log.info("------- Genotype-Phenotype mapping file provided, will remap using this file - ${params.genotype_phenotype_mapping_file} ------- ")
             mapping_ch = Channel.fromPath(params.genotype_phenotype_mapping_file)
             REMAP_GENOTPE_ID(out2.combine(mapping_ch))
             phenotype_condition = REMAP_GENOTPE_ID.out.remap_genotype_phenotype_mapping
             genotype_phenotype_mapping_file = REMAP_GENOTPE_ID.out.genotype_phenotype_mapping
         }else{
+            log.info("------- Genotype-Phenotype mapping file NOT provided, will asume that the ids are already correct ------- ")
             phenotype_condition = out2
             genotype_phenotype_mapping_file = genotype_phenotype_mappings.flatten()
         }
@@ -208,10 +209,12 @@ workflow EQTL {
 
     if (params.input_vcf){
         // VCF file processing
-        log.info 'Lets preprocess genotypes'
+        log.info "---- VCF file provided - ${input_vcf} Lets preprocess genotypes and aply any bcftools filters ---"
         donorsvcf = Channel.from(params.input_vcf)
         if (params.genotypes.subset_genotypes_to_available){
             // Subset genotypes to available in expression data
+            log.info "---- You have specified  ${params.genotypes.subset_genotypes_to_available} - will subset down the vcf file to only the donors available in the expression data---"
+        
             SUBSET_GENOTYPE(donorsvcf,channel_input_data_table.collect())
             subset_genotypes = SUBSET_GENOTYPE.out.samplename_subsetvcf
         }else{
@@ -220,15 +223,18 @@ workflow EQTL {
 
         if (params.genotypes.apply_bcftools_filters){
             // preprocess vcf files to be in the right format for plink
+            log.info "---- You have specified  ${params.genotypes.apply_bcftools_filters} - will apply these filters to vcf file before converting to other formats---"
             PREPROCESS_GENOTYPES(subset_genotypes)
             plink_convert_input=PREPROCESS_GENOTYPES.out.filtered_vcf
         }else{
             plink_convert_input=subset_genotypes  
         }
+
     }else{
         if (params.genotypes.preprocessed_pgen_file==''){
             plink_convert_input=Channel.of()
         }else{
+            log.info "---- pgen file provided, will prioritise this over VCF---"
             plink_convert_input=Channel.from(params.genotypes.preprocessed_pgen_file)
         }
     }
@@ -238,14 +244,17 @@ workflow EQTL {
         if (params.genotypes.preprocessed_bed_file==''){
             if (params.input_vcf){
                 // BED file preparation
+                log.info "---- Converting from vcf to plink to be used for GRMs and association testings if dosage is switched off ---"
                 PLINK_CONVERT(plink_convert_input)
+                PLINK_CONVERT__GRM(plink_convert_input)
                 bim_bed_fam = PLINK_CONVERT.out.bim_bed_fam
                 plink_path_bed = PLINK_CONVERT.out.plink_path
-                bim_bed_fam__GRM    = bim_bed_fam
-                plink_path_bed__GRM = plink_path_bed
+                bim_bed_fam__GRM = PLINK_CONVERT__GRM.out.bim_bed_fam
+                plink_path_bed__GRM = PLINK_CONVERT__GRM.out.plink_path
+
             }else if (params.genotypes.preprocessed_pgen_file != '') {
                 // BED file preparation from preprocessed PGEN
-                log.info "PGEN provided and BED needed — converting with PGEN_TO_BED_CONVERT"
+                log.info "--- PGEN provided and BED needed for GRMs — converting with PGEN_TO_BED_CONVERT ---"
                 plink_path_pgen = Channel.from(params.genotypes.preprocessed_pgen_file)
 
                 // Here we are creating two bed files - 1 that goes to QTL analysis for tools that only support BED formated genotypes and the other goes to GRM construction
@@ -259,6 +268,7 @@ workflow EQTL {
             }
 
         }else{
+            log.info "--- BED already provided (WARNING - same BED will be Used for both associations and GRM) ---"
             plink_path_bed = Channel.from(params.genotypes.preprocessed_bed_file)
             Channel.fromPath("${params.genotypes.preprocessed_bed_file}/*.bed", followLinks: true)
                 .set { bed_files }
@@ -279,25 +289,31 @@ workflow EQTL {
 
     if (params.genotypes.preprocessed_pgen_file==''){
         // USE VCF FILE
+        log.info "--- preprocessed_pgen_file does not existm will create it ---"
         PGEN_CONVERT(plink_convert_input)
         plink_path_pgen = PGEN_CONVERT.out.plink_path
     }else{
+        log.info "--- Using pgen file provided ${params.genotypes.preprocessed_pgen_file} ---"
         plink_path_pgen = Channel.from(params.genotypes.preprocessed_pgen_file)
     }
 
     // If use dosages we convert vcf to pgen
     // Otherwise we convert it to bed
     if(params.genotypes.use_gt_dosage){
+        log.info "---We are using dosages, so pgen file will be used ---"
         plink_path = plink_path_pgen
     }else{
+        log.info "---We are NOT using dosages, so plink1 file will be used ---"
         plink_path = plink_path_bed
     }
 
     // // GENOTYPE PCs
     if (params.covariates.genotype_pcs_file==''){
+        log.info "--- Calculating genotype PCs ---"
         GENOTYPE_PC_CALCULATION(plink_path)
         genotype_pcs_file = GENOTYPE_PC_CALCULATION.out.gtpca_plink
     }else{
+        log.info "--- Genotype PCs file already provided, will use this ---"
         genotype_pcs_file = Channel.fromPath(params.covariates.genotype_pcs_file)
     }
 
@@ -308,16 +324,17 @@ workflow EQTL {
     // MBV method from QTLTools (PMID 28186259)  
     // RASCAL
     
-
+    log.info "--- Normalising agregated penotype file  using: Filtering method: ${params.filter_method} Norm method: ${params.method} Inverse Transform: ${params.inverse_normal_transform} Norm method:  ${params.norm_method} Percent of Population expressed: ${params.percent_of_population_expressed} Sample PCa: ${params.use_sample_pca}---"
     NORMALISE_and_PCA_PHENOTYPE(phenotype_condition)
+    log.info "--- testing these PCs: ${params.covariates.nr_phenotype_pcs} ---"
     Channel.of(params.covariates.nr_phenotype_pcs).splitCsv().flatten().set{pcs}
     NORMALISE_and_PCA_PHENOTYPE.out.for_bed.combine(pcs).set{test123}
          
     SUBSET_PCS(test123)
 
-    // covariates_by_name.subscribe { println "covariates_by_name: $it" }
-
     if (params.covariates.adata_obs_covariate){
+        log.info "--- Extracting aditional covariates from h5ad file: ${params.covariates.adata_obs_covariate} ---"
+    
         test123_fixed = SUBSET_PCS.out.for_bed.map { row ->
             def pheno_full = row[0]
             def pheno_core = pheno_full.contains('__') ? pheno_full.split('__')[0..-2].join('__') : pheno_full
@@ -336,6 +353,8 @@ workflow EQTL {
 
     if(params.genotypes.use_gt_dosage && (params.LIMIX.run || params.SAIGE.run )){
         if (params.genotypes.preprocessed_bgen_file==''){
+            log.info "--- generating bgen file for Limix or SaigeQtl ---"
+    
             BGEN_CONVERT(plink_convert_input)
             plink_path_limix = BGEN_CONVERT.out.plink_path
             genotypes_saige =  BGEN_CONVERT.out.plink_path
@@ -350,6 +369,7 @@ workflow EQTL {
 
     // LIMIX QTL mapping method
     if (params.LIMIX.run){
+        log.info "--- Calculating Kinship matrix for Limix ---"
         KINSHIP_CALCULATION(plink_path)
         kinship_file = KINSHIP_CALCULATION.out.kinship_matrix
 
@@ -367,6 +387,7 @@ workflow EQTL {
 
     for_bed_channel = for_bed.map { tuple ->  [tuple[3],[[tuple[0],tuple[1],tuple[2]]]]}.flatten().collate(4)
     
+    log.info "---Prepearing covariates and Bed files for QTL analysis for JaxQTL or TensorQtl---"
     PREPERE_COVARIATES(for_bed_channel,genotype_pcs_file)
     covs = PREPERE_COVARIATES.out.exp_bed
 
@@ -396,6 +417,8 @@ workflow EQTL {
     // SAIGE SCRNA QTL mapping method
     if (params.method=='single_cell'){
         if (params.SAIGE.run){
+            log.info "---Running saigeQtls---"
+    
             if (params.genotype_phenotype_mapping_file==''){
                 saige_genotype_phenotype_mapping_file = Channel.of("$projectDir/assets/fake_file.fq")
             }else{
