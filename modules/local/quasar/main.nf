@@ -20,6 +20,7 @@ process QUASAR{
 
     script:
     //TO DO for models lmm, p_glmm, nb_glmm need to add GRM input
+    //TO DO for nb_glm or nb_glmm need to add --use-apl flag
     """
     outname="quasar_${model}"
 
