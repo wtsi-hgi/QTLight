@@ -140,7 +140,7 @@ workflow EQTL {
                         }
                 } else {
                     log.info('------- Analysing all celltypes ------- ')
-                    valid_files =  umi_counts_phenotype_genotype_file
+                    splits_h5ad2 =  splits_h5ad
                 }
 
                 AGGREGATE_UMI_COUNTS(splits_h5ad2, params.aggregation_columns, params.gt_id_column, params.sample_column, params.n_min_cells, params.n_min_individ)
