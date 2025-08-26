@@ -24,9 +24,11 @@ process QUASAR{
     """
     outname="quasar_${model}"
 
+    zcat ${phenotype_file} | sed s'/gene_id/phenotype_id/' > phenotype.bed
+
     quasar \
         --plink ${plink_files_prefix} \
-        --bed ${phenotype_file} \
+        --bed phenotype.bed \
         --cov ${phenotype_pcs} \
         --mode ${mode} \
         --model ${model} \
