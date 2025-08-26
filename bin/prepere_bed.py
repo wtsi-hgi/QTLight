@@ -1,7 +1,7 @@
 #!/usr/bin/env python
-__author__ = 'Matiss Ozols and Ruth Eberhardt'
-__date__ = '2025-08-26'
-__version__ = '0.0.2'
+__author__ = 'Matiss Ozols'
+__date__ = '2021-11-25'
+__version__ = '0.0.1'
 
 import pandas as pd
 import argparse
@@ -69,25 +69,23 @@ def main():
         help='the size of chunks to use'
     )
 
-    parser.add_argument(
-        "--quasar",
-        action="store_true",
-        help="output quasar format, default false"
-    )   
-
     options = parser.parse_args()
     if (options.position=='TSS'): #this can be TSS or midpoint
         midpoint = False
     else:
         midpoint = True
-
+    # print("performing data encoding in BED format")
+    # Load the base that determines the gene starts and ends.
+    # annotation_file = "/lustre/scratch123/hgi/teams/hgi/mo11/eQTL_mapping/LIMIX/nf_core_eqtl/assets/annotation_file.txt"
+    # expression_file = '/lustre/scratch123/hgi/teams/hgi/mo11/eQTL_mapping/LIMIX/work/19/b59c2c95d89532026adfc4bdef7d63/normalised_phenotype.tsv'
+    # mapping_file = '/lustre/scratch123/hgi/teams/hgi/mo11/eQTL_mapping/LIMIX/work/19/b59c2c95d89532026adfc4bdef7d63/genotype_phenotype_mapping.tsv'
     annotation_file = options.annotation_file
     expression_file = options.expression_file
     mapping_file = options.mapping_file
+    gtf_type = 'gene' #transcript|gene   -- need to add an input switch for this
     gtf_type = options.gtf_type
     BED_Formated_Data=pd.DataFrame()
     Expression_Data = pd.read_csv(expression_file,sep="\t")
-    Expression_Data = Expression_Data.set_index(Expression_Data.columns[0])#first column must be index
     if(len(Expression_Data.index[0].split('.'))>1):
         prot_version=True
         Expression_Data.index = Expression_Data.index.str.split('.').str[0]
@@ -95,13 +93,13 @@ def main():
         prot_version=False
     
     try:
-        df = read_gtf(annotation_file) 
+        df = read_gtf(annotation_file)
         if (gtf_type=='gene'):
-            #df2 = df[df.feature == 'gene'] #Old way, also old way doesnt need .to_pandas()
-            df2 = df.filter(df["feature"] == "gene") 
+            # df2 = df[df.feature == 'gene'] #Old way, also old way doesnt need .to_pandas()
+            df2 = df.filter(df["feature"] == "gene")
             Gene_Chr_Start_End_Data =df2[[options.gtf_gid,'start','end','strand','seqname']].to_pandas()
         elif (gtf_type=='transcript'):
-            #df2 = df[df.feature == 'transcript'] #Old way, also old way doesnt need .to_pandas()
+            # df2 = df[df.feature == 'transcript'] #Old way, also old way doesnt need .to_pandas()
             df2 = df.filter(df["feature"] == "transcript")
             Gene_Chr_Start_End_Data =df2[['transcript_id','start','end','strand','seqname']].to_pandas()
         else:
@@ -124,6 +122,7 @@ def main():
     #Load the expression data and the mapping file
     
     f = list(Expression_Data.index)
+    # f.append('ENSG00000177757')
     f2 = set(Gene_Chr_Start_End_Data.index).intersection(set(f))
     Gene_Chr_Start_End_Data = Gene_Chr_Start_End_Data.loc[list(f2)]
     
@@ -143,6 +142,9 @@ def main():
     BED_Formated_Data.loc[idx1,"end"]=Gene_Chr_Start_End_Data.loc[idx1,"end"]
     BED_Formated_Data['#chr'] = BED_Formated_Data['#chr'].astype(str).replace('chr','')
     
+    # # Change the denotion of the chromosomes.
+    # BED_Formated_Data['#chr'].replace(['X', 'Y', 'XY', 'MT'], ['23', '24', '25', '26'],inplace=True)
+    
     if (options.chr):
         chrs = options.chr.split(',')
         BED_Formated_Data = BED_Formated_Data[BED_Formated_Data['#chr'].str.replace('chr','').isin(chrs)]
@@ -156,15 +158,17 @@ def main():
     BED_Formated_Data = BED_Formated_Data[BED_Formated_Data['start'] > 0]
     BED_Formated_Data = BED_Formated_Data[BED_Formated_Data['end']>0]
 
+    # Gene_Chr_Start_End_Data=Gene_Chr_Start_End_Data.iloc[list(Expression_Data.index)]
     Mapping_File=pd.read_csv(mapping_file,sep="\t")
     try:
         Mapping_File=Mapping_File.drop('Sample_Category',axis=1)
     except:
         print('does not exist')
-
     Mapping_File=Mapping_File.drop_duplicates().set_index("RNA")
     Mapping_File=Mapping_File.to_dict()['Genotype']
+    # Expression_Data=Expression_Data.drop("qayj_3",axis=1)
     Expression_Data=Expression_Data.rename(columns=Mapping_File)
+    #2 Combine the Expression data and ID mapper to get a bed format.
     mergedDf = BED_Formated_Data.merge(Expression_Data, left_index=True, right_index=True)
     chrs = list(set(BED_Formated_Data['#chr']))
     
@@ -173,10 +177,6 @@ def main():
     mergedDf = mergedDf2.loc[chrs]
     mergedDf = mergedDf.reset_index()
     mergedDf.dropna(axis=0,inplace=True)
-
-    if (options.quasar):#quasar requires gene_id column to be renamed to phenotype_id
-        mergedDf = mergedDf.rename(columns={"gene_id": "phenotype_id"})
-
     mergedDf.to_csv("Expression_Data.bed.gz", sep='\t', compression='gzip',index=False)
 
 if __name__ == '__main__':
