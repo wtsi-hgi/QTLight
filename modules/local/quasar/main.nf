@@ -21,7 +21,7 @@ process QUASAR{
     script:
     //TO DO for models lmm, p_glmm, nb_glmm need to add GRM input
     """
-    outname="quasar_${model}_${mode}"
+    outname="quasar_${model}"
 
     quasar \
         --plink ${plink_files_prefix} \
