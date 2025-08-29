@@ -14,6 +14,7 @@ include {PREPERE_EXP_BED;PREPERE_COVARIATES; PREP_SAIGE_COVS} from '../modules/l
 include {TENSORQTL_eqtls} from '../modules/local/tensorqtl/main'
 include {JAXQTL_eqtls} from '../modules/local/jaxqtl/main'
 include {SAIGE_qtls} from '../modules/local/saige/main'
+include {QUASAR} from '../modules/local/quasar/main'
 include {SUBSET_PCS; MERGE_COVARIATES} from '../modules/local/covar_processing/main'
 include {KINSHIP_CALCULATION} from "$projectDir/modules/local/kinship_calculation/main"
 
@@ -140,7 +141,7 @@ workflow EQTL {
                         }
                 } else {
                     log.info('------- Analysing all celltypes ------- ')
-                    valid_files =  umi_counts_phenotype_genotype_file
+                    splits_h5ad2 =  splits_h5ad
                 }
 
                 AGGREGATE_UMI_COUNTS(splits_h5ad2, params.aggregation_columns, params.gt_id_column, params.sample_column, params.n_min_cells, params.n_min_individ)
@@ -346,7 +347,7 @@ workflow EQTL {
     if (params.input_vcf){
         // VCF file processing
          // Case 1: VCF provided → optionally subset and filter, then use as input
-        log.info "---- VCF file provided - ${input_vcf} Lets preprocess genotypes and aply any bcftools filters ---"
+        log.info "---- VCF file provided - ${params.input_vcf} Lets preprocess genotypes and aply any bcftools filters ---"
         donorsvcf = Channel.from(params.input_vcf)
         if (params.genotypes.subset_genotypes_to_available){
             // Subset genotypes to available in expression data
@@ -406,7 +407,7 @@ workflow EQTL {
     //   - `bim_bed_fam`, `plink_path_bed` → used by association tools (SAIGE step2, JAXQTL, etc.).
     //   - `bim_bed_fam__GRM`, `plink_path_bed__GRM` → used for GRM/sparse GRM construction (SAIGE step1).
 
-    if (params.SAIGE.run || (params.genotypes.use_gt_dosage == false) || params.JAXQTL.run) {
+    if (params.SAIGE.run || (params.genotypes.use_gt_dosage == false) || params.JAXQTL.run || params.QUASAR.run) {
         if (params.genotypes.preprocessed_bed_file==''){
             if (params.input_vcf){
                 // BED file preparation
@@ -704,6 +705,12 @@ workflow EQTL {
         [new_first, *items[1..-1]]
     }
 
+    //create channels for Quasar inputs
+    dSum_ch = tensorqtl_input.filter{ it[0].startsWith('dSum') }
+    dMean_ch = tensorqtl_input.filter{ it[0].startsWith('dMean') }
+
+    dMean_ch.view()
+
     if (params.TensorQTL.run){
         TENSORQTL_eqtls(
             tensorqtl_input_ch_cleaned,
@@ -716,6 +723,32 @@ workflow EQTL {
             tensorqtl_input,
             plink_path_bed,
         )
+    }
+    
+    if (params.QUASAR.run){
+        //the inputs we need for quasar are phenoype covariats, plink prefix, phenotype file,grm file (optional), mode and model 
+        //plink_prefix = bim_bed_fam[0][0..-5]
+        //we need the correct inputs depending on the model used (dSum or dMean)
+
+
+        if (params.QUASAR.model == 'lm' || params.QUASAR.model == 'lmm'){
+            QUASAR(
+                dMean_ch,
+                genome_annotation,
+                bim_bed_fam,
+                params.QUASAR.mode,
+                params.QUASAR.model
+            )
+        } else {
+            QUASAR(
+                dSum_ch,
+                genome_annotation,
+                bim_bed_fam,
+                params.QUASAR.mode,
+                params.QUASAR.model
+            )
+        }
+
     }
 
     // --- SAIGE single-cell QTL mapping ---
@@ -777,4 +810,3 @@ workflow EQTL {
 
 
 }
-
