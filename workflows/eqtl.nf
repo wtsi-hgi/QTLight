@@ -346,7 +346,7 @@ workflow EQTL {
     if (params.input_vcf){
         // VCF file processing
          // Case 1: VCF provided → optionally subset and filter, then use as input
-        log.info "---- VCF file provided - ${input_vcf} Lets preprocess genotypes and aply any bcftools filters ---"
+        log.info "---- VCF file provided - ${params.input_vcf} Lets preprocess genotypes and aply any bcftools filters ---"
         donorsvcf = Channel.from(params.input_vcf)
         if (params.genotypes.subset_genotypes_to_available){
             // Subset genotypes to available in expression data

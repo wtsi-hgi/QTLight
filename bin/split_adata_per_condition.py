@@ -143,15 +143,22 @@ def main():
             
             cell_adata = adata[adata.obs[agg_col] == type] #.copy(filename='tmp.h5ad')  # can also use .to_memory() which will be faster but more memory consuming. This is a view, not a copy
             agg_col_cleaned = re.sub(r'\W+', '_', agg_col.replace(' ', '_'))
-            tp2 = re.sub(r'\W+', '_', type.replace(' ', '_'))
+            tp2 = re.sub(r'\W+', '_', str(type).replace(' ', '_'))
 
             output_file = f'{agg_col_cleaned}__{tp2}__split.h5ad'
             print(f'Writing to {output_file}...')
 
             # Write directly from the view
             print(f"Final shape is: {cell_adata.obs.shape}") 
-            cell_adata.write(output_file)
-            cell_adata.file.close()
+            if 0 in cell_adata.obs.shape:
+                print("obs has a zero-sized dimension")
+            else:
+                try:
+                    cell_adata.write(output_file)
+                except:
+                    cell_adata = cell_adata.to_memory()
+                    cell_adata.write(output_file)
+                cell_adata.file.close()
             del cell_adata
 
     adata.file.close()  # Close the AnnData file to free up resources
