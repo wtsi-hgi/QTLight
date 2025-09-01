@@ -709,7 +709,38 @@ workflow EQTL {
     dSum_ch = tensorqtl_input.filter{ it[0].startsWith('dSum') }
     dMean_ch = tensorqtl_input.filter{ it[0].startsWith('dMean') }
 
-    dMean_ch.view()
+    // bim_bed_fam.view()
+
+    // dMean_ch_quasar = dMean_ch
+    //     .combine(genome_annotation)
+    //     .combine(bim_bed_fam)
+    //     .map { base, annotation, plink ->
+    //         def (condition, phenotype_file, phenotype_pcs, pcs) = base
+    //         def (bim, bed, fam) = plink
+    //         tuple(condition, phenotype_file, phenotype_pcs, pcs,
+    //             annotation, bim, bed, fam,
+    //             params.QUASAR.model, params.QUASAR.mode)
+    //     }
+
+    // dSum_ch_quasar = dSum_ch
+    //     .combine(genome_annotation)
+    //     .combine(bim_bed_fam)
+    //     .map { base, annotation, plink ->
+    //         def (condition, phenotype_file, phenotype_pcs, pcs) = base
+    //         def (bim, bed, fam) = plink
+    //         tuple(condition, phenotype_file, phenotype_pcs, pcs,
+    //             annotation, bim, bed, fam,
+    //             params.QUASAR.model, params.QUASAR.mode)
+    //     }
+    quasar_params = Channel.of(params.QUASAR.model, params.QUASAR.mode)
+    dMean_ch_quasar = dMean_ch.combine(genome_annotation)
+                                .combine(bim_bed_fam)
+                                .combine(quasar_params.collate(2).first())
+
+    dSum_ch_quasar = dSum_ch.combine(genome_annotation)
+                                .combine(bim_bed_fam)
+                                .combine(quasar_params.collate(2).first())
+
 
     if (params.TensorQTL.run){
         TENSORQTL_eqtls(
@@ -727,25 +758,16 @@ workflow EQTL {
     
     if (params.QUASAR.run){
         //the inputs we need for quasar are phenoype covariats, plink prefix, phenotype file,grm file (optional), mode and model 
-        //plink_prefix = bim_bed_fam[0][0..-5]
         //we need the correct inputs depending on the model used (dSum or dMean)
 
 
         if (params.QUASAR.model == 'lm' || params.QUASAR.model == 'lmm'){
             QUASAR(
-                dMean_ch,
-                genome_annotation,
-                bim_bed_fam,
-                params.QUASAR.mode,
-                params.QUASAR.model
+                dMean_ch_quasar
             )
         } else {
             QUASAR(
-                dSum_ch,
-                genome_annotation,
-                bim_bed_fam,
-                params.QUASAR.mode,
-                params.QUASAR.model
+                dSum_ch_quasar
             )
         }
 

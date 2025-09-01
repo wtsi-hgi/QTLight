@@ -13,16 +13,17 @@ process QUASAR{
                 overwrite: "true"
 
     input:
-        tuple (
-            val(condition), 
-            path(phenotype_file), 
-            path(phenotype_pcs),
-            val(pcs)
-        )
-        path(annotation_file)
-        tuple path(bim), path(bed), path(fam)
-        val(mode)
-        val(model)
+        tuple val(condition), 
+        path(phenotype_file), 
+        path(phenotype_pcs), 
+        val(pcs),
+        path(annotation_file),
+        path(bim), 
+        path(bed), 
+        path(fam),
+        val(model),
+        val (mode)
+        
 
     output:
         tuple val(condition), path('*-variant.txt'), emit: quasar_variant
