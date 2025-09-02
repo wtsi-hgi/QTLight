@@ -140,7 +140,7 @@ workflow EQTL {
                         }
                 } else {
                     log.info('------- Analysing all celltypes ------- ')
-                    valid_files =  umi_counts_phenotype_genotype_file
+                    splits_h5ad2 =  splits_h5ad
                 }
 
                 AGGREGATE_UMI_COUNTS(splits_h5ad2, params.aggregation_columns, params.gt_id_column, params.sample_column, params.n_min_cells, params.n_min_individ)
@@ -346,7 +346,7 @@ workflow EQTL {
     if (params.input_vcf){
         // VCF file processing
          // Case 1: VCF provided → optionally subset and filter, then use as input
-        log.info "---- VCF file provided - ${input_vcf} Lets preprocess genotypes and aply any bcftools filters ---"
+        log.info "---- VCF file provided - ${params.input_vcf} Lets preprocess genotypes and aply any bcftools filters ---"
         donorsvcf = Channel.from(params.input_vcf)
         if (params.genotypes.subset_genotypes_to_available){
             // Subset genotypes to available in expression data
