@@ -97,62 +97,6 @@ process CONDITIONAL_QTL {
     """
 }
 
-process CREATE_SPARSE_GRM {
-
-    label 'process_low'
-
-    // Specify the number of forks (10k)
-    maxForks 1000
-
-    if (workflow.containerEngine == 'singularity' && !params.singularity_pull_docker_container) {
-        container "${params.saige_grm_container}"
-    } else {
-        container "${params.saige_grm_docker}"
-    }    
-
-
-    publishDir  path: "${params.outdir}/SPARSE_GRM",
-                mode: "${params.copy_mode}",
-                overwrite: "true"
-
-    input:
-        path(plink)
-        
-    output:
-        // tuple val(name),path(genes_list),path("output"),emit:output
-        path("sparseGRM_*.mtx"), emit: sparseGRM
-        path("sparseGRM_*.sampleIDs.txt"), emit: sparseGRM_sample
-
-    // Define the Bash script to run for each array job
-    script:
-    """
-
-        plink_dir="${plink}"
-        base_name=""
-
-        if ls "\$plink_dir"/*.bed 1> /dev/null 2>&1; then
-            base_name=\$(basename \$(ls "\$plink_dir"/*.bed | head -n 1) .bed)
-        elif ls "\$plink_dir"/*.bim 1> /dev/null 2>&1; then
-            base_name=\$(basename \$(ls "\$plink_dir"/*.bim | head -n 1) .bim)
-        else
-            echo "No .bed or .bim file found in \$plink_dir"
-            exit 1
-        fi
-
-        echo "Detected base name: \$base_name"
-
-
-        createSparseGRM.R \
-            --nThreads=${task.cpus} \
-            --outputPrefix=sparseGRM_output \
-            --numRandomMarkerforSparseKin=${params.SAIGE.numRandomMarkerforSparseKin} \
-            --relatednessCutoff ${params.SAIGE.relatednessCutoff} \
-            --famFile  "\$plink_dir/\$base_name.fam" \
-            --bimFile  "\$plink_dir/\$base_name.bim" \
-            --bedFile  "\$plink_dir/\$base_name.bed" 
-    """  
-}
-
 process SAIGE_S1 {
     label 'process_low'
 
@@ -746,7 +690,8 @@ workflow SAIGE_qtls{
     take:
         genotype_pcs
         phenotype_file
-        plink_path
+        sparseGRM
+        sparseGRM_sample
         plink_path_bed
         genotypes_saige
         genome_annotation
@@ -820,20 +765,20 @@ workflow SAIGE_qtls{
             : Channel.of((1..24).toList())   
 
 
-        if (params.existing_sparse_grm){
-            sparseGRM = Channel
-                .fromPath(params.existing_sparse_grm + "/sparseGRM_*.mtx")
-                .ifEmpty { error " No sparseGRM .mtx file found in ${params.existing_sparse_grm}" }
+        // if (params.existing_sparse_grm){
+        //     sparseGRM = Channel
+        //         .fromPath(params.existing_sparse_grm + "/sparseGRM_*.mtx")
+        //         .ifEmpty { error " No sparseGRM .mtx file found in ${params.existing_sparse_grm}" }
 
-            sparseGRM_sample = Channel
-                .fromPath(params.existing_sparse_grm + "/sparseGRM_*.sampleIDs.txt")
-                .ifEmpty { error " No sparseGRM sample ID file found in ${params.existing_sparse_grm}" }
+        //     sparseGRM_sample = Channel
+        //         .fromPath(params.existing_sparse_grm + "/sparseGRM_*.sampleIDs.txt")
+        //         .ifEmpty { error " No sparseGRM sample ID file found in ${params.existing_sparse_grm}" }
 
-        }else{
-            CREATE_SPARSE_GRM(plink_path)
-            sparseGRM = CREATE_SPARSE_GRM.out.sparseGRM
-            sparseGRM_sample = CREATE_SPARSE_GRM.out.sparseGRM_sample
-        }
+        // }else{
+        //     CREATE_SPARSE_GRM(plink_path)
+        //     sparseGRM = CREATE_SPARSE_GRM.out.sparseGRM
+        //     sparseGRM_sample = CREATE_SPARSE_GRM.out.sparseGRM_sample
+        // }
 
 
 

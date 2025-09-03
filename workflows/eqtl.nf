@@ -17,6 +17,7 @@ include {SAIGE_qtls} from '../modules/local/saige/main'
 include {QUASAR} from '../modules/local/quasar/main'
 include {SUBSET_PCS; MERGE_COVARIATES} from '../modules/local/covar_processing/main'
 include {KINSHIP_CALCULATION} from "$projectDir/modules/local/kinship_calculation/main"
+include{CREATE_SPARSE_GRM} from '../modules/local/sparse_grm_creation/main'
 
 /*
 ===============================
@@ -615,6 +616,24 @@ workflow EQTL {
         for_bed = SUBSET_PCS.out.for_bed
     }
 
+    // create GRM for SAIGE or QUASAR
+    if (params.QUASAR.run || params.SAIGE.run){
+                if (params.existing_sparse_grm){
+            sparseGRM = Channel
+                .fromPath(params.existing_sparse_grm + "/sparseGRM_*.mtx")
+                .ifEmpty { error " No sparseGRM .mtx file found in ${params.existing_sparse_grm}" }
+
+            sparseGRM_sample = Channel
+                .fromPath(params.existing_sparse_grm + "/sparseGRM_*.sampleIDs.txt")
+                .ifEmpty { error " No sparseGRM sample ID file found in ${params.existing_sparse_grm}" }
+
+        }else{
+            CREATE_SPARSE_GRM(plink_path_bed__GRM)
+            sparseGRM = CREATE_SPARSE_GRM.out.sparseGRM
+            sparseGRM_sample = CREATE_SPARSE_GRM.out.sparseGRM_sample
+        }
+
+    }
 
     // --- LIMIX QTL mapping ---
     // Controlled by: `params.LIMIX.run`.
@@ -658,7 +677,7 @@ workflow EQTL {
         )
     }
 
-    // --- TensorQTL / JAXQTL preparation and execution ---
+    // --- TensorQTL / JAXQTL ? QUASAR preparation and execution ---
     //
     // Purpose:
     //   Prepare covariate and expression BED files in the correct format for
@@ -688,6 +707,8 @@ workflow EQTL {
     //   - JAXQTL is optimised for speed and GPU usage, but only supports BED input.
     //   - This block harmonises covariates + expression formats so both tools
     //     can be run consistently from the same workflow.
+    //   - QUASAR requires a specific header on the phenotype bed file, which is not zipped
+    //   - QUASAR and SAIGE both require GRM  
 
 
     for_bed_channel = for_bed.map { tuple ->  [tuple[3],[[tuple[0],tuple[1],tuple[2]]]]}.flatten().collate(4)
@@ -705,40 +726,23 @@ workflow EQTL {
         [new_first, *items[1..-1]]
     }
 
+
     //create channels for Quasar inputs
     dSum_ch = tensorqtl_input.filter{ it[0].startsWith('dSum') }
     dMean_ch = tensorqtl_input.filter{ it[0].startsWith('dMean') }
 
-    // bim_bed_fam.view()
 
-    // dMean_ch_quasar = dMean_ch
-    //     .combine(genome_annotation)
-    //     .combine(bim_bed_fam)
-    //     .map { base, annotation, plink ->
-    //         def (condition, phenotype_file, phenotype_pcs, pcs) = base
-    //         def (bim, bed, fam) = plink
-    //         tuple(condition, phenotype_file, phenotype_pcs, pcs,
-    //             annotation, bim, bed, fam,
-    //             params.QUASAR.model, params.QUASAR.mode)
-    //     }
-
-    // dSum_ch_quasar = dSum_ch
-    //     .combine(genome_annotation)
-    //     .combine(bim_bed_fam)
-    //     .map { base, annotation, plink ->
-    //         def (condition, phenotype_file, phenotype_pcs, pcs) = base
-    //         def (bim, bed, fam) = plink
-    //         tuple(condition, phenotype_file, phenotype_pcs, pcs,
-    //             annotation, bim, bed, fam,
-    //             params.QUASAR.model, params.QUASAR.mode)
-    //     }
     quasar_params = Channel.of(params.QUASAR.model, params.QUASAR.mode)
     dMean_ch_quasar = dMean_ch.combine(genome_annotation)
                                 .combine(bim_bed_fam)
+                                .combine(sparseGRM)
+                                .combine(sparseGRM_sample)
                                 .combine(quasar_params.collate(2).first())
 
     dSum_ch_quasar = dSum_ch.combine(genome_annotation)
                                 .combine(bim_bed_fam)
+                                .combine(sparseGRM)
+                                .combine(sparseGRM_sample)
                                 .combine(quasar_params.collate(2).first())
 
 
@@ -824,7 +828,7 @@ workflow EQTL {
             }
             covs_Saige = PREP_SAIGE_COVS(genotype_pcs_file,extra_covariates_file)
 
-            SAIGE_qtls(covs_Saige,adata,plink_path_bed__GRM,plink_path_bed,genotypes_saige,genome_annotation,saige_genotype_phenotype_mapping_file)
+            SAIGE_qtls(covs_Saige,adata,sparseGRM,sparseGRM_sample,plink_path_bed,genotypes_saige,genome_annotation,saige_genotype_phenotype_mapping_file)
         }
     }
 

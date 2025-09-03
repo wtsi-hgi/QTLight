@@ -21,6 +21,8 @@ process QUASAR{
         path(bim), 
         path(bed), 
         path(fam),
+        path(sparseGRM),
+        path(sparseGRM_sample),
         val(model),
         val (mode)
         
@@ -30,9 +32,10 @@ process QUASAR{
         tuple val(condition), path('*-region.txt'), emit: quasar_region
 
     script:
-    //TO DO GRM input
+    //TO DO make GRM input more efficient - doesn't need parsing to tsv if not using lmm, nb_glmm or p_glm
     def outname="quasar_${model}"
-    def api = (params.model in ['nb_glm', 'nb_glmm']) ? '--use-api' : ''
+    def apl = (model in ['nb_glm','nb_glmm']) ? '--use-apl' : ''
+    def grm = (model in ['lmm', 'nb_glmm','p_glmm']) ? '--grm grm.tsv' : ''
 
     """
     zcat ${phenotype_file} | sed s'/gene_id/phenotype_id/' > phenotype.bed
@@ -40,13 +43,16 @@ process QUASAR{
     transpose_covs.py --infile ${phenotype_pcs} --outfile Covariates.fixed_tmp.tsv
     sed s'/ /_/g' Covariates.fixed_tmp.tsv > Covariates.fixed.tsv
 
+    convert_grm_to_tsv.py --grm ${sparseGRM} --samples ${sparseGRM_sample} --output grm.tsv
+
     echo ${bim.baseName}
 
     quasar \
         --plink ${bim.baseName} \
         --bed phenotype.bed \
         --cov Covariates.fixed.tsv \
-        ${api} \
+        ${apl} \
+        ${grm}  \
         --mode ${mode} \
         --model ${model} \
         --out ${outname}
