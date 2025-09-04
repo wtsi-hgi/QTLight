@@ -38,7 +38,7 @@ process QUASAR{
     def grm = (model in ['lmm', 'nb_glmm','p_glmm']) ? '--grm grm.tsv' : ''
 
     """
-    zcat ${phenotype_file} | sed s'/gene_id/phenotype_id/' > phenotype.bed
+    zcat ${phenotype_file} | sed s'/gene_id/phenotype_id/' | grep -E '^#chr|^(chr|[0-9])' > phenotype.bed
 
     transpose_covs.py --infile ${phenotype_pcs} --outfile Covariates.fixed_tmp.tsv
     sed s'/ /_/g' Covariates.fixed_tmp.tsv > Covariates.fixed.tsv
