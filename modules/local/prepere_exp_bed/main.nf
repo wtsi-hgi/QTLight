@@ -89,4 +89,4 @@ process PREP_SAIGE_COVS {
     """
       prepere_covariates_file_SAIGE.py --genotype_pcs ${genotype_pcs} ${sample_covar} --nr_gPCs ${params.covariates.nr_genotype_pcs}
     """
-}
+} 

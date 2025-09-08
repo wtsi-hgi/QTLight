@@ -116,6 +116,7 @@ def main():
     data=data.set_index('id').sort_index()
     
     data =data.T
+
     if (options.sample_covariates):
         print('yes')
         extra_covs = pd.read_csv(options.sample_covariates, sep="\t", index_col=0, header=None, dtype=str)
