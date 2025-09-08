@@ -40,7 +40,7 @@ process NORMALISE_ANNDATA {
 
 
 process REMAP_GENOTPE_ID{
-    publishDir  path: "${params.outdir}/norm_data/${sanitized_columns}_${prefix}",
+    publishDir  path: "${params.outdir}/norm_data/${sanitized_columns}__${prefix}",
                 overwrite: "true"
     label 'process_low'
 
