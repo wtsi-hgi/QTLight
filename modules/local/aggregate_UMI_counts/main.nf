@@ -34,11 +34,8 @@ process SPLIT_AGGREGATION_ADATA {
 
 
 process CHUNK_ADATA_FOR_AGGREGATION {
-    // label 'process_medium'
-    memory { 
-            sizeInGB = adata.size() / 1e9 * 0.5 * task.attempt
-            return (sizeInGB ).toString() + 'GB' 
-        }
+    label 'process_medium'
+  
       
     if (workflow.containerEngine == 'singularity' && !params.singularity_pull_docker_container) {
         container "${params.eqtl_container}"
