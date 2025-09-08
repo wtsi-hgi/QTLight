@@ -9,7 +9,7 @@ include {NORMALISE_and_PCA_PHENOTYPE} from '../modules/local/normalise_and_pca/m
 include {LIMIX_eqtls} from '../modules/local/limix/main'
 include {PREPROCESS_SAMPLE_MAPPING} from '../modules/local/preprocess_sample_mapping/main'
 include {NORMALISE_ANNDATA; REMAP_GENOTPE_ID} from '../modules/local/normalise_anndata/main'
-include {AGGREGATE_UMI_COUNTS; SPLIT_AGGREGATION_ADATA; ORGANISE_AGGREGATED_FILES} from '../modules/local/aggregate_UMI_counts/main'
+include {AGGREGATE_UMI_COUNTS; COMBINE_AGGREGATES; AGGREGATE_UMI_COUNTS as AGGREGATE_UMI_COUNTS__CHUNKS; SPLIT_AGGREGATION_ADATA; ORGANISE_AGGREGATED_FILES; CHUNK_ADATA_FOR_AGGREGATION} from '../modules/local/aggregate_UMI_counts/main'
 include {PREPERE_EXP_BED;PREPERE_COVARIATES; PREP_SAIGE_COVS} from '../modules/local/prepere_exp_bed/main'
 include {TENSORQTL_eqtls} from '../modules/local/tensorqtl/main'
 include {JAXQTL_eqtls} from '../modules/local/jaxqtl/main'
@@ -143,13 +143,28 @@ workflow EQTL {
                     splits_h5ad2 =  splits_h5ad
                 }
 
-                AGGREGATE_UMI_COUNTS(splits_h5ad2, params.aggregation_columns, params.gt_id_column, params.sample_column, params.n_min_cells, params.n_min_individ)
-                covariates_by_name = AGGREGATE_UMI_COUNTS.out.sample_covariates.map { file ->
+                if (params.chunk_adata_for_aggregation){
+                    CHUNK_ADATA_FOR_AGGREGATION(splits_h5ad2,params.sample_column,10)
+                    AGGREGATE_UMI_COUNTS__CHUNKS(CHUNK_ADATA_FOR_AGGREGATION.out.split_phenotypes.flatten(), params.aggregation_columns, params.gt_id_column, params.sample_column, params.n_min_cells, 1, 'chunk')
+                    grouped_chunks = AGGREGATE_UMI_COUNTS__CHUNKS.out.phenotype_genotype_file_with_sample_covs.groupTuple(by:0)
+                    COMBINE_AGGREGATES(grouped_chunks,params.n_min_individ)
+                    sample_covariates = COMBINE_AGGREGATES.out.sample_covariates
+                    phenotype_genotype_file = COMBINE_AGGREGATES.out.phenotype_genotype_file
+                    genotype_phenotype_mapping = COMBINE_AGGREGATES.out.genotype_phenotype_mapping.flatten()
+                }else{
+                    // This may be very slow and mem demanding for large adata objects. Might want to do a two pass aggregation where smaller subsets of donors h5ad_files are produced.
+                    AGGREGATE_UMI_COUNTS(splits_h5ad2, params.aggregation_columns, params.gt_id_column, params.sample_column, params.n_min_cells, params.n_min_individ, 'full')
+                    sample_covariates = AGGREGATE_UMI_COUNTS.out.sample_covariates
+                    phenotype_genotype_file = AGGREGATE_UMI_COUNTS.out.phenotype_genotype_file
+                    genotype_phenotype_mapping = AGGREGATE_UMI_COUNTS.out.genotype_phenotype_mapping.flatten()
+                }
+
+
+                covariates_by_name = sample_covariates.map { file ->
                     def fname = file.getBaseName().replaceAll(/___sample_covariates/, '')
                     return tuple(fname, file)
                 }
-                phenotype_genotype_file = AGGREGATE_UMI_COUNTS.out.phenotype_genotype_file
-                genotype_phenotype_mappings = AGGREGATE_UMI_COUNTS.out.genotype_phenotype_mapping.flatten()
+
             } else {
                 log.info "Skipping AGGREGATE_UMI_COUNTS — only SAIGE is enabled"
                 phenotype_genotype_file = Channel.empty()
@@ -346,7 +361,7 @@ workflow EQTL {
     if (params.input_vcf){
         // VCF file processing
          // Case 1: VCF provided → optionally subset and filter, then use as input
-        log.info "---- VCF file provided - ${input_vcf} Lets preprocess genotypes and aply any bcftools filters ---"
+        log.info "---- VCF file provided - ${params.input_vcf} Lets preprocess genotypes and aply any bcftools filters ---"
         donorsvcf = Channel.from(params.input_vcf)
         if (params.genotypes.subset_genotypes_to_available){
             // Subset genotypes to available in expression data

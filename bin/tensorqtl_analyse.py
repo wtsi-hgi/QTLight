@@ -140,7 +140,11 @@ def gwas_trans_mapping(batch_size = 1000,chrom_to_map =2,variant_df=None,
                         df.to_csv(outfile, sep="\t", index=False, header=False)
                     os.remove(bf1) 
                 print(f"Processed batch {i // batch_size + 1}")    
-    
+
+def _norm_id(x):
+    if isinstance(x, (int, np.integer)): return str(x)
+    if isinstance(x, float) and x.is_integer(): return str(int(x))
+    return str(x).strip()
 
 def main():
 
@@ -282,7 +286,9 @@ def main():
 
 
     phenotype_df, phenotype_pos_df = read_phenotype_bed(expression_bed)
+    phenotype_df.columns = [ _norm_id(c) for c in phenotype_df.columns ]
     covariates_df = pd.read_csv(covariates_file, sep='\t', index_col=0)
+    covariates_df.columns = [ _norm_id(c) for c in covariates_df.columns ]
     covariates_df = covariates_df[list(set(phenotype_df.columns).intersection(set(covariates_df.columns)))]
     phenotype_df = phenotype_df[covariates_df.columns]
     # have to drop dublicate rownames. and average the repeated measures.
@@ -295,6 +301,7 @@ def main():
 
     
     covariates_df=covariates_df.T
+    covariates_df.index  = [ _norm_id(i) for i in covariates_df.index  ]
     phenotype_df_genes = list(set(phenotype_pos_df.index))
 
     print('----Fine read ------')
@@ -304,6 +311,7 @@ def main():
         print('  * WARNING: using CPU!')
 
     genotype_df, variant_df = genotypeio.load_genotypes(plink_prefix_path, dosages=dosage)
+    genotype_df.columns = [ _norm_id(c) for c in genotype_df.columns ]
     try:
         os.makedirs(outdir)
     except:
@@ -393,6 +401,9 @@ def main():
             # If we are not running nominal we are still optimising PCs.
             # Its redundant to run both as we already performed the cis in previous iterations to get to nominal.
             try:
+                print(phenotype_df)
+                print(genotype_df)
+                print(covariates_df)
                 cis_df = cis.map_cis(genotype_df, variant_df, 
                                     phenotype_df.loc[phenotype_df_genes],
                                     phenotype_pos_df.loc[phenotype_df_genes],nperm=int(options.nperm),
@@ -417,7 +428,7 @@ def main():
                 print('----cis eQTLs failed to aproximate betas ------')
                 cis_df = cis.map_cis(genotype_df, variant_df, 
                                     phenotype_df.loc[phenotype_df_genes],
-                                    phenotype_pos_df.loc[phenotype_df_genes],nperm=int(options.nperm),
+                                    phenotype_pos_df.loc[phenotype_df_genes],nperm=int(0),
                                     window=int(options.window),
                                     covariates_df=covariates_df.loc[phenotype_df.columns],maf_threshold=maf,seed=7,beta_approx=False)
                 print('----cis eQTLs processed ------')

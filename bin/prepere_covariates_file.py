@@ -71,7 +71,7 @@ def main():
     sample_map_file=options.sample_mapping
     sample_mapping = pd.read_csv(sample_map_file,sep='\t', dtype={'Genotype': str,'RNA':str})
     sample_mapping= sample_mapping.set_index('RNA')
-        
+    sample_mapping.Genotype=sample_mapping.Genotype.astype(str)
     if options.phenotype_pcs=='0pcs.tsv':
         phenotype_pcs=pd.DataFrame(index=covariates_df.index)
     else:
@@ -118,15 +118,18 @@ def main():
     data =data.T
     if (options.sample_covariates):
         print('yes')
-        exctra_covs = pd.read_csv(options.sample_covariates,sep='\t',index_col=0)
-        exctra_covs.columns = exctra_covs.columns.astype(str)
-        exctra_covs.index=exctra_covs.index.astype(str)
-        idx2 = set(exctra_covs.columns).intersection(set(data.columns))
-        try:
-            data = pd.concat([data.loc[:,list(idx2)],exctra_covs.loc[:,list(idx2)]])
-        except:
-            exctra_covs=exctra_covs.T
-            data = pd.concat([data.loc[:,list(idx2)],exctra_covs.loc[:,list(idx2)]])
+        extra_covs = pd.read_csv(options.sample_covariates, sep="\t", index_col=0, header=None, dtype=str)
+        extra_covs.columns = extra_covs.iloc[0].astype(str)
+        extra_covs = extra_covs.iloc[1:]
+
+        extra_covs.index=extra_covs.index.astype(str)
+        idx2 = set(extra_covs.columns).intersection(set(data.columns))
+        if len(idx2)>0:
+            try:
+                data = pd.concat([data.loc[:,list(idx2)],extra_covs.loc[:,list(idx2)]])
+            except:
+                extra_covs=extra_covs.T
+                data = pd.concat([data.loc[:,list(idx2)],extra_covs.loc[:,list(idx2)]])
     else:
         print('no')
     data.to_csv('Covariates.tsv',sep='\t')
