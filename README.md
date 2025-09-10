@@ -1,7 +1,7 @@
 ## Introduction
 
 <!-- TODO nf-core: Write a 1-2 sentence summary of what data the pipeline is for and what it does -->
-**QTLight** is a bioinformatics best-practice analysis pipeline for eqtl analysis with TensorQTL, SaigeQTL, LIMIX. 
+**QTLight** is a bioinformatics best-practice analysis pipeline for eqtl analysis with TensorQTL, SaigeQTL, LIMIX, quasar, jaxQTL. 
 It takes your vcf files (or pgen/bed) alongside flat quantification data (such as bulk RNAseq expression files, ATACseq qantification data, Splicing Quantification data) or a scRNA h5ad file and performs relevant QTL analysis.
 
 
