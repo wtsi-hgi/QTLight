@@ -757,23 +757,7 @@ workflow EQTL {
     }
 
 
-    //create channels for Quasar inputs
-    dSum_ch = tensorqtl_input.filter{ it[0].startsWith('dSum') }
-    dMean_ch = tensorqtl_input.filter{ it[0].startsWith('dMean') }
 
-
-    quasar_params = Channel.of(params.QUASAR.model, params.QUASAR.mode)
-    dMean_ch_quasar = dMean_ch.combine(genome_annotation)
-                                .combine(bim_bed_fam)
-                                .combine(sparseGRM)
-                                .combine(sparseGRM_sample)
-                                .combine(quasar_params.collate(2).first())
-
-    dSum_ch_quasar = dSum_ch.combine(genome_annotation)
-                                .combine(bim_bed_fam)
-                                .combine(sparseGRM)
-                                .combine(sparseGRM_sample)
-                                .combine(quasar_params.collate(2).first())
 
 
     if (params.TensorQTL.run){
@@ -793,7 +777,23 @@ workflow EQTL {
     if (params.QUASAR.run){
         //the inputs we need for quasar are phenoype covariats, plink prefix, phenotype file,grm file (optional), mode and model 
         //we need the correct inputs depending on the model used (dSum or dMean)
+        //create channels for Quasar inputs
+        dSum_ch = tensorqtl_input.filter{ it[0].startsWith('dSum') }
+        dMean_ch = tensorqtl_input.filter{ it[0].startsWith('dMean') }
 
+
+        quasar_params = Channel.of(params.QUASAR.model, params.QUASAR.mode)
+        dMean_ch_quasar = dMean_ch.combine(genome_annotation)
+                                    .combine(bim_bed_fam)
+                                    .combine(sparseGRM)
+                                    .combine(sparseGRM_sample)
+                                    .combine(quasar_params.collate(2).first())
+
+        dSum_ch_quasar = dSum_ch.combine(genome_annotation)
+                                    .combine(bim_bed_fam)
+                                    .combine(sparseGRM)
+                                    .combine(sparseGRM_sample)
+                                    .combine(quasar_params.collate(2).first())
 
         if (params.QUASAR.model == 'lm' || params.QUASAR.model == 'lmm'){
             QUASAR(
