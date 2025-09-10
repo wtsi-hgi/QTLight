@@ -10,6 +10,92 @@ import argparse
 import os
 import re
 import gc
+import numpy as np
+import multiprocessing as mp
+from functools import partial
+
+_ADATA = None  # per-process AnnData
+_METHOD = None
+
+def _init_pool(h5ad_path, gt_id_column, sample_column, method):
+    """Runs once per worker process; opens backed AnnData locally (no pickling)."""
+    global _ADATA, _METHOD
+    _METHOD = method
+    _ADATA = sc.read_h5ad(h5ad_path, backed='r')
+
+    # Make obs index unique and add phenotype id in worker too (to match main)
+    _ADATA.obs.index = _ADATA.obs.index + "___" + _ADATA.obs.groupby(_ADATA.obs.index).cumcount().astype(str)
+    _ADATA.strings_to_categoricals()
+    _ADATA.obs['adata_phenotype_id'] = _ADATA.obs[gt_id_column].astype('str') + '_' + _ADATA.obs[sample_column].astype('str')
+
+    # If using dMean, align X to the layer in worker memory
+    if _METHOD == 'dMean' and 'dMean_normalised' in _ADATA.layers:
+        # materialize this layer into X within the worker
+        _ADATA = _ADATA.to_memory()
+        _ADATA.X = _ADATA.layers['dMean_normalised']
+
+def aggregate_individual(
+    individual_1, cell_index, indexes, n_cells, gt_id_column, method,
+    agg_col="agg", type_name="RNA", sample_covariate_columns=None, log=None
+):
+    global _ADATA
+    adata = _ADATA  # local alias
+
+    # 1) pick cells
+    donor_mask = adata.obs['adata_phenotype_id'] == individual_1
+    if donor_mask.sum() == 0:
+        if log is not None: log.append(f"{individual_1}: no cells in adata")
+        return None
+
+    donot_index = set(adata.obs.index[donor_mask])
+    cell_donor_index = set(cell_index).intersection(donot_index)
+    if not cell_donor_index:
+        if log is not None: log.append(f"{individual_1}: no overlap with cell_index")
+        return None
+
+    individual_1_adata = adata[list(cell_donor_index), indexes]
+    n_obs = individual_1_adata.n_obs
+    if n_obs < n_cells:
+        if log is not None: log.append(f"{individual_1}: have {n_obs} cells < required {n_cells}")
+        return None
+
+    # 2) genotype
+    gvals = individual_1_adata.obs[gt_id_column].unique()
+    if len(gvals) == 0:
+        if log is not None: log.append(f"{individual_1}: no genotype values in '{gt_id_column}'")
+        return None
+    Genotype = gvals[0]
+
+    # 3) aggregate
+    f = individual_1_adata.to_df()
+    if method == 'dSum':
+        agg = f.sum(axis=0)
+    elif method == 'dMean':
+        agg = f.mean(axis=0)
+    else:
+        if log is not None: log.append("Wrong method (use dMean or dSum)")
+        return None
+
+    type2 = f"{agg_col}-{type_name}-{method}".replace(' ', '_')
+    Phenotype = f"{type2}_{individual_1}".replace(' ', '_')
+
+    df = pd.DataFrame(agg)
+    df.set_index(f.columns, inplace=True)
+    df.rename(columns={0: Phenotype}, inplace=True)
+
+    mapping = {'Genotype': Genotype, 'RNA': Phenotype, 'Sample_Category': type2}
+
+    cov_dict = None
+    if sample_covariate_columns:
+        cov_dict = {'RNA': Phenotype}
+        for col in sample_covariate_columns:
+            vals = individual_1_adata.obs[col].unique()
+            if len(vals) == 1:
+                cov_dict[col] = vals[0]
+            else:
+                if log is not None: log.append(f"{individual_1}: cov '{col}' has multiple values, skipped")
+
+    return (df, mapping, cov_dict)
 
 def main():
     """Run CLI."""
@@ -32,6 +118,13 @@ def main():
     #     required=false,
     #     help=''
     # )    
+    parser.add_argument(
+        '-w', '--n_workers',
+        type=int,
+        default=max(1, mp.cpu_count()),
+        help='Number of worker processes for parallel aggregation.'
+    )
+    
     parser.add_argument(
         '-method', '--method',
         action='store',
@@ -111,6 +204,13 @@ def main():
     # n_individ=30
     # n_cells=10
     h5ad = options.h5ad
+    if '--' in h5ad:
+        prefix=h5ad.split('--')[-1]+'--'
+        prefix2=h5ad.split('--')[-1]+'___'
+    else:
+        prefix=''
+        prefix2=''
+        
     agg_columns = options.agg_columns
     agg_columns = agg_columns.split(",")
     if len(agg_columns)>1:
@@ -176,71 +276,78 @@ def main():
                     indexes = cell_adata.var.index[keep_genes].tolist()
                 else:
                     indexes = list(cell_adata.var.index)
-                    
-                if (len(cell_adata.obs['adata_phenotype_id'].unique())>=n_individ):
-                    aggregated_data_pre=pd.DataFrame()
+                if (len(cell_adata.obs['adata_phenotype_id'].unique()) >= n_individ):
+                    aggregated_data_pre = pd.DataFrame()
                     sample_covariates_pre = []
                     genotype_phenotype_mapping_pre = []
-                    for individual_1 in cell_adata.obs['adata_phenotype_id'].unique():
-                        # individual_indices = cell_adata.obs['adata_phenotype_id'] == individual_1
 
-                        donot_index = set(adata[adata.obs['adata_phenotype_id']==individual_1].obs.index)
-                        cell_donor_index = set(cell_index.intersection(donot_index))
-                        individual_1_adata = adata[list(cell_donor_index),indexes]
-                        if(individual_1_adata.obs.shape[0]>=n_cells):
-                            # print(individual_1)
-                            Genotype = individual_1_adata.obs[gt_id_column].unique()[0]
-                            # Change this to any aggregation strategy
-                            #as per https://www.medrxiv.org/content/10.1101/2021.10.09.21264604v1.full.pdf 
-                            # We mapped cis-eQTL within a 1 megabase (MB) window of the TSS of each gene expressed
-                            # in at least 5% of the nuclei (belonging to a broad cell type)
-                            if (method =='dSum'):
-                                f = individual_1_adata.to_df()
-                                data_aggregated_for_cell_and_individal = pd.DataFrame(f.sum(axis = 0))
-                                data_aggregated_for_cell_and_individal.set_index(f.columns,inplace=True)
-                                type2= f"{agg_col}-{type}-{method}"
-                            elif (method =='dMean'):
-                                f = individual_1_adata.to_df()
-                                data_aggregated_for_cell_and_individal = pd.DataFrame(f.mean(axis = 0))
-                                data_aggregated_for_cell_and_individal.set_index(f.columns,inplace=True)
-                                type2= f"{agg_col}-{type}-{method}"
-                            else:
-                                print('Wrong method specified, please use dMean or dSum or both as a coma seperated sting dMean,dSum')
-                                break
-                            Phenotype = f"{type2}_{individual_1}".replace(' ','_')
-                            type2=type2.replace(' ','_')
-                            data_aggregated_for_cell_and_individal.rename(columns={0:Phenotype},inplace=True)
-                            aggregated_data_pre=pd.concat([aggregated_data_pre,data_aggregated_for_cell_and_individal],axis=1)
-                            genotype_phenotype_mapping_pre.append({'Genotype':Genotype,'RNA':Phenotype,'Sample_Category':type2})
-                            
-                            sample_covariate_columns = options.sample_covariate_column.split(',') if options.sample_covariate_column else []
+                    mgr = mp.Manager()
+                    shared_log = mgr.list()
 
-                            if sample_covariate_columns:
-                                cov_dict = {'RNA': Phenotype}
-                                skip = False
-                                for col in sample_covariate_columns:
-                                    vals = individual_1_adata.obs[col].unique()
-                                    if len(vals) == 1:
-                                        cov_dict[col] = vals[0]
-                                    else:
-                                        print(f"Warning: multiple values found for {col} in sample {Phenotype}. Skipping.")
-                                        skip = True
-                                        break
-                                if not skip:
-                                    sample_covariates_pre.append(cov_dict)
-                                    
+                    individual_ids = list(cell_adata.obs['adata_phenotype_id'].unique())
+                    sample_covariate_columns = options.sample_covariate_column.split(',') if options.sample_covariate_column else None
+
+                    # Build starmap args (NO adata)
+                    map_args = [
+                        (individual_1, cell_index, indexes, n_cells, gt_id_column, method, agg_col, type, sample_covariate_columns, shared_log)
+                        for individual_1 in individual_ids
+                    ]
+
+                    n_workers = max(1, int(getattr(options, 'n_workers', mp.cpu_count())))
+                    ctx = mp.get_context('fork') if 'fork' in mp.get_all_start_methods() else mp.get_context()
+
+                    # Important: create the pool ONCE per (method, agg_col, type) batch
+                    with ctx.Pool(
+                        processes=n_workers,
+                        initializer=_init_pool,
+                        initargs=(h5ad, gt_id_column, sample_column, method)
+                    ) as pool:
+                        results = pool.starmap(
+                            aggregate_individual,
+                            map_args,
+                            chunksize=max(1, len(map_args) // (n_workers * 4) or 1)
+                        )
+
+                    for result in results:
+                        if result is None:
+                            continue
+                        df_part, mapping_dict, cov_dict = result
+                        aggregated_data_pre = pd.concat([aggregated_data_pre, df_part], axis=1)
+                        genotype_phenotype_mapping_pre.append(mapping_dict)
+                        if cov_dict is not None:
+                            sample_covariates_pre.append(cov_dict)
+                    
+                    total_individuals = len(individual_ids)
+                    kept_individuals  = len(aggregated_data_pre.columns)
+                    status = "PASSED" if kept_individuals >= n_individ else "FAILED"
+
+                    
+                    with open(f"{prefix2}{method}__{modified_agg_col}___log.txt", "w") as fh:
+                        fh.write(f"[SUMMARY] method={method} agg_col={agg_col} celltype={type}\n")
+                        fh.write(f"[COUNTS] total={total_individuals} kept={kept_individuals}\n")
+                        fh.write(f"[THRESHOLD] required_n_individ={n_individ} -> {status}\n")
+                        if len(shared_log) > 0:
+                            for line in shared_log:
+                                fh.write(line + "\n")
+                        # --- end parallel block ---
+
                     # assess whether correct number of individuals ended up having right ammount of cells
                     if (len(aggregated_data_pre.columns)>=n_individ):
                         aggregated_data=pd.concat([aggregated_data,aggregated_data_pre],axis=1)
                         genotype_phenotype_mapping= genotype_phenotype_mapping+ genotype_phenotype_mapping_pre
-
+                else:
+                    with open(f"{prefix2}{method}__{modified_agg_col}___log.txt", "w") as fh:
+                        fh.write(f"[SUMMARY] method={method} agg_col={agg_col} celltype={type}\n")
+                        fh.write(f"[COUNTS] total={len(cell_adata.obs['adata_phenotype_id'].unique())}\n")
+                        fh.write(f"[THRESHOLD] required_n_individ={n_individ} -> FAILED\n")
+                    
                 genotype_phenotype_mapping = pd.DataFrame(genotype_phenotype_mapping)
                 if(len(genotype_phenotype_mapping)>=10):
-                    genotype_phenotype_mapping.to_csv(f'{method}__{modified_agg_col}___genotype_phenotype_mapping.tsv',sep='\t',index=False)
-                    aggregated_data.to_csv(f'{method}__{modified_agg_col}___phenotype_file.tsv',sep='\t',index=True)
+                    genotype_phenotype_mapping.to_csv(f'{prefix}{method}__{modified_agg_col}___genotype_phenotype_mapping.tsv',sep='\t',index=False)
+                    aggregated_data.to_csv(f'{prefix}{method}__{modified_agg_col}___phenotype_file.tsv',sep='\t',index=True)
                 if options.sample_covariate_column and len(sample_covariates_pre) > 0:
                     pd.DataFrame(sample_covariates_pre).to_csv(
-                        f'{method}__{modified_agg_col}___sample_covariates.tsv', sep='\t', index=False
+                        f'{prefix}{method}__{modified_agg_col}___sample_covariates.tsv', sep='\t', index=False
                     )
     print('Successfully Finished')
 

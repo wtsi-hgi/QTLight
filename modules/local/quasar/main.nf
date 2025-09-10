@@ -8,7 +8,7 @@ process QUASAR{
         container "${params.eqtl_docker}"
     }
 
-    publishDir  path: "${params.outdir}/QUASAR/$pcs/",
+    publishDir  path: "${params.outdir}/QUASAR/${condition}/$pcs/",
                 mode: "${params.copy_mode}",
                 overwrite: "true"
 

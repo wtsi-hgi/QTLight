@@ -71,17 +71,18 @@ def main():
         '-h5ad', '--h5ad',
         action='store',
         dest='h5ad',
+        
         required=True,
         help=''
     )
     
     parser.add_argument(
-        '-conditions', '--conditions',
+        '-number_of_cunks', '--number_of_cunks',
         action='store',
         dest='conditions',
         required=False,
-        default=None,
-        help=''
+        default=1,
+        help='Number of chunks to split unique values of agg_col into.'
     )
 
     options = parser.parse_args()
@@ -109,56 +110,42 @@ def main():
             print(f'Aggregation column {agg_col} doesnt exist in adata')
             continue
 
-        for type in data_col.unique():
-            if type_analysis != 'all':
-                if type not in conditions:
-                    continue
-            # print(type)
-            # print("----------")
-            # cell_adata = adata[adata.obs[agg_col] == type]#.copy(filename='tmp.h5ad')  # can also use .to_memory() which will be faster but more memory consuming. This is a view, not a copy
-            # agg_col_cleaned = re.sub(r'\W+', '_', agg_col.replace(' ', '_'))
-            # tp2 = re.sub(r'\W+', '_', type.replace(' ', '_'))
-
-            # output_file = f'{agg_col_cleaned}__{tp2}__split.h5ad'
-            # print(f'Writing to {output_file}...')
-
-            # # Write directly from the view
-            # print(f"Final shape is: {cell_adata.obs.shape}") 
-            # # inc_write(cell_adata,output_file)
-            # cell_adata.write(output_file)
-            # cell_adata.file.close()
-
-            # # Remove the temporary file
-            # os.remove('tmp.h5ad')
-            # del cell_adata
-            # gc.collect()  # Force garbage collection to free up memory
-            
-            
-            print(type)
-            print("----------")
+        types = data_col.unique().tolist()
+        n_chunks = max(1, min(int(options.conditions), len(types)))
+        chunks = [list(arr) for arr in np.array_split(types, n_chunks)]
+        agg_col_cleaned = re.sub(r'\W+', '_', agg_col.replace(' ', '_'))
+        
+        for i, chunk_types in enumerate(chunks, 1):
+            if not chunk_types:
+                continue
+            print(f"[chunk {i}/{n_chunks}] types: {len(chunk_types)}")
+           
             adata.file.close() 
             del adata
             gc.collect() 
-            adata = sc.read_h5ad(filename=h5ad, backed='r')
-            
-            cell_adata = adata[adata.obs[agg_col] == type] #.copy(filename='tmp.h5ad')  # can also use .to_memory() which will be faster but more memory consuming. This is a view, not a copy
-            agg_col_cleaned = re.sub(r'\W+', '_', agg_col.replace(' ', '_'))
-            tp2 = re.sub(r'\W+', '_', str(type).replace(' ', '_'))
+            adata = sc.read_h5ad(filename=h5ad, backed='r')           
+ 
+            mask = adata.obs[agg_col].isin(chunk_types).values
+            n_cells = int(mask.sum())
+            if n_cells == 0:
+                print("  -> empty chunk, skipping")
+                continue
 
-            output_file = f'{agg_col_cleaned}__{tp2}__split.h5ad'
+            
+            cell_adata = adata[mask, :] #.copy(filename='tmp.h5ad')  # can also use .to_memory() which will be faster but more memory consuming. This is a view, not a copy
+
+            
+            output_file = f'{h5ad}--{i}'
             print(f'Writing to {output_file}...')
 
             # Write directly from the view
-            print(f"Final shape is: {cell_adata.obs.shape}") 
-            if 0 in cell_adata.obs.shape:
-                print("obs has a zero-sized dimension")
-            else:
-                try:
-                    cell_adata.write(output_file)
-                except:
-                    cell_adata = cell_adata.to_memory()
-                    cell_adata.write(output_file)
-                cell_adata.file.close()
+            print(f"Final shape is: {cell_adata.obs.shape} with nr Donors: {len(chunk_types)} ") 
+            try:
+                cell_adata.write(output_file)
+            except:
+                cell_adata = cell_adata.to_memory()
+                cell_adata.write(output_file)
+            cell_adata.file.close()
             del cell_adata
 
     adata.file.close()  # Close the AnnData file to free up resources
