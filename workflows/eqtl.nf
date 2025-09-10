@@ -285,15 +285,30 @@ workflow EQTL {
             log.info("------- Genotype-Phenotype mapping file provided, will remap using this file - ${params.genotype_phenotype_mapping_file} ------- ")
             mapping_ch = Channel.fromPath(params.genotype_phenotype_mapping_file)
             REMAP_GENOTPE_ID(out2.combine(mapping_ch))
-            phenotype_condition = REMAP_GENOTPE_ID.out.remap_genotype_phenotype_mapping
-            genotype_phenotype_mapping_file = REMAP_GENOTPE_ID.out.genotype_phenotype_mapping
+ 
+            REMAP_GENOTPE_ID.out.remap_genotype_phenotype_mapping
+                .map { sc, pheno, remap ->
+                    def f = (remap instanceof List) ? remap[0] : remap
+                    def n = f.newReader().lines().count() as long
+                    tuple(sc, pheno, f, n)
+                }
+                .filter { sc, pheno, f, n -> n > params.n_min_individ }
+                .map    { sc, pheno, f, n -> tuple(sc, pheno, f) }
+                .set { phenotype_condition_remap }
+
+            REMAP_GENOTPE_ID.out.genotype_phenotype_mapping
+                .map { f -> tuple(f, f.newReader().lines().count()) }
+                .filter { f, n -> n > params.n_min_individ }
+                .map { f, n -> f }   // keep only the file, drop the count
+                .set { genotype_phenotype_mapping_file_remap }
+
         }else{
             log.info("------- Genotype-Phenotype mapping file NOT provided, will asume that the ids are already correct ------- ")
-            phenotype_condition = out2
-            genotype_phenotype_mapping_file = genotype_phenotype_mappings.flatten()
+            phenotype_condition_remap = out2
+            genotype_phenotype_mapping_file_remap = genotype_phenotype_mappings.flatten()
         }
 
-        genotype_phenotype_mapping_file.splitCsv(header: true, sep: params.input_tables_column_delimiter)
+        genotype_phenotype_mapping_file_remap.splitCsv(header: true, sep: params.input_tables_column_delimiter)
             .map{row->tuple(row.Genotype)}.distinct()
             .set{channel_input_data_table2}
         channel_input_data_table=channel_input_data_table2.collect()
@@ -346,7 +361,7 @@ workflow EQTL {
     if (params.input_vcf){
         // VCF file processing
          // Case 1: VCF provided → optionally subset and filter, then use as input
-        log.info "---- VCF file provided - ${input_vcf} Lets preprocess genotypes and aply any bcftools filters ---"
+        log.info "---- VCF file provided - ${params.input_vcf} Lets preprocess genotypes and aply any bcftools filters ---"
         donorsvcf = Channel.from(params.input_vcf)
         if (params.genotypes.subset_genotypes_to_available){
             // Subset genotypes to available in expression data
@@ -594,7 +609,7 @@ workflow EQTL {
 
     
     log.info "--- Normalising agregated penotype file  using: Filtering method: ${params.filter_method} Norm method: ${params.method} Inverse Transform: ${params.inverse_normal_transform} Norm method:  ${params.norm_method} Percent of Population expressed: ${params.percent_of_population_expressed} Sample PCa: ${params.use_sample_pca}---"
-    NORMALISE_and_PCA_PHENOTYPE(phenotype_condition)
+    NORMALISE_and_PCA_PHENOTYPE(phenotype_condition_remap)
     log.info "--- testing these PCs: ${params.covariates.nr_phenotype_pcs} ---"
     Channel.of(params.covariates.nr_phenotype_pcs).splitCsv().flatten().set{pcs}
     NORMALISE_and_PCA_PHENOTYPE.out.for_bed.combine(pcs).set{test123}
