@@ -14,25 +14,14 @@ This pipeline is running TensorQTL and/or LIMIX and/or jaxQTL on bulk and/or SAI
 
 The pipeline is built using [Nextflow](https://www.nextflow.io), a workflow tool to run tasks across multiple compute infrastructures in a very portable manner. It uses Docker/Singularity containers making installation trivial and results highly reproducible.
 
-### TensorQTL
+### QTLight
 <p align="center">
-  <img src="https://github.com/wtsi-hgi/QTLight/blob/v1.80/assets/images//Yascp_workflow-03eqtl_workflow.png" width="100%"/>
+  <img src="https://github.com/wtsi-hgi/QTLight/blob/main/assets/images/eqtl_workflow.png" width="100%"/>
 </p>
-
+<img src="https://github.com/wtsi-hgi/QTLight/blob/main/assets/images/eqtl_workflow.png
 ### SaigeQTL
 <p align="center">
   <img src="https://github.com/wtsi-hgi/QTLight/blob/v1.80/assets/images//Yascp_workflow-03eqtl_workflow_saige.png" width="100%"/>
-</p>
-
-
-### LIMIX
-<p align="center">
-  <img src="https://github.com/wtsi-hgi/QTLight/blob/v1.80/assets/images//Yascp_workflow-03eqtl_workflow_limix.png" width="100%"/>
-</p>
-
-### jaxQTL
-<p align="center">
-  <img src="https://github.com/wtsi-hgi/QTLight/blob/v1.80/assets/images//Yascp_workflow-03eqtl_workflow_jax.png" width="100%"/>
 </p>
 
 ## Pipeline summary
