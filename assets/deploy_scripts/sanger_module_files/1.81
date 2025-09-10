@@ -1,5 +1,5 @@
 #%Module1.0
-set version v1.80
+set version v1.81
 set program QTLight
 
 set version [file tail [module-info version [module-info name]]]
@@ -15,10 +15,10 @@ proc ModulesHelp { } {
 }
 
 module-whatis   "Nextflow Pipeline  - QTLight version $version is an qtl mapping pipeline for scrna, bulk-RNAseq, Chipseq, atac, splicing, metabolomics."
-module-whatis   "Name: QTLight (https://github.com/wtsi-hgi/QTLight), Version: v1.80; TensorQTL, JaxQTL, LIMIX, SaigeQTL"
+module-whatis   "Name: QTLight (https://github.com/wtsi-hgi/QTLight), Version: v1.81; TensorQTL, JaxQTL, LIMIX, SaigeQTL"
 
 
-set install /software/hgi/pipelines/QTLight/QTLight_v1.80
+set install /software/hgi/pipelines/QTLight/QTLight_v1.81
 module load ISG/singularity/3.11.4
 module load HGI/common/nextflow/24.10.4
-prepend-path PATH "/software/hgi/pipelines/QTLight/QTLight_v1.80/assets/deploy_scripts/module_exacutables"
+prepend-path PATH "/software/hgi/pipelines/QTLight/QTLight_v1.81/assets/deploy_scripts/module_exacutables"
