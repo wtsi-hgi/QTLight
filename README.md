@@ -32,6 +32,7 @@ The pipeline is built using [Nextflow](https://www.nextflow.io), a workflow tool
 6. TensorQTL qtl mapping ([`TensorQTL`](https://github.com/broadinstitute/tensorqtl))
 7. SAIGE-QTL mapping ([`SAIGE-QTL`](https://github.com/weizhou0/qtl))
 7. jaxQTL mapping ([`jaxQTL`](https://github.com/mancusolab/jaxqtl))
+8. quasar mapping ([`quasar`](https://jeffreypullin.github.io/quasar/))
 
 ## Quick Start
 
