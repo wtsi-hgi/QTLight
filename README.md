@@ -14,10 +14,22 @@ This pipeline is running TensorQTL and/or LIMIX and/or jaxQTL on bulk and/or SAI
 
 The pipeline is built using [Nextflow](https://www.nextflow.io), a workflow tool to run tasks across multiple compute infrastructures in a very portable manner. It uses Docker/Singularity containers making installation trivial and results highly reproducible.
 
-### QTLight
+### QTLight workflow overview
 <p align="center">
   <img src="https://github.com/wtsi-hgi/QTLight/blob/main/assets/images/eqtl_workflow.png" width="100%"/>
 </p>
+
+> **Figure 1. Overview of the QTLight workflow.**  
+> Input genotypes (VCF, PLINK binary, or BGEN) and phenotype matrices (e.g. single-cell or bulk RNA-seq counts, ATAC-seq peak counts, or proteomics intensities) are processed through modular steps for filtering, normalisation, covariate integration, and format conversion.  
+> Outputs are directed into five mapping backends:  
+> 🟢 **SAIGE-QTL** – Poisson mixed models robust to case–control imbalance and rare variants  
+> 🟠 **TensorQTL** – fast regression framework for large-scale cis/trans scans  
+> 🧊 **Limix** – flexible mixed-model inference  
+> 🔵 **quasar** – fast C++ QTL mapper supporting quantitative and count-based traits  
+> 🔴 **JaxQTL** – GPU-accelerated mapping for high-throughput contexts  
+> Coloured lines in the diagram correspond to these engines, indicating the data paths to each backend.
+
+
 
 
 ## Pipeline summary
