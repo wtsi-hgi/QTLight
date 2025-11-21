@@ -323,6 +323,15 @@ def main():
             covariates_string=''
             if covariates:
                 print("Extracting and sorting covariates")
+                #remove covariates that are not in the data
+
+                missing = [c for c in covariates if c not in temp.obs.columns]
+                if missing:
+                    print(f'These covariates are missing and will be ignored: {missing}')
+
+                adata_cols = list(temp.obs.columns)
+                covariates = list(set(covariates) & set(adata_cols))
+
                 try:
                     to_add = preprocess_covariates(temp.obs[covariates], scale_covariates)
                     to_add = to_add.loc[:, ~to_add.columns.duplicated()]
