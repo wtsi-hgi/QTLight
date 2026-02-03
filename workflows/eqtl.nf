@@ -58,9 +58,9 @@ workflow EQTL {
             input_channel.splitCsv(header: true, sep: params.input_tables_column_delimiter)
                 .map{row->row.Sample_Category}.distinct().set{condition_channel}
             SPLIT_PHENOTYPE_DATA(genotype_phenotype_mapping_file,phenotype_file,condition_channel)
-            phenotype_condition = SPLIT_PHENOTYPE_DATA.out.phenotye_file
+            phenotype_condition_remap = SPLIT_PHENOTYPE_DATA.out.phenotye_file
         }else{
-            phenotype_condition = Channel.from("foo").map { foo -> tuple("full",file(params.phenotype_file),file("$projectDir/assets/fake_file.fq")) }
+            phenotype_condition_remap = Channel.from("foo").map { foo -> tuple("full",file(params.phenotype_file),file("$projectDir/assets/fake_file.fq")) }
         }
 
     }else if (params.method=='single_cell'){
